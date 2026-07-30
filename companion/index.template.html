@@ -190,7 +190,8 @@ window.act={
     doAct((ms>0?"+":"−")+fmt(Math.abs(ms))+" clock",{timer:t})},
   resetT(){doAct("Reset clock",{timer:{mode:"idle",endsAt:0,remain:S.timer.dur,dur:S.timer.dur}})},
   meeting(){const t=T();if(t.mode==="run"){t.remain=remOf(t);t.mode="pause"}
-    doAct("Meeting started",{timer:t,banner:"meeting",phase:{mode:"run",endsAt:now()+180000,remain:180000,label:"MEETING"}})},
+    doAct("Meeting started",{timer:t,banner:"meeting",sabotageSet:0,   // a meeting cancels any live sabotage outright
+      phase:{mode:"run",endsAt:now()+180000,remain:180000,label:"MEETING"}})},
   endMeeting(){doAct("Meeting ended",{banner:"none",phase:IDLE})},
   phasePre(sec,label){doAct("Phase "+label.toLowerCase(),{phase:{mode:"run",endsAt:now()+sec*1000,remain:sec*1000,label}})},
   phaseStop(){doAct("Phase stopped",{phase:IDLE})},
@@ -198,9 +199,11 @@ window.act={
   ejectImp(){doAct("Imposter caught",{impostersCaught:S.impostersCaught+1,banner:"none",phase:IDLE})},
   sab(n){doAct("Sabotage — set "+n,{banner:"sabotage",sabotageSet:n,sabotagesUsed:S.sabotagesUsed+1,
     phase:{mode:"run",endsAt:now()+120000,remain:120000,label:"SABOTAGE"}})},
-  sabOk(){const t=T();if(t.mode==="run")t.endsAt+=60000;else t.remain+=60000;
+  sabOk(){if(S.banner!=="sabotage")return;                          // no sabotage running = nothing to resolve
+    const t=T();if(t.mode==="run")t.endsAt+=60000;else t.remain+=60000;
     doAct("Sabotage success (+1:00)",{timer:t,banner:"none",sabotageSet:0,phase:IDLE})},
-  sabFail(){const t=T();if(t.mode==="run")t.endsAt=Math.max(now(),t.endsAt-90000);else t.remain=Math.max(0,t.remain-90000);
+  sabFail(){if(S.banner!=="sabotage")return;
+    const t=T();if(t.mode==="run")t.endsAt=Math.max(now(),t.endsAt-90000);else t.remain=Math.max(0,t.remain-90000);
     doAct("Sabotage failed (+2 deaths, −1:30)",{timer:t,deaths:S.deaths+2,banner:"none",sabotageSet:0,phase:IDLE})},
   dAdj(n){doAct("Death "+(n>0?"+1":"−1"),{deaths:Math.max(0,S.deaths+n)})},
   thAdj(n){doAct("Threshold "+(n>0?"+1":"−1"),{threshold:Math.max(1,S.threshold+n)})},
@@ -276,6 +279,9 @@ function undoHTML(){
 }
 function controlsHTML(role){
   const t=S.timer;
+  // A re-render (any other phone acting) must not silently drop the New round
+  // confirm: the label is derived from armNew so the two can never disagree.
+  const armed=!!armNew&&Date.now()-armNew<3000;
   const sabSection=S.banner==="sabotage"
     ?(role==="cc"?`<div class="row">
         <button class="btn-ok" onclick="act.sabOk()">SUCCESS&nbsp; +1:00</button>
@@ -331,7 +337,8 @@ function controlsHTML(role){
   <div class="row"><button onclick="act.tgAdj(-1)">Target −</button><button onclick="act.tgAdj(1)">Target +</button></div>
   ${undoHTML()}
   <div class="sect">Round ${S.round}</div>
-  <div class="row"><button class="btn-ghost" onclick="act.newRound(this)">New round — resets deaths &amp; clock</button></div>`;
+  <div class="row"><button class="btn-ghost${armed?" arm":""}" onclick="act.newRound(this)">${
+    armed?"Tap again to confirm":"New round — resets deaths &amp; clock"}</button></div>`;
 }
 function groupHTML(g){
   const codes=DATA.doors.map(d=>`<div class="cd"><span>${d}</span><b>${DATA.code[d][g]}</b></div>`).join("");
