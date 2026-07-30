@@ -1,0 +1,295 @@
+{
+ "bible": "pew Bible \u2014 record edition on the key",
+ "verses": [
+  {
+   "ref": "1 Samuel 23:1",
+   "page": 290
+  },
+  {
+   "ref": "2 Kings 22:2",
+   "page": 387
+  },
+  {
+   "ref": "Job 34:7",
+   "page": 518
+  },
+  {
+   "ref": "Psalm 54:3",
+   "page": 562
+  },
+  {
+   "ref": "Isaiah 11:3",
+   "page": 683
+  },
+  {
+   "ref": "Daniel 3:8",
+   "page": 878
+  },
+  {
+   "ref": "Matthew 5:17",
+   "page": 963
+  },
+  {
+   "ref": "Mark 8:2",
+   "page": 1002
+  },
+  {
+   "ref": "Luke 2:36",
+   "page": 1019
+  },
+  {
+   "ref": "John 21:20",
+   "page": 1079
+  },
+  {
+   "ref": "Acts 12:19",
+   "page": 1094
+  },
+  {
+   "ref": "Ephesians 4:8",
+   "page": 1161
+  },
+  {
+   "ref": "Philippians 4:14",
+   "page": 1167
+  },
+  {
+   "ref": "Hebrews 3:2",
+   "page": 1188
+  },
+  {
+   "ref": "1 Peter 4:12",
+   "page": 1206
+  },
+  {
+   "ref": "Revelation 14:2",
+   "page": 1227
+  }
+ ],
+ "groups": [
+  {
+   "group": 1,
+   "refs": [
+    "1 Samuel 23:1",
+    "Matthew 5:17",
+    "John 21:20"
+   ],
+   "pages": [
+    290,
+    963,
+    1079
+   ],
+   "ot": 1
+  },
+  {
+   "group": 2,
+   "refs": [
+    "1 Samuel 23:1",
+    "Acts 12:19",
+    "Ephesians 4:8"
+   ],
+   "pages": [
+    290,
+    1094,
+    1161
+   ],
+   "ot": 1
+  },
+  {
+   "group": 3,
+   "refs": [
+    "1 Samuel 23:1",
+    "Mark 8:2",
+    "1 Peter 4:12"
+   ],
+   "pages": [
+    290,
+    1002,
+    1206
+   ],
+   "ot": 1
+  },
+  {
+   "group": 4,
+   "refs": [
+    "2 Kings 22:2",
+    "Psalm 54:3",
+    "Matthew 5:17"
+   ],
+   "pages": [
+    387,
+    562,
+    963
+   ],
+   "ot": 2
+  },
+  {
+   "group": 5,
+   "refs": [
+    "2 Kings 22:2",
+    "Luke 2:36",
+    "1 Peter 4:12"
+   ],
+   "pages": [
+    387,
+    1019,
+    1206
+   ],
+   "ot": 1
+  },
+  {
+   "group": 6,
+   "refs": [
+    "2 Kings 22:2",
+    "Acts 12:19",
+    "Hebrews 3:2"
+   ],
+   "pages": [
+    387,
+    1094,
+    1188
+   ],
+   "ot": 1
+  },
+  {
+   "group": 7,
+   "refs": [
+    "Job 34:7",
+    "Philippians 4:14",
+    "Hebrews 3:2"
+   ],
+   "pages": [
+    518,
+    1167,
+    1188
+   ],
+   "ot": 1
+  },
+  {
+   "group": 8,
+   "refs": [
+    "Job 34:7",
+    "Mark 8:2",
+    "Luke 2:36"
+   ],
+   "pages": [
+    518,
+    1002,
+    1019
+   ],
+   "ot": 1
+  },
+  {
+   "group": 9,
+   "refs": [
+    "Job 34:7",
+    "John 21:20",
+    "1 Peter 4:12"
+   ],
+   "pages": [
+    518,
+    1079,
+    1206
+   ],
+   "ot": 1
+  },
+  {
+   "group": 10,
+   "refs": [
+    "Psalm 54:3",
+    "John 21:20",
+    "Ephesians 4:8"
+   ],
+   "pages": [
+    562,
+    1079,
+    1161
+   ],
+   "ot": 1
+  },
+  {
+   "group": 11,
+   "refs": [
+    "Psalm 54:3",
+    "Hebrews 3:2",
+    "Revelation 14:2"
+   ],
+   "pages": [
+    562,
+    1188,
+    1227
+   ],
+   "ot": 1
+  },
+  {
+   "group": 12,
+   "refs": [
+    "Isaiah 11:3",
+    "Daniel 3:8",
+    "Acts 12:19"
+   ],
+   "pages": [
+    683,
+    878,
+    1094
+   ],
+   "ot": 2
+  },
+  {
+   "group": 13,
+   "refs": [
+    "Isaiah 11:3",
+    "Mark 8:2",
+    "Revelation 14:2"
+   ],
+   "pages": [
+    683,
+    1002,
+    1227
+   ],
+   "ot": 1
+  },
+  {
+   "group": 14,
+   "refs": [
+    "Isaiah 11:3",
+    "Ephesians 4:8",
+    "Philippians 4:14"
+   ],
+   "pages": [
+    683,
+    1161,
+    1167
+   ],
+   "ot": 1
+  },
+  {
+   "group": 15,
+   "refs": [
+    "Daniel 3:8",
+    "Matthew 5:17",
+    "Philippians 4:14"
+   ],
+   "pages": [
+    878,
+    963,
+    1167
+   ],
+   "ot": 1
+  },
+  {
+   "group": 16,
+   "refs": [
+    "Daniel 3:8",
+    "Luke 2:36",
+    "Revelation 14:2"
+   ],
+   "pages": [
+    878,
+    1019,
+    1227
+   ],
+   "ot": 1
+  }
+ ]
+}

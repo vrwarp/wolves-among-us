@@ -1,0 +1,712 @@
+{
+ "cards": {
+  "1": [
+   [
+    "Hard",
+    "I Can Fly"
+   ],
+   [
+    "Med",
+    "Apple Stack"
+   ],
+   [
+    "Med",
+    "Simple Maze"
+   ],
+   [
+    "Med",
+    "Special Delivery"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ]
+  ],
+  "2": [
+   [
+    "Hard",
+    "Verse Order"
+   ],
+   [
+    "Med",
+    "Apple Stack"
+   ],
+   [
+    "Med",
+    "Simple Maze"
+   ],
+   [
+    "Med",
+    "Special Delivery"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ]
+  ],
+  "3": [
+   [
+    "Hard",
+    "I Can Fly"
+   ],
+   [
+    "Med",
+    "Apple Stack"
+   ],
+   [
+    "Med",
+    "Special Delivery"
+   ],
+   [
+    "Med",
+    "Sudoku"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ]
+  ],
+  "4": [
+   [
+    "Hard",
+    "Verse Order"
+   ],
+   [
+    "Med",
+    "Apple Stack"
+   ],
+   [
+    "Med",
+    "Cup Stack"
+   ],
+   [
+    "Med",
+    "Special Delivery"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ]
+  ],
+  "5": [
+   [
+    "Hard",
+    "Verse Order"
+   ],
+   [
+    "Med",
+    "Cup Stack"
+   ],
+   [
+    "Med",
+    "Special Delivery"
+   ],
+   [
+    "Med",
+    "Sudoku"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ]
+  ],
+  "6": [
+   [
+    "Hard",
+    "Verse Order"
+   ],
+   [
+    "Med",
+    "Apple Stack"
+   ],
+   [
+    "Med",
+    "Special Delivery"
+   ],
+   [
+    "Med",
+    "Sudoku"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ]
+  ],
+  "7": [
+   [
+    "Hard",
+    "I Can Fly"
+   ],
+   [
+    "Med",
+    "Apple Stack"
+   ],
+   [
+    "Med",
+    "Special Delivery"
+   ],
+   [
+    "Med",
+    "Sudoku"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ]
+  ],
+  "8": [
+   [
+    "Hard",
+    "I Can Fly"
+   ],
+   [
+    "Med",
+    "Cup Stack"
+   ],
+   [
+    "Med",
+    "Simple Maze"
+   ],
+   [
+    "Med",
+    "Sudoku"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ]
+  ],
+  "9": [
+   [
+    "Hard",
+    "Verse Order"
+   ],
+   [
+    "Med",
+    "Apple Stack"
+   ],
+   [
+    "Med",
+    "Simple Maze"
+   ],
+   [
+    "Med",
+    "Sudoku"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ]
+  ],
+  "10": [
+   [
+    "Hard",
+    "I Can Fly"
+   ],
+   [
+    "Med",
+    "Cup Stack"
+   ],
+   [
+    "Med",
+    "Simple Maze"
+   ],
+   [
+    "Med",
+    "Special Delivery"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ]
+  ],
+  "11": [
+   [
+    "Hard",
+    "I Can Fly"
+   ],
+   [
+    "Med",
+    "Cup Stack"
+   ],
+   [
+    "Med",
+    "Simple Maze"
+   ],
+   [
+    "Med",
+    "Special Delivery"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ]
+  ],
+  "12": [
+   [
+    "Hard",
+    "Verse Order"
+   ],
+   [
+    "Med",
+    "Cup Stack"
+   ],
+   [
+    "Med",
+    "Simple Maze"
+   ],
+   [
+    "Med",
+    "Sudoku"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ]
+  ],
+  "13": [
+   [
+    "Hard",
+    "Verse Order"
+   ],
+   [
+    "Med",
+    "Cup Stack"
+   ],
+   [
+    "Med",
+    "Simple Maze"
+   ],
+   [
+    "Med",
+    "Sudoku"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ]
+  ],
+  "14": [
+   [
+    "Hard",
+    "Verse Order"
+   ],
+   [
+    "Med",
+    "Cup Stack"
+   ],
+   [
+    "Med",
+    "Simple Maze"
+   ],
+   [
+    "Med",
+    "Sudoku"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ]
+  ],
+  "15": [
+   [
+    "Hard",
+    "Verse Order"
+   ],
+   [
+    "Med",
+    "Simple Maze"
+   ],
+   [
+    "Med",
+    "Special Delivery"
+   ],
+   [
+    "Med",
+    "Sudoku"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ]
+  ],
+  "16": [
+   [
+    "Hard",
+    "I Can Fly"
+   ],
+   [
+    "Med",
+    "Apple Stack"
+   ],
+   [
+    "Med",
+    "Simple Maze"
+   ],
+   [
+    "Med",
+    "Sudoku"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ]
+  ]
+ },
+ "verse_triples": {
+  "2": [
+   [
+    "2 Kings 22:2",
+    387
+   ],
+   [
+    "Daniel 3:8",
+    878
+   ],
+   [
+    "Matthew 5:17",
+    963
+   ]
+  ],
+  "4": [
+   [
+    "Job 34:7",
+    518
+   ],
+   [
+    "Luke 2:36",
+    1019
+   ],
+   [
+    "Ephesians 4:8",
+    1161
+   ]
+  ],
+  "5": [
+   [
+    "Psalm 54:3",
+    562
+   ],
+   [
+    "John 21:20",
+    1079
+   ],
+   [
+    "Revelation 14:2",
+    1227
+   ]
+  ],
+  "6": [
+   [
+    "1 Samuel 23:1",
+    290
+   ],
+   [
+    "Mark 8:2",
+    1002
+   ],
+   [
+    "Philippians 4:14",
+    1167
+   ]
+  ],
+  "9": [
+   [
+    "Isaiah 11:3",
+    683
+   ],
+   [
+    "Acts 12:19",
+    1094
+   ],
+   [
+    "1 Peter 4:12",
+    1206
+   ]
+  ],
+  "12": [
+   [
+    "1 Samuel 23:1",
+    290
+   ],
+   [
+    "Ephesians 4:8",
+    1161
+   ],
+   [
+    "Hebrews 3:2",
+    1188
+   ]
+  ],
+  "13": [
+   [
+    "2 Kings 22:2",
+    387
+   ],
+   [
+    "John 21:20",
+    1079
+   ],
+   [
+    "Philippians 4:14",
+    1167
+   ]
+  ],
+  "14": [
+   [
+    "Isaiah 11:3",
+    683
+   ],
+   [
+    "Matthew 5:17",
+    963
+   ],
+   [
+    "Luke 2:36",
+    1019
+   ]
+  ],
+  "15": [
+   [
+    "Job 34:7",
+    518
+   ],
+   [
+    "1 Peter 4:12",
+    1206
+   ],
+   [
+    "Revelation 14:2",
+    1227
+   ]
+  ]
+ },
+ "up": {
+  "1": [
+   "U1",
+   "U2",
+   "U3",
+   "U4"
+  ],
+  "2": [
+   "U1",
+   "U2",
+   "U3",
+   "U4"
+  ],
+  "3": [
+   "U1",
+   "U2",
+   "U3",
+   "U4"
+  ],
+  "4": [
+   "U1",
+   "U2",
+   "U3",
+   "U4"
+  ],
+  "5": [
+   "U1",
+   "U2",
+   "U3",
+   "U4"
+  ],
+  "6": [
+   "U1",
+   "U2",
+   "U3",
+   "U4"
+  ],
+  "8": [
+   "U1",
+   "U2",
+   "U3",
+   "U4"
+  ],
+  "10": [
+   "U1",
+   "U2",
+   "U3",
+   "U4"
+  ],
+  "11": [
+   "U1",
+   "U2",
+   "U3",
+   "U4"
+  ],
+  "13": [
+   "U1",
+   "U2",
+   "U3",
+   "U4"
+  ],
+  "14": [
+   "U1",
+   "U2",
+   "U3",
+   "U4"
+  ]
+ },
+ "down": {
+  "1": [
+   "D1",
+   "D2",
+   "D3"
+  ],
+  "2": [
+   "D1",
+   "D2",
+   "D3"
+  ],
+  "6": [
+   "D1",
+   "D2",
+   "D3"
+  ],
+  "7": [
+   "D1",
+   "D2",
+   "D3"
+  ],
+  "8": [
+   "D1",
+   "D2",
+   "D3"
+  ],
+  "9": [
+   "D1",
+   "D2",
+   "D3"
+  ],
+  "11": [
+   "D1",
+   "D2",
+   "D3"
+  ],
+  "12": [
+   "D1",
+   "D2",
+   "D3"
+  ],
+  "14": [
+   "D1",
+   "D2",
+   "D3"
+  ],
+  "15": [
+   "D1",
+   "D2",
+   "D3"
+  ],
+  "16": [
+   "D1",
+   "D2",
+   "D3"
+  ]
+ },
+ "dir": {
+  "1": "Lobby \u2192 Dead Room",
+  "2": "Dead Room \u2192 Lobby",
+  "3": "Lobby \u2192 Dead Room",
+  "4": "Dead Room \u2192 Lobby",
+  "5": "Lobby \u2192 Dead Room",
+  "6": "Dead Room \u2192 Lobby",
+  "7": "Lobby \u2192 Dead Room",
+  "10": "Dead Room \u2192 Lobby",
+  "11": "Lobby \u2192 Dead Room",
+  "15": "Dead Room \u2192 Lobby"
+ },
+ "gospel": {
+  "1": "God",
+  "2": "Our",
+  "3": "Sins",
+  "4": "Paying",
+  "5": "Everyone",
+  "6": "Life",
+  "7": "God",
+  "8": "Our",
+  "9": "Sins",
+  "10": "Paying",
+  "11": "Everyone",
+  "12": "Life",
+  "13": "God",
+  "14": "Our",
+  "15": "Sins",
+  "16": "Paying"
+ },
+ "doors": [
+  "U1",
+  "U2",
+  "U3",
+  "U4",
+  "D1",
+  "D2",
+  "D3"
+ ]
+}

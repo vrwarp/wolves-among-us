@@ -1,0 +1,14 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Companion app: any device with the link can read/write game state.
+    // The game id in the URL is the only secret — fine for a game night,
+    // not for anything sensitive. Delete or lock the project afterwards.
+    match /games/{gameId} {
+      allow read, write: if true;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

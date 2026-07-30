@@ -1,0 +1,1083 @@
+{
+ "groups": 25,
+ "doors": [
+  "U1",
+  "U2",
+  "U3",
+  "U4",
+  "D1",
+  "D2",
+  "D3"
+ ],
+ "cards": {
+  "1": [
+   [
+    "Hard",
+    "I Can Fly"
+   ],
+   [
+    "Med",
+    "Cup Stack"
+   ],
+   [
+    "Med",
+    "Simple Maze"
+   ],
+   [
+    "Med",
+    "Sudoku"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ]
+  ],
+  "2": [
+   [
+    "Hard",
+    "I Can Fly"
+   ],
+   [
+    "Med",
+    "Cup Stack"
+   ],
+   [
+    "Med",
+    "Apple Stack"
+   ],
+   [
+    "Med",
+    "Simple Maze"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ]
+  ],
+  "3": [
+   [
+    "Hard",
+    "Verse Order"
+   ],
+   [
+    "Med",
+    "Cup Stack"
+   ],
+   [
+    "Med",
+    "Apple Stack"
+   ],
+   [
+    "Med",
+    "Simple Maze"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ]
+  ],
+  "4": [
+   [
+    "Hard",
+    "I Can Fly"
+   ],
+   [
+    "Med",
+    "Cup Stack"
+   ],
+   [
+    "Med",
+    "Apple Stack"
+   ],
+   [
+    "Med",
+    "Special Delivery"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ]
+  ],
+  "5": [
+   [
+    "Hard",
+    "Verse Order"
+   ],
+   [
+    "Med",
+    "Cup Stack"
+   ],
+   [
+    "Med",
+    "Apple Stack"
+   ],
+   [
+    "Med",
+    "Sudoku"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ]
+  ],
+  "6": [
+   [
+    "Hard",
+    "I Can Fly"
+   ],
+   [
+    "Med",
+    "Cup Stack"
+   ],
+   [
+    "Med",
+    "Simple Maze"
+   ],
+   [
+    "Med",
+    "Special Delivery"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ]
+  ],
+  "7": [
+   [
+    "Hard",
+    "I Can Fly"
+   ],
+   [
+    "Med",
+    "Apple Stack"
+   ],
+   [
+    "Med",
+    "Simple Maze"
+   ],
+   [
+    "Med",
+    "Sudoku"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ]
+  ],
+  "8": [
+   [
+    "Hard",
+    "Verse Order"
+   ],
+   [
+    "Med",
+    "Apple Stack"
+   ],
+   [
+    "Med",
+    "Simple Maze"
+   ],
+   [
+    "Med",
+    "Sudoku"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ]
+  ],
+  "9": [
+   [
+    "Hard",
+    "Verse Order"
+   ],
+   [
+    "Med",
+    "Cup Stack"
+   ],
+   [
+    "Med",
+    "Simple Maze"
+   ],
+   [
+    "Med",
+    "Sudoku"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ]
+  ],
+  "10": [
+   [
+    "Hard",
+    "I Can Fly"
+   ],
+   [
+    "Med",
+    "Apple Stack"
+   ],
+   [
+    "Med",
+    "Simple Maze"
+   ],
+   [
+    "Med",
+    "Special Delivery"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ]
+  ],
+  "11": [
+   [
+    "Hard",
+    "Verse Order"
+   ],
+   [
+    "Med",
+    "Cup Stack"
+   ],
+   [
+    "Med",
+    "Simple Maze"
+   ],
+   [
+    "Med",
+    "Special Delivery"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ]
+  ],
+  "12": [
+   [
+    "Hard",
+    "Verse Order"
+   ],
+   [
+    "Med",
+    "Simple Maze"
+   ],
+   [
+    "Med",
+    "Sudoku"
+   ],
+   [
+    "Med",
+    "Special Delivery"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ]
+  ],
+  "13": [
+   [
+    "Hard",
+    "I Can Fly"
+   ],
+   [
+    "Med",
+    "Simple Maze"
+   ],
+   [
+    "Med",
+    "Sudoku"
+   ],
+   [
+    "Med",
+    "Special Delivery"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ]
+  ],
+  "14": [
+   [
+    "Hard",
+    "Verse Order"
+   ],
+   [
+    "Med",
+    "Cup Stack"
+   ],
+   [
+    "Med",
+    "Sudoku"
+   ],
+   [
+    "Med",
+    "Special Delivery"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ]
+  ],
+  "15": [
+   [
+    "Hard",
+    "Verse Order"
+   ],
+   [
+    "Med",
+    "Cup Stack"
+   ],
+   [
+    "Med",
+    "Simple Maze"
+   ],
+   [
+    "Med",
+    "Sudoku"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ]
+  ],
+  "16": [
+   [
+    "Hard",
+    "I Can Fly"
+   ],
+   [
+    "Med",
+    "Simple Maze"
+   ],
+   [
+    "Med",
+    "Sudoku"
+   ],
+   [
+    "Med",
+    "Special Delivery"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ]
+  ],
+  "17": [
+   [
+    "Hard",
+    "Verse Order"
+   ],
+   [
+    "Med",
+    "Apple Stack"
+   ],
+   [
+    "Med",
+    "Sudoku"
+   ],
+   [
+    "Med",
+    "Special Delivery"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ]
+  ],
+  "18": [
+   [
+    "Hard",
+    "Verse Order"
+   ],
+   [
+    "Med",
+    "Cup Stack"
+   ],
+   [
+    "Med",
+    "Apple Stack"
+   ],
+   [
+    "Med",
+    "Special Delivery"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ]
+  ],
+  "19": [
+   [
+    "Hard",
+    "I Can Fly"
+   ],
+   [
+    "Med",
+    "Cup Stack"
+   ],
+   [
+    "Med",
+    "Apple Stack"
+   ],
+   [
+    "Med",
+    "Sudoku"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ]
+  ],
+  "20": [
+   [
+    "Hard",
+    "I Can Fly"
+   ],
+   [
+    "Med",
+    "Apple Stack"
+   ],
+   [
+    "Med",
+    "Simple Maze"
+   ],
+   [
+    "Med",
+    "Sudoku"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ]
+  ],
+  "21": [
+   [
+    "Hard",
+    "Verse Order"
+   ],
+   [
+    "Med",
+    "Apple Stack"
+   ],
+   [
+    "Med",
+    "Simple Maze"
+   ],
+   [
+    "Med",
+    "Special Delivery"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ]
+  ],
+  "22": [
+   [
+    "Hard",
+    "I Can Fly"
+   ],
+   [
+    "Med",
+    "Apple Stack"
+   ],
+   [
+    "Med",
+    "Sudoku"
+   ],
+   [
+    "Med",
+    "Special Delivery"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ]
+  ],
+  "23": [
+   [
+    "Hard",
+    "I Can Fly"
+   ],
+   [
+    "Med",
+    "Cup Stack"
+   ],
+   [
+    "Med",
+    "Sudoku"
+   ],
+   [
+    "Med",
+    "Special Delivery"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ]
+  ],
+  "24": [
+   [
+    "Hard",
+    "Verse Order"
+   ],
+   [
+    "Med",
+    "Simple Maze"
+   ],
+   [
+    "Med",
+    "Sudoku"
+   ],
+   [
+    "Med",
+    "Special Delivery"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ]
+  ],
+  "25": [
+   [
+    "Hard",
+    "Verse Order"
+   ],
+   [
+    "Med",
+    "Apple Stack"
+   ],
+   [
+    "Med",
+    "Simple Maze"
+   ],
+   [
+    "Med",
+    "Special Delivery"
+   ],
+   [
+    "Easy",
+    "Doors"
+   ],
+   [
+    "Easy",
+    "Gospel & Theme"
+   ]
+  ]
+ },
+ "verse_triples": {
+  "3": [
+   [
+    "2 Kings 22:2",
+    387
+   ],
+   [
+    "Daniel 3:8",
+    878
+   ],
+   [
+    "Matthew 5:17",
+    963
+   ]
+  ],
+  "5": [
+   [
+    "Job 34:7",
+    518
+   ],
+   [
+    "Luke 2:36",
+    1019
+   ],
+   [
+    "Ephesians 4:8",
+    1161
+   ]
+  ],
+  "8": [
+   [
+    "Psalm 54:3",
+    562
+   ],
+   [
+    "John 21:20",
+    1079
+   ],
+   [
+    "Revelation 14:2",
+    1227
+   ]
+  ],
+  "9": [
+   [
+    "1 Samuel 23:1",
+    290
+   ],
+   [
+    "Mark 8:2",
+    1002
+   ],
+   [
+    "Philippians 4:14",
+    1167
+   ]
+  ],
+  "11": [
+   [
+    "Isaiah 11:3",
+    683
+   ],
+   [
+    "Acts 12:19",
+    1094
+   ],
+   [
+    "1 Peter 4:12",
+    1206
+   ]
+  ],
+  "12": [
+   [
+    "1 Samuel 23:1",
+    290
+   ],
+   [
+    "Ephesians 4:8",
+    1161
+   ],
+   [
+    "Hebrews 3:2",
+    1188
+   ]
+  ],
+  "14": [
+   [
+    "Isaiah 11:3",
+    683
+   ],
+   [
+    "Daniel 3:8",
+    878
+   ],
+   [
+    "Mark 8:2",
+    1002
+   ]
+  ],
+  "15": [
+   [
+    "Psalm 54:3",
+    562
+   ],
+   [
+    "Luke 2:36",
+    1019
+   ],
+   [
+    "Hebrews 3:2",
+    1188
+   ]
+  ],
+  "17": [
+   [
+    "2 Kings 22:2",
+    387
+   ],
+   [
+    "John 21:20",
+    1079
+   ],
+   [
+    "Acts 12:19",
+    1094
+   ]
+  ],
+  "18": [
+   [
+    "Job 34:7",
+    518
+   ],
+   [
+    "Matthew 5:17",
+    963
+   ],
+   [
+    "Revelation 14:2",
+    1227
+   ]
+  ],
+  "21": [
+   [
+    "Psalm 54:3",
+    562
+   ],
+   [
+    "Philippians 4:14",
+    1167
+   ],
+   [
+    "1 Peter 4:12",
+    1206
+   ]
+  ],
+  "24": [
+   [
+    "Job 34:7",
+    518
+   ],
+   [
+    "Isaiah 11:3",
+    683
+   ],
+   [
+    "Hebrews 3:2",
+    1188
+   ]
+  ],
+  "25": [
+   [
+    "1 Samuel 23:1",
+    290
+   ],
+   [
+    "Daniel 3:8",
+    878
+   ],
+   [
+    "Luke 2:36",
+    1019
+   ]
+  ]
+ },
+ "gospel": {
+  "1": "God",
+  "2": "Paying",
+  "3": "Our",
+  "4": "Everyone",
+  "5": "Sins",
+  "6": "Life",
+  "7": "God",
+  "8": "Paying",
+  "9": "Our",
+  "10": "Everyone",
+  "11": "Sins",
+  "12": "Life",
+  "13": "God",
+  "14": "Paying",
+  "15": "Our",
+  "16": "Everyone",
+  "17": "Sins",
+  "18": "Life",
+  "19": "God",
+  "20": "Paying",
+  "21": "Our",
+  "22": "Everyone",
+  "23": "Sins",
+  "24": "Life",
+  "25": "God"
+ },
+ "dir": {
+  "4": "Lobby to Dead Room",
+  "6": "Dead Room to Lobby",
+  "10": "Lobby to Dead Room",
+  "11": "Dead Room to Lobby",
+  "12": "Lobby to Dead Room",
+  "13": "Dead Room to Lobby",
+  "14": "Lobby to Dead Room",
+  "16": "Dead Room to Lobby",
+  "17": "Lobby to Dead Room",
+  "18": "Dead Room to Lobby",
+  "21": "Lobby to Dead Room",
+  "22": "Dead Room to Lobby",
+  "23": "Lobby to Dead Room",
+  "24": "Dead Room to Lobby",
+  "25": "Lobby to Dead Room"
+ },
+ "code": {
+  "U1": {
+   "1": "NY",
+   "2": "RA",
+   "3": "CE",
+   "4": "KL",
+   "5": "UT",
+   "6": "UA",
+   "7": "PT",
+   "8": "LU",
+   "9": "TX",
+   "10": "NJ",
+   "11": "XD",
+   "12": "JF",
+   "13": "UY",
+   "14": "FA",
+   "15": "LF",
+   "16": "FC",
+   "17": "DU",
+   "18": "YM",
+   "19": "KM",
+   "20": "WC",
+   "21": "YE",
+   "22": "FL",
+   "23": "MJ",
+   "24": "DX",
+   "25": "DE"
+  },
+  "U2": {
+   "1": "MK",
+   "2": "TM",
+   "3": "WC",
+   "4": "DW",
+   "5": "NE",
+   "6": "RM",
+   "7": "MA",
+   "8": "XU",
+   "9": "YR",
+   "10": "HW",
+   "11": "WD",
+   "12": "UA",
+   "13": "RX",
+   "14": "VJ",
+   "15": "KN",
+   "16": "CU",
+   "17": "WK",
+   "18": "AL",
+   "19": "DU",
+   "20": "PW",
+   "21": "YX",
+   "22": "AC",
+   "23": "YN",
+   "24": "UX",
+   "25": "NA"
+  },
+  "U3": {
+   "1": "JX",
+   "2": "MH",
+   "3": "CW",
+   "4": "HN",
+   "5": "WL",
+   "6": "JL",
+   "7": "KA",
+   "8": "FC",
+   "9": "VX",
+   "10": "TF",
+   "11": "DR",
+   "12": "DK",
+   "13": "MP",
+   "14": "VD",
+   "15": "UP",
+   "16": "EJ",
+   "17": "MD",
+   "18": "WR",
+   "19": "LX",
+   "20": "EU",
+   "21": "WP",
+   "22": "NJ",
+   "23": "WM",
+   "24": "JF",
+   "25": "YN"
+  },
+  "U4": {
+   "1": "VT",
+   "2": "WX",
+   "3": "LH",
+   "4": "RW",
+   "5": "DP",
+   "6": "XK",
+   "7": "PE",
+   "8": "MF",
+   "9": "WU",
+   "10": "JY",
+   "11": "LM",
+   "12": "HK",
+   "13": "HM",
+   "14": "HN",
+   "15": "AX",
+   "16": "YK",
+   "17": "KV",
+   "18": "UF",
+   "19": "DA",
+   "20": "DT",
+   "21": "EX",
+   "22": "FR",
+   "23": "CE",
+   "24": "DM",
+   "25": "WN"
+  },
+  "D1": {
+   "1": "PH",
+   "2": "VD",
+   "3": "KY",
+   "4": "VF",
+   "5": "JU",
+   "6": "JD",
+   "7": "XH",
+   "8": "RH",
+   "9": "XA",
+   "10": "LC",
+   "11": "TF",
+   "12": "UP",
+   "13": "NL",
+   "14": "DK",
+   "15": "MT",
+   "16": "YL",
+   "17": "EL",
+   "18": "UN",
+   "19": "XV",
+   "20": "NA",
+   "21": "HP",
+   "22": "KJ",
+   "23": "AM",
+   "24": "LJ",
+   "25": "EN"
+  },
+  "D2": {
+   "1": "JF",
+   "2": "NT",
+   "3": "FY",
+   "4": "MU",
+   "5": "RM",
+   "6": "CU",
+   "7": "DX",
+   "8": "FJ",
+   "9": "JN",
+   "10": "CJ",
+   "11": "XC",
+   "12": "YV",
+   "13": "WA",
+   "14": "YC",
+   "15": "DH",
+   "16": "AU",
+   "17": "EX",
+   "18": "HW",
+   "19": "YL",
+   "20": "XM",
+   "21": "ET",
+   "22": "RE",
+   "23": "DY",
+   "24": "PL",
+   "25": "EV"
+  },
+  "D3": {
+   "1": "CA",
+   "2": "XP",
+   "3": "AR",
+   "4": "HU",
+   "5": "HL",
+   "6": "ET",
+   "7": "UE",
+   "8": "JK",
+   "9": "CW",
+   "10": "AT",
+   "11": "WE",
+   "12": "RT",
+   "13": "YP",
+   "14": "ED",
+   "15": "LC",
+   "16": "DJ",
+   "17": "KA",
+   "18": "DK",
+   "19": "MN",
+   "20": "NX",
+   "21": "TK",
+   "22": "HW",
+   "23": "DC",
+   "24": "VT",
+   "25": "UP"
+  }
+ }
+}

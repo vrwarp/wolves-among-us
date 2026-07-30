@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Footprints Companion</title>
+<style>
+:root{--bg:#faf9f7;--fg:#1c1a18;--mut:#6b6660;--line:#e2ded8;--card:#fff;--acc:#ff5722;
+--ok:#2f7d5d;--warn:#b8860b;--bad:#c0392b;--blue:#2b5f96}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{overflow-x:hidden;background:var(--bg);color:var(--fg);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+button{font:inherit;border:1.5px solid var(--line);background:var(--card);color:var(--fg);
+border-radius:10px;padding:12px 14px;cursor:pointer;font-weight:600}
+button:active{transform:scale(.97)}
+.btn-acc{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn-ok{background:var(--ok);border-color:var(--ok);color:#fff}
+.btn-bad{background:var(--bad);border-color:var(--bad);color:#fff}
+.btn-blue{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn-ghost{background:transparent}
+.wrap{max-width:760px;margin:0 auto;padding:14px 14px 90px}
+h1{font-size:22px;margin:14px 0 4px}
+.sub{color:var(--mut);font-size:13px;margin-bottom:14px}
+.sect{margin:18px 0 8px;font-size:11px;font-weight:700;letter-spacing:.09em;color:var(--mut);text-transform:uppercase;
+border-bottom:1px solid var(--line);padding-bottom:5px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.row>button{flex:1;min-width:70px}
+.grid{display:grid;gap:8px}
+.mono{font-variant-numeric:tabular-nums;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+.small{font-size:12.5px;color:var(--mut)}
+/* status strip */
+.strip{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);
+display:flex;align-items:center;gap:14px;padding:10px 14px;flex-wrap:wrap}
+.strip .clk{font-size:30px;font-weight:800}
+.strip .cell b{font-size:17px}
+.strip .cell{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em;line-height:1.2}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-left:auto}
+.dot.live{background:var(--ok)} .dot.demo{background:#999} .dot.off{background:var(--bad)}
+.chip{font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px}
+.chip.meeting{background:#eaf1f9;color:var(--blue)} .chip.sabotage{background:#fbecea;color:var(--bad)}
+/* tabs */
+.tabs{display:flex;gap:6px;margin:12px 0}
+.tabs button{flex:1;border-radius:20px;padding:9px}
+.tabs .on{background:var(--fg);border-color:var(--fg);color:#fff}
+/* answers */
+.numpad{display:grid;grid-template-columns:repeat(auto-fill,minmax(38px,1fr));gap:6px}
+.numpad button{padding:9px 0;border-radius:8px;font-weight:700}
+.numpad .on{background:var(--acc);border-color:var(--acc);color:#fff}
+.codes{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:8px 0}
+.codes .cd{border:1.5px solid var(--line);border-radius:8px;padding:6px;text-align:center}
+.codes .cd b{font-size:19px;display:block}
+.codes .cd span{font-size:10.5px;color:var(--mut)}
+.sud{border-collapse:collapse;margin:8px auto}
+.sud td{width:44px;height:44px;text-align:center;font-size:21px;font-weight:700;border:1px solid #bbb}
+.sud td.gv{color:var(--acc)}
+.sud tr:first-child td{border-top:2.5px solid #222}.sud tr:last-child td{border-bottom:2.5px solid #222}
+.sud td:first-child{border-left:2.5px solid #222}.sud td:last-child{border-right:2.5px solid #222}
+.sud tr:nth-child(2) td{border-bottom:2.2px solid #222}.sud td:nth-child(2){border-right:2.2px solid #222}
+/* number pad */
+.padwrap{max-width:340px;margin:0 auto}
+.padread{border:2px solid var(--line);border-radius:12px;background:var(--card);text-align:center;
+font-size:34px;font-weight:800;padding:10px;margin:6px 0 10px;min-height:62px}
+.padread.ok{border-color:var(--acc)}
+.padread .ph{color:#c9c4bc;font-size:18px;font-weight:600;line-height:2}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pk{font-size:24px;font-weight:700;padding:14px 0;border-radius:12px}
+.pk-mut{font-size:15px;color:var(--mut)}
+/* monitor */
+.mon{background:#0f0f13;color:#f2f0ec;position:fixed;inset:0;overflow:hidden;display:flex;flex-direction:column;
+align-items:center;justify-content:center;gap:2.5vh;padding:3vh 3vw;text-align:center;position:relative}
+.mon .mclk{font-size:24vw;font-weight:800;line-height:.95;letter-spacing:-.02em}
+.mon .mlab{font-size:2vw;letter-spacing:.35em;color:#8a857e;text-transform:uppercase}
+.mon.warn .mclk{color:#ffb14a}.mon.crit .mclk{color:#ff6b57}
+.mstats{display:flex;gap:5vw;font-size:2.2vw;color:#c9c4bc}
+.mstats b{font-size:3.4vw;color:#fff;display:block}
+.boxes{display:flex;gap:.7vw;flex-wrap:wrap;justify-content:center;max-width:92vw}
+.bx{width:4.4vw;height:4.4vw;min-width:34px;min-height:34px;border:2.5px solid #4a463f;border-radius:6px;
+display:flex;align-items:center;justify-content:center;font-size:1.7vw;color:#6b6660;font-weight:700}
+.bx.hit{background:var(--bad);border-color:var(--bad);color:#fff}
+.bx.thr{border-color:#f2f0ec;border-width:3.5px;color:#f2f0ec}
+.overlay{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+gap:2vh;padding:3vw;text-align:center;z-index:9}
+.overlay.sab{background:rgba(150,25,12,.96);animation:pulse 1.2s infinite}
+.overlay.meet{background:rgba(18,48,84,.96)}
+.overlay.win{background:rgba(140,20,10,.97)} .overlay.crew{background:rgba(20,90,60,.97)}
+@keyframes pulse{50%{background:rgba(120,16,6,.96)}}
+.overlay h2{font-size:5vw;margin:0;letter-spacing:.05em;color:#fff}
+.overlay .items{font-size:2.7vw;color:#fff;font-weight:700;line-height:1.45}
+.overlay .items span{color:#ffc9b8;font-weight:600}
+.overlay .pclk{font-size:8vw;font-weight:800;color:#fff;line-height:1}
+.mbtns{position:fixed;right:12px;bottom:10px;display:flex;gap:8px;opacity:.5}
+.mbtns button{background:#1d1c22;border-color:#333;color:#bbb;padding:8px 11px;font-size:12px}
+/* home */
+.home{display:grid;gap:10px;margin-top:16px}
+.home button{padding:18px;font-size:18px;border-radius:14px;text-align:left}
+.home .desc{display:block;font-size:12.5px;color:var(--mut);font-weight:400;margin-top:2px}
+textarea{width:100%;min-height:110px;font:12.5px ui-monospace,Menlo,monospace;border:1.5px solid var(--line);
+border-radius:10px;padding:10px;background:var(--card);color:var(--fg)}
+input[type=text]{font:inherit;border:1.5px solid var(--line);border-radius:10px;padding:10px;background:var(--card);width:100%}
+.qrbox{display:flex;flex-direction:column;align-items:center;gap:10px;padding:14px}
+#qr img,#qr canvas{border:8px solid #fff;border-radius:6px}
+.linkbox{word-break:break-all;font-size:11.5px;color:var(--mut);background:var(--card);
+border:1px dashed var(--line);border-radius:8px;padding:8px}
+.banner-off{background:#fbecea;color:var(--bad);font-size:13px;padding:8px 12px;border-radius:8px;margin:8px 0;display:none}
+.arm{outline:3px solid var(--bad)}
+.btn-undo{background:#fff7ed;border-color:#f0c9a8;color:#8a4b12;font-weight:700}
+.kv{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);font-size:14.5px}
+.kv b{text-align:right}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script type="module">
+const DATA=/*__DATA__*/{};
+/* ---------------- state ---------------- */
+const DEF={round:1,targetPts:8,deaths:0,threshold:6,impostersCaught:0,sabotagesUsed:0,
+  sabotageSet:0,banner:"none",hist:[],
+  timer:{mode:"idle",endsAt:0,remain:480000,dur:480000},
+  phase:{mode:"idle",endsAt:0,remain:0,label:""}};
+let S=JSON.parse(JSON.stringify(DEF));
+let offset=0, conn="demo", backend=null, uiTab=null, uiMode="grp", uiNum="", armNew=0;
+const now=()=>Date.now()+offset;
+const remOf=t=>t.mode==="run"?Math.max(0,t.endsAt-now()):t.remain;
+const fmt=ms=>{const s=Math.max(0,Math.round(ms/1000));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")};
+const merge=(a,b)=>{for(const k in b){if(b[k]&&typeof b[k]==="object"&&!Array.isArray(b[k])){a[k]=a[k]||{};merge(a[k],b[k])}else a[k]=b[k]}return a};
+const store=(()=>{try{const t=localStorage;t.setItem("_t","1");t.removeItem("_t");return t}catch(e){const m={};return{getItem:k=>m[k]??null,setItem:(k,v)=>m[k]=v,removeItem:k=>delete m[k]}}})();
+/* ---------------- backends ---------------- */
+let bc=null; try{bc=new BroadcastChannel("footprints")}catch(e){}
+function demoBackend(){
+  if(bc){bc.onmessage=e=>{merge(S,e.data);render()}}
+  conn="demo";
+  return {patch(o){merge(S,o);if(bc)bc.postMessage(o);render()}};
+}
+async function fbBackend(cfg,gameId){
+  const {initializeApp}=await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
+  const F=await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+  const app=initializeApp(cfg); const db=F.getFirestore(app);
+  const ref=F.doc(db,"games",gameId);
+  const myId=Math.random().toString(36).slice(2,9);
+  await F.setDoc(ref,{...JSON.parse(JSON.stringify(DEF)),_ping:{by:myId,t:F.serverTimestamp()}},{merge:true});
+  let gotOffset=false;
+  F.onSnapshot(ref,{includeMetadataChanges:true},snap=>{
+    const d=snap.data(); if(!d)return;
+    if(!gotOffset&&!snap.metadata.hasPendingWrites&&d._ping&&d._ping.by===myId&&d._ping.t&&d._ping.t.toMillis){
+      offset=d._ping.t.toMillis()-Date.now(); gotOffset=true;
+    }
+    const clean={...d}; delete clean._ping;
+    S=merge(JSON.parse(JSON.stringify(DEF)),clean);
+    conn=snap.metadata.fromCache?"off":"live";
+    render();
+  },err=>{conn="off";render()});
+  return {patch(o){F.setDoc(ref,o,{merge:true}).catch(()=>{conn="off";render()})}};
+}
+/* ---------------- config ---------------- */
+function readCfg(){
+  const h=new URLSearchParams(location.hash.split("?")[1]||"");
+  if(h.get("cfg")){try{const j=JSON.parse(atob(h.get("cfg").replace(/-/g,"+").replace(/_/g,"/")));
+    store.setItem("fpCfg",JSON.stringify(j));return j}catch(e){}}
+  try{return JSON.parse(store.getItem("fpCfg"))}catch(e){return null}
+}
+function parseCfgText(t){
+  const a=t.indexOf("{"),b=t.lastIndexOf("}");
+  if(a<0||b<0)throw 0;
+  let s=t.slice(a,b+1).replace(/([{,]\s*)([A-Za-z0-9_]+)\s*:/g,'$1"$2":').replace(/'/g,'"').replace(/,\s*}/g,"}");
+  const o=JSON.parse(s);
+  if(!o.projectId||!o.apiKey)throw 0;
+  return o;
+}
+const cfgB64=j=>btoa(JSON.stringify(j)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+/* ---------------- actions ---------------- */
+const P=o=>backend&&backend.patch(o);
+const T=()=>({...S.timer}), H=()=>({...S.phase});
+const FIELDS=["round","targetPts","deaths","threshold","impostersCaught","sabotagesUsed","sabotageSet","banner","timer","phase"];
+const snap=()=>{const o={};FIELDS.forEach(k=>o[k]=JSON.parse(JSON.stringify(S[k])));return o};
+const doAct=(label,changes)=>{
+  const hist=[...(S.hist||[]).slice(-9),{label,s:snap()}];
+  P({...changes,hist});
+};
+const IDLE={mode:"idle",endsAt:0,remain:0,label:""};
+window.act={
+  start(){const t=T();if(t.mode!=="run"){const lbl=t.mode==="pause"?"Resume clock":"Start clock";t.endsAt=now()+t.remain;t.mode="run";doAct(lbl,{timer:t})}},
+  pause(){const t=T();if(t.mode==="run"){t.remain=remOf(t);t.mode="pause";doAct("Pause clock",{timer:t})}},
+  adj(ms){const t=T();if(t.mode==="run")t.endsAt=Math.max(now(),t.endsAt+ms);else t.remain=Math.max(0,t.remain+ms);
+    doAct((ms>0?"+":"−")+fmt(Math.abs(ms))+" clock",{timer:t})},
+  resetT(){doAct("Reset clock",{timer:{mode:"idle",endsAt:0,remain:S.timer.dur,dur:S.timer.dur}})},
+  meeting(){const t=T();if(t.mode==="run"){t.remain=remOf(t);t.mode="pause"}
+    doAct("Meeting started",{timer:t,banner:"meeting",phase:{mode:"run",endsAt:now()+180000,remain:180000,label:"MEETING"}})},
+  endMeeting(){doAct("Meeting ended",{banner:"none",phase:IDLE})},
+  phasePre(sec,label){doAct("Phase "+label.toLowerCase(),{phase:{mode:"run",endsAt:now()+sec*1000,remain:sec*1000,label}})},
+  phaseStop(){doAct("Phase stopped",{phase:IDLE})},
+  ejectCrew(){doAct("Crewmate ejected (+1 death)",{deaths:S.deaths+1,banner:"none",phase:IDLE})},
+  ejectImp(){doAct("Imposter caught",{impostersCaught:S.impostersCaught+1,banner:"none",phase:IDLE})},
+  sab(n){doAct("Sabotage — set "+n,{banner:"sabotage",sabotageSet:n,sabotagesUsed:S.sabotagesUsed+1,
+    phase:{mode:"run",endsAt:now()+120000,remain:120000,label:"SABOTAGE"}})},
+  sabOk(){const t=T();if(t.mode==="run")t.endsAt+=60000;else t.remain+=60000;
+    doAct("Sabotage success (+1:00)",{timer:t,banner:"none",sabotageSet:0,phase:IDLE})},
+  sabFail(){const t=T();if(t.mode==="run")t.endsAt=Math.max(now(),t.endsAt-90000);else t.remain=Math.max(0,t.remain-90000);
+    doAct("Sabotage failed (+2 deaths, −1:30)",{timer:t,deaths:S.deaths+2,banner:"none",sabotageSet:0,phase:IDLE})},
+  dAdj(n){doAct("Death "+(n>0?"+1":"−1"),{deaths:Math.max(0,S.deaths+n)})},
+  thAdj(n){doAct("Threshold "+(n>0?"+1":"−1"),{threshold:Math.max(1,S.threshold+n)})},
+  tgAdj(n){doAct("Target "+(n>0?"+1":"−1"),{targetPts:Math.min(11,Math.max(1,S.targetPts+n))})},
+  newRound(el){
+    if(armNew&&Date.now()-armNew<3000){armNew=0;
+      doAct("New round",{round:S.round+1,deaths:0,impostersCaught:0,sabotagesUsed:0,sabotageSet:0,banner:"none",
+        timer:{mode:"idle",endsAt:0,remain:S.timer.dur,dur:S.timer.dur},phase:IDLE});}
+    else{armNew=Date.now();el.classList.add("arm");el.textContent="Tap again to confirm";
+      setTimeout(()=>{armNew=0;render()},3000)}
+  },
+  undo(){const h=[...(S.hist||[])];const last=h.pop();if(!last)return;
+    P({...last.s,hist:h})},
+  tab(t){uiTab=t;render()},
+  padMode(m){uiMode=m;uiNum="";render()},
+  pad(d){const max=uiMode==="grp"?32:80;let n=uiNum+d;
+    if(n.length>2||(+n>max&&+d>0&&+n>9))n=String(d);
+    if(+n>max)n="";
+    uiNum=n.replace(/^0+/,"")||(d==="0"?"":n);render()},
+  padBack(){uiNum=uiNum.slice(0,-1);render()},
+  padClr(){uiNum="";render()},
+  go(h){location.hash=h},
+  async wake(){try{await navigator.wakeLock.request("screen")}catch(e){alert("Wake lock unavailable — set the TV/tablet to never sleep.")}},
+  fs(){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{})},
+  saveCfg(){
+    const txt=document.getElementById("cfgtxt").value, gid=document.getElementById("gid").value.trim()||"footprints";
+    try{const cfg=parseCfgText(txt);store.setItem("fpCfg",JSON.stringify({cfg,gameId:gid}));location.reload()}
+    catch(e){alert("Couldn't read that config. Paste the whole firebaseConfig = { ... } block from the Firebase console.")}
+  },
+  demo(){store.removeItem("fpCfg");store.setItem("fpDemo","1");location.hash="#/";location.reload()},
+  forget(){store.removeItem("fpCfg");store.removeItem("fpDemo");location.reload()},
+};
+/* ---------------- views ---------------- */
+const app=document.getElementById("app");
+const esc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;");
+function route(){const h=location.hash||"#/";const [path,q]=h.slice(1).split("?");return{path:path||"/",q:new URLSearchParams(q||"")}}
+const ROLES={cc:"Central Command",foreman:"Foreman",referee:"Roaming Referee",ghost:"Ghost Guide"};
+const CRIB={
+ cc:["Run the clock and every meeting — 3:00 hard stop, always.","Reveal every ejection on the spot. Crewmate: +1 death. Imposter: free.","You are one end of the red-ball run. Bowl empty? Send them to fetch.","Lost card: reissue once — student states total, you write and initial it.","Never say roles during the round except the ejection reveal."],
+ foreman:["Verify instantly, stamp, then make them reset the station.","Cups: all 15, they reset. Apples: 3 standing, count 3 aloud. Plane: past the far line, unlimited tries.","You do not stop kills. Standing next to you is not protection.","An imposter can tap YOU to start a Sabotage."],
+ referee:["Upstairs is yours. Central Command covers downstairs.","Max group size is TWO — split every pack of 3+.","A student who runs: warn once, then cross out a stamp box.","You don't need to keep moving — but a kill in front of you counts.","An imposter can tap YOU to start a Sabotage."],
+ ghost:["Ghosts stay here the whole round — no meetings.","Origami: one sheet at a time, match the kit picture. GREEN 2 · BLUE 3.","Red balls hand over at the DOORWAY. Living students never enter.","After each meeting, get the result from CC and tell your ghosts.","You hold the phase timer: meeting phases and the 2:00 Sabotage."]};
+function stripHTML(){
+  const rT=remOf(S.timer), ph=S.phase.mode==="run";
+  return `<div class="strip">
+    <div class="clk mono" data-clk>${fmt(rT)}</div>
+    <div class="cell">deaths<br><b>${S.deaths} / ${S.threshold}</b></div>
+    <div class="cell">target<br><b>${S.targetPts} pts</b></div>
+    <div class="cell">round<br><b>${S.round}</b></div>
+    ${ph?`<span class="chip ${S.banner==="sabotage"?"sabotage":"meeting"}">${esc(S.phase.label)} <span class="mono" data-phclk>${fmt(remOf(S.phase))}</span></span>`:
+      S.banner!=="none"?`<span class="chip ${S.banner}">${S.banner.toUpperCase()}</span>`:""}
+    <span class="dot ${conn}" title="${conn}"></span></div>`;
+}
+function undoHTML(){
+  const last=(S.hist||[]).slice(-1)[0];
+  return `<div class="sect">Undo</div>
+  ${last?`<div class="row"><button class="btn-undo" onclick="act.undo()">↩&nbsp; Undo — ${esc(last.label)}</button></div>
+    <div class="small">Reverts that action everywhere. Press again to step further back (${(S.hist||[]).length} in history).</div>`
+    :`<div class="small" style="padding:4px 0">Nothing to undo yet.</div>`}`;
+}
+function controlsHTML(role){
+  const t=S.timer;
+  const sabSection=S.banner==="sabotage"
+    ?(role==="cc"?`<div class="row">
+        <button class="btn-ok" onclick="act.sabOk()">SUCCESS&nbsp; +1:00</button>
+        <button class="btn-bad" onclick="act.sabFail()">FAILED&nbsp; +2 deaths · −1:30</button>
+      </div>`:`<div class="small">Sabotage running — Central Command resolves it at the desk.</div>`)
+    :`<div class="row">
+        <button ${S.sabotagesUsed>=2?"disabled":""} onclick="act.sab(1)">Set 1</button>
+        <button ${S.sabotagesUsed>=2?"disabled":""} onclick="act.sab(2)">Set 2</button>
+        <button ${S.sabotagesUsed>=2?"disabled":""} onclick="act.sab(3)">Set 3</button>
+      </div>
+      <div class="small">${role==="cc"?"Picking a set flashes the TV, lists the five props and starts the 2:00 scramble.":"Tapped by an imposter? Wait ~5 seconds, start dimming, and pick a set — the TV and Central Command take it from there."}</div>`;
+  const phaseSection=`<div class="row">
+      <button class="btn-ghost" onclick="act.phasePre(30,'REPORT')">0:30 report</button>
+      <button class="btn-ghost" onclick="act.phasePre(90,'NOMINATIONS')">1:30 noms</button>
+      <button class="btn-ghost" onclick="act.phasePre(30,'CORNERS')">0:30 corners</button>
+      <button class="btn-ghost" onclick="act.phasePre(30,'VOTE')">0:30 vote</button>
+      <button class="btn-ghost" onclick="act.phasePre(120,'SABOTAGE')">2:00 sab</button>
+      <button class="btn-ghost" onclick="act.phaseStop()">stop</button>
+    </div>`;
+  if(role==="foreman"||role==="referee")
+    return `<div class="sect">Sabotage — ${S.sabotagesUsed}/2 this round</div>${sabSection}
+      ${undoHTML()}
+      <div class="small" style="margin-top:14px">Everything else runs from Central Command. Your job is the floor — this phone is mostly the <b>Answers</b> tab.</div>`;
+  if(role==="ghost")
+    return `<div class="sect">Phase stopwatch — yours</div>${phaseSection}
+      <div class="sect">Sabotage — ${S.sabotagesUsed}/2 this round</div>${sabSection}
+      ${undoHTML()}`;
+  return `
+  <div class="sect">Round clock — ${fmt(t.dur)} · only meetings pause it</div>
+  <div class="row">
+    ${t.mode==="run"?`<button class="btn-acc" onclick="act.pause()">Pause</button>`
+      :`<button class="btn-ok" onclick="act.start()">${t.mode==="pause"?"Resume":"Start"}</button>`}
+    <button onclick="act.adj(-30000)">−0:30</button>
+    <button onclick="act.adj(30000)">+0:30</button>
+    <button class="btn-ghost" onclick="act.resetT()">Reset</button>
+  </div>
+  <div class="sect">Meeting — pauses the clock, 3:00 hard stop</div>
+  <div class="row">
+    <button class="btn-blue" onclick="act.meeting()">Start meeting</button>
+    <button onclick="act.endMeeting()">End meeting</button>
+  </div>
+  ${phaseSection}
+  <div class="sect">Ejection — reveal on the spot</div>
+  <div class="row">
+    <button class="btn-bad" onclick="act.ejectCrew()">Crewmate ejected&nbsp; +1 death</button>
+    <button class="btn-ok" onclick="act.ejectImp()">IMPOSTER caught&nbsp; no tick</button>
+  </div>
+  <div class="sect">Sabotage — ${S.sabotagesUsed}/2 this round · none in the first 2:00</div>
+  ${sabSection}
+  <div class="sect">Counts</div>
+  <div class="row"><button onclick="act.dAdj(-1)">Death −</button><button onclick="act.dAdj(1)">Death +</button>
+  <button onclick="act.thAdj(-1)">Thresh −</button><button onclick="act.thAdj(1)">Thresh +</button></div>
+  <div class="row"><button onclick="act.tgAdj(-1)">Target −</button><button onclick="act.tgAdj(1)">Target +</button></div>
+  ${undoHTML()}
+  <div class="sect">Round ${S.round}</div>
+  <div class="row"><button class="btn-ghost" onclick="act.newRound(this)">New round — resets deaths &amp; clock</button></div>`;
+}
+function groupHTML(g){
+  const codes=DATA.doors.map(d=>`<div class="cd"><span>${d}</span><b>${DATA.code[d][g]}</b></div>`).join("");
+  const vt=DATA.verses[g]; const gos=DATA.gospel[g]; const ball=DATA.ball[g];
+  return `<div class="card" id="ansres"><h1 style="margin:0 0 2px">Group ${g}</h1>
+  <div class="small">door row = group number</div>
+  <div class="sect">Door codes</div><div class="codes">${codes}</div>
+  ${vt?`<div class="sect">Bible pages</div>${vt.map(([r,p])=>`<div class="kv"><span>${r}</span><b>${p}</b></div>`).join("")}`:""}
+  <div class="sect">Gospel word</div><div style="font-size:22px;font-weight:800">${DATA.gospel[g].toUpperCase()}</div>
+  ${ball?`<div class="sect">Red ball</div><div style="font-weight:700">${ball}</div>`:""}
+  </div>`;
+}
+function sudHTML(n){
+  const s=DATA.sudoku[n];
+  const rows=[0,1,2,3].map(r=>`<tr>${[0,1,2,3].map(c=>{const i=4*r+c;
+    return `<td class="${s.p[i]?"gv":""}">${s.a[i]}</td>`}).join("")}</tr>`).join("");
+  return `<div class="card" id="ansres" style="text-align:center"><h1 style="margin:0">Sudoku #${n}</h1>
+  <table class="sud">${rows}</table>
+  <div class="small"><span style="color:var(--acc);font-weight:700">orange</span> = printed givens — if the slip's givens don't match, it's a different puzzle number</div></div>`;
+}
+function answersHTML(){
+  const max=uiMode==="grp"?32:80, n=+uiNum;
+  const ok=n>=1&&n<=max&&uiNum!=="";
+  let result="";
+  if(ok)result=uiMode==="grp"?groupHTML(n):sudHTML(n);
+  else if(uiNum!=="")result=`<div class="card" id="ansres"><div class="small">No ${uiMode==="grp"?"group":"sudoku"} ${esc(uiNum)} — highest is ${max}.</div></div>`;
+  const keys=["1","2","3","4","5","6","7","8","9","C","0","⌫"].map(k=>{
+    if(k==="C")return `<button class="pk pk-mut" onclick="act.padClr()">clear</button>`;
+    if(k==="⌫")return `<button class="pk pk-mut" onclick="act.padBack()">⌫</button>`;
+    return `<button class="pk" onclick="act.pad('${k}')">${k}</button>`}).join("");
+  return `
+  <div class="tabs" style="margin-top:4px">
+    <button class="${uiMode==="grp"?"on":""}" onclick="act.padMode('grp')">Group 1–32</button>
+    <button class="${uiMode==="sud"?"on":""}" onclick="act.padMode('sud')">Sudoku 1–80</button>
+  </div>
+  <div class="padwrap">
+    <div class="padread ${ok?"ok":""}">${uiNum===""?`<span class="ph">${uiMode==="grp"?"group №":"slip №"}</span>`:esc(uiNum)}</div>
+    <div class="pad">${keys}</div>
+  </div>
+  ${result}
+  <div class="sect">Reference</div>
+  <div class="card">
+    <div class="kv"><span>Points</span><b>Doors 1 · Gospel 1 · mediums 2 · hard 3 · GREEN 2 · BLUE 3</b></div>
+    <div class="kv"><span>Sabotage sets</span><b>${[1,2,3].map(i=>`S${i}: `+DATA.sets[i].map(p=>p+" "+DATA.props[p]).join(" · ")).join("<br>")}</b></div>
+    <div class="kv"><span>Deal round 2 / 3</span><b>deck 2 from group 11 · deck 3 from group 21</b></div>
+    <div class="kv"><span>Threshold dial</span><b>start 6 · calm imposters → 4 · fast imposters → 8</b></div>
+  </div>`;
+}
+function counselorView(role){
+  if(!uiTab)uiTab="controls";
+  const tabs=["controls","answers","role"].map(t=>
+    `<button class="${uiTab===t?"on":""}" onclick="act.tab('${t}')">${t==="role"?"My role":t[0].toUpperCase()+t.slice(1)}</button>`).join("");
+  let body="";
+  if(uiTab==="controls")body=controlsHTML(role);
+  else if(uiTab==="answers")body=answersHTML();
+  else body=`<div class="sect">${ROLES[role]}</div><div class="card">${CRIB[role].map(c=>`<div class="kv" style="border:0;padding:5px 0"><span style="max-width:100%">· ${c}</span></div>`).join("")}</div>
+    <div class="small" style="margin-top:10px">Full rules: FACILITATOR-PLAYBOOK.pdf · your paper role card has the long version.</div>`;
+  app.innerHTML=stripHTML()+`<div class="wrap">
+    <div class="sub" style="margin:10px 0 0;display:flex;justify-content:space-between">
+      <b>${ROLES[role]}</b><a href="#/" style="color:var(--mut)">switch role</a></div>
+    <div class="tabs">${tabs}</div>${body}</div>`;
+}
+function monitorView(){
+  const rT=remOf(S.timer), ph=remOf(S.phase);
+  const impWin=S.deaths>=S.threshold;
+  const roundOver=S.timer.mode==="run"&&rT===0;
+  const cls=rT<=60000&&S.timer.mode==="run"?"crit":rT<=120000&&S.timer.mode==="run"?"warn":"";
+  const boxes=[...Array(Math.max(S.threshold+2,S.deaths+1,8))].map((_,i)=>{
+    const n=i+1;
+    return `<div class="bx ${n<=S.deaths?"hit":""} ${n===S.threshold?"thr":""}">${n}</div>`}).join("");
+  let overlay="";
+  if(impWin)overlay=`<div class="overlay win"><h2>IMPOSTERS WIN</h2><div class="items">${S.deaths} deaths — the threshold was ${S.threshold}</div></div>`;
+  else if(roundOver)overlay=`<div class="overlay crew"><h2>ROUND OVER</h2><div class="items">Crew survived the clock.<br>Count your cards — target was ${S.targetPts}.</div></div>`;
+  else if(S.banner==="sabotage"){
+    const items=(DATA.sets[S.sabotageSet]||[]).map(p=>`${p} <span>· door ${DATA.props[p]}</span>`).join("<br>");
+    overlay=`<div class="overlay sab"><h2>SABOTAGE</h2><div class="pclk mono" data-phclk>${fmt(ph)}</div>
+      <div class="items">${items}</div><div class="items" style="font-size:2vw;color:#ffc9b8">ONE ITEM PER PERSON · FIVE PEOPLE · WALK</div></div>`;}
+  else if(S.banner==="meeting")
+    overlay=`<div class="overlay meet"><h2>EMERGENCY MEETING</h2><div class="pclk mono" data-phclk>${fmt(ph)}</div>
+      <div class="items" style="font-size:2.6vw">${esc(S.phase.label||"")}</div></div>`;
+  app.innerHTML=`<div class="mon ${cls}">
+    <div class="mlab">Round ${S.round} · Among Us: Footprints</div>
+    <div class="mclk mono" data-clk>${fmt(rT)}</div>
+    <div class="boxes">${boxes}</div>
+    <div class="mstats">
+      <div>DEATHS<b>${S.deaths} / ${S.threshold}</b></div>
+      <div>TARGET<b>${S.targetPts} pts</b></div>
+      <div>IMPOSTERS CAUGHT<b>${S.impostersCaught} / 3</b></div>
+      <div>SABOTAGES<b>${S.sabotagesUsed} / 2</b></div>
+    </div>
+    ${overlay}
+    <div class="mbtns"><button onclick="act.wake()">stay awake</button>
+    <button onclick="act.fs()">fullscreen</button><button onclick="act.go('#/')">exit</button></div>
+  </div>`;
+}
+function homeView(){
+  const has=!!readCfg();
+  const links=[["#/monitor","TV Monitor","big clock, death count, sabotage callouts — read-only"],
+    ["#/c/cc","Central Command","all controls + answers"],
+    ["#/c/foreman","Foreman","controls, answers, role crib"],
+    ["#/c/referee","Roaming Referee","controls, answers, role crib"],
+    ["#/c/ghost","Ghost Guide","controls, answers, role crib"]];
+  let share="";
+  if(has){
+    const j=readCfg(); const b=cfgB64(j);
+    const base=location.origin+location.pathname;
+    const mk=v=>`${base}#${v}?cfg=${b}`;
+    share=`<div class="sect">Share to other devices</div>
+    <div class="card qrbox"><div id="qr"></div>
+      <div class="row" style="width:100%">${links.map(([h,n])=>`<button class="btn-ghost" onclick="drawQR('${mk(h.slice(1))}')">${n.split(" ")[0]}</button>`).join("")}</div>
+      <div class="linkbox" id="sharelink">${mk("/monitor")}</div>
+      <div class="small">Scan on each phone / the TV browser. The link carries the connection — no setup on those devices.</div></div>
+    <div class="row"><button class="btn-ghost" onclick="act.forget()">Disconnect this device</button></div>`;
+  }else{
+    share=`<div class="sect">Connect (once, on this device)</div>
+    <div class="card">
+      <div class="small" style="margin-bottom:8px">Paste the <b>firebaseConfig</b> block from the Firebase console (SETUP.md walks through it):</div>
+      <textarea id="cfgtxt" placeholder="const firebaseConfig = { apiKey: ... };"></textarea>
+      <div style="margin:8px 0 4px" class="small">Game id (any word — same on every device):</div>
+      <input type="text" id="gid" value="footprints-${Math.random().toString(36).slice(2,6)}">
+      <div class="row"><button class="btn-acc" onclick="act.saveCfg()">Connect</button>
+      <button class="btn-ghost" onclick="act.demo()">Skip — demo mode (this device/browser only)</button></div>
+    </div>`;
+  }
+  app.innerHTML=`<div class="wrap"><h1>Footprints Companion</h1>
+  <div class="sub">${has?`Connected · game “${readCfg().gameId}” · state syncs live to every device`:"Not connected — demo mode syncs between tabs on this device only"}</div>
+  <div class="banner-off" id="offb">Offline — showing the last known state. Changes will sync when the network returns.</div>
+  <div class="home">${links.map(([h,n,d])=>`<button onclick="act.go('${h}')">${n}<span class="desc">${d}</span></button>`).join("")}</div>
+  ${share}</div>`;
+  if(has)drawQR(location.origin+location.pathname+"#/monitor?cfg="+cfgB64(readCfg()));
+}
+window.drawQR=async url=>{
+  const el=document.getElementById("qr"),lk=document.getElementById("sharelink");
+  if(lk)lk.textContent=url;
+  if(!el)return; el.innerHTML="";
+  try{
+    if(!window.QRCode){await new Promise((res,rej)=>{const s=document.createElement("script");
+      s.src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js";s.onload=res;s.onerror=rej;document.head.appendChild(s)})}
+    new QRCode(el,{text:url,width:190,height:190,correctLevel:QRCode.CorrectLevel.M});
+  }catch(e){el.innerHTML='<div class="small">QR unavailable — copy the link below instead.</div>'}
+};
+/* ---------------- render / tick ---------------- */
+function render(){
+  const {path}=route();
+  if(path==="/monitor")monitorView();
+  else if(path.startsWith("/c/")){const r=path.split("/")[2];ROLES[r]?counselorView(r):homeView()}
+  else homeView();
+}
+setInterval(()=>{
+  document.querySelectorAll("[data-clk]").forEach(e=>{const v=fmt(remOf(S.timer));if(e.textContent!==v)e.textContent=v});
+  document.querySelectorAll("[data-phclk]").forEach(e=>{const v=fmt(remOf(S.phase));if(e.textContent!==v)e.textContent=v});
+  const {path}=route();
+  if(path==="/monitor"&&(S.deaths>=S.threshold||(S.timer.mode==="run"&&remOf(S.timer)===0)!==!!document.querySelector(".overlay.crew")))render();
+},250);
+window.__state=()=>JSON.parse(JSON.stringify(S));
+window.addEventListener("hashchange",()=>{uiTab=null;render()});
+/* ---------------- boot ---------------- */
+(async()=>{
+  const j=readCfg();
+  const {q}=route();
+  if(j&&j.cfg){try{backend=await fbBackend(j.cfg,j.gameId||"footprints")}catch(e){conn="off";backend=demoBackend()}}
+  else backend=demoBackend();
+  if(q.get("demo")==="live"){
+    merge(S,{round:2,deaths:3,threshold:6,targetPts:8,impostersCaught:1,sabotagesUsed:1,
+      timer:{mode:"run",endsAt:Date.now()+323000,remain:323000,dur:480000}});
+    if(q.get("banner")==="sabotage")merge(S,{banner:"sabotage",sabotageSet:2,phase:{mode:"run",endsAt:Date.now()+87000,remain:87000,label:"SABOTAGE"}});
+    if(q.get("banner")==="meeting")merge(S,{banner:"meeting",phase:{mode:"run",endsAt:Date.now()+150000,remain:150000,label:"NOMINATIONS"}});
+    if(q.get("win")==="imp")merge(S,{deaths:6});
+    S.hist=[{label:"Sabotage — set 2",s:(()=>{const o=JSON.parse(JSON.stringify(S));delete o.hist;delete o.timer.dur;o.timer={...S.timer};return {round:o.round,targetPts:o.targetPts,deaths:Math.max(0,o.deaths-0),threshold:o.threshold,impostersCaught:o.impostersCaught,sabotagesUsed:Math.max(0,o.sabotagesUsed-1),sabotageSet:0,banner:"none",timer:o.timer,phase:{mode:"idle",endsAt:0,remain:0,label:""}}})()}];
+  }
+  if(q.get("tab"))uiTab=q.get("tab");
+  if(q.get("grp")){uiMode="grp";uiNum=q.get("grp")}
+  if(q.get("sud")){uiMode="sud";uiNum=q.get("sud")}
+  render();
+})();
+</script>
+</body>
+</html>
