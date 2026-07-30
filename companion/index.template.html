@@ -104,6 +104,7 @@ input[type=text]{font:inherit;border:1.5px solid var(--line);border-radius:10px;
 border:1px dashed var(--line);border-radius:8px;padding:8px}
 .banner-off{background:#fbecea;color:var(--bad);font-size:13px;padding:8px 12px;border-radius:8px;margin:8px 0;display:none}
 .arm{outline:3px solid var(--bad)}
+.on-chip{background:var(--fg);border-color:var(--fg);color:#fff}
 .btn-undo{background:#fff7ed;border-color:#f0c9a8;color:#8a4b12;font-weight:700}
 .kv{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);font-size:14.5px}
 .kv b{text-align:right}
@@ -119,7 +120,7 @@ const DEF={round:1,targetPts:8,deaths:0,threshold:6,impostersCaught:0,sabotagesU
   timer:{mode:"idle",endsAt:0,remain:480000,dur:480000},
   phase:{mode:"idle",endsAt:0,remain:0,label:""}};
 let S=JSON.parse(JSON.stringify(DEF));
-let offset=0, conn="demo", backend=null, uiTab=null, uiMode="grp", uiNum="", armNew=0;
+let offset=0, conn="demo", backend=null, uiTab=null, uiMode="grp", uiNum="", armNew=0, uiShare="/monitor", shareUrl="";
 const now=()=>Date.now()+offset;
 const remOf=t=>t.mode==="run"?Math.max(0,t.endsAt-now()):t.remain;
 const fmt=ms=>{const s=Math.max(0,Math.round(ms/1000));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")};
@@ -133,12 +134,16 @@ function demoBackend(){
   return {patch(o){merge(S,o);if(bc)bc.postMessage(o);render()}};
 }
 async function fbBackend(cfg,gameId){
-  const {initializeApp}=await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
-  const F=await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+  const SDK=cfg.sdkBase||"https://www.gstatic.com/firebasejs/10.12.2";
+  const {initializeApp}=await import(`${SDK}/firebase-app.js`);
+  const F=await import(`${SDK}/firebase-firestore.js`);
   const app=initializeApp(cfg); const db=F.getFirestore(app);
+  if(cfg.emulatorHost)F.connectFirestoreEmulator(db,cfg.emulatorHost,+cfg.emulatorPort||8080);
   const ref=F.doc(db,"games",gameId);
   const myId=Math.random().toString(36).slice(2,9);
-  await F.setDoc(ref,{...JSON.parse(JSON.stringify(DEF)),_ping:{by:myId,t:F.serverTimestamp()}},{merge:true});
+  const first=await F.getDoc(ref);
+  if(!first.exists())await F.setDoc(ref,JSON.parse(JSON.stringify(DEF)));   // create ONLY if missing — joining never resets a live game
+  await F.setDoc(ref,{_ping:{by:myId,t:F.serverTimestamp()}},{merge:true}); // clock-offset probe, nothing else
   let gotOffset=false;
   F.onSnapshot(ref,{includeMetadataChanges:true},snap=>{
     const d=snap.data(); if(!d)return;
@@ -218,6 +223,19 @@ window.act={
   padBack(){uiNum=uiNum.slice(0,-1);render()},
   padClr(){uiNum="";render()},
   go(h){location.hash=h},
+  shareView(v){uiShare=v;render()},
+  async share(){
+    try{if(navigator.share){await navigator.share({title:"Footprints Companion",text:"Join the game — open this on your phone:",url:shareUrl});return}}catch(e){if(e&&e.name==="AbortError")return}
+    act.copy();
+  },
+  async copy(){
+    let ok=false;
+    try{await navigator.clipboard.writeText(shareUrl);ok=true}catch(e){
+      try{const t=document.createElement("textarea");t.value=shareUrl;document.body.appendChild(t);
+        t.select();ok=document.execCommand("copy");t.remove()}catch(e2){}}
+    const b=document.getElementById("copybtn");
+    if(b){b.textContent=ok?"Copied ✓":"Copy failed — long-press the link";setTimeout(()=>{const c=document.getElementById("copybtn");if(c)c.textContent="Copy link"},1800)}
+  },
   async wake(){try{await navigator.wakeLock.request("screen")}catch(e){alert("Wake lock unavailable — set the TV/tablet to never sleep.")}},
   fs(){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{})},
   saveCfg(){
@@ -420,14 +438,21 @@ function homeView(){
   if(has){
     const j=readCfg(); const b=cfgB64(j);
     const base=location.origin+location.pathname;
-    const mk=v=>`${base}#${v}?cfg=${b}`;
+    const VIEWS=[["/monitor","TV Monitor"],["/c/cc","Central Cmd"],["/c/foreman","Foreman"],["/c/referee","Referee"],["/c/ghost","Ghost Guide"]];
+    shareUrl=`${base}#${uiShare}?cfg=${b}`;
+    const name=(VIEWS.find(v=>v[0]===uiShare)||VIEWS[0])[1];
     share=`<div class="sect">Share to other devices</div>
-    <div class="card qrbox"><div id="qr"></div>
-      <div class="row" style="width:100%">${links.map(([h,n])=>`<button class="btn-ghost" onclick="drawQR('${mk(h.slice(1))}')">${n.split(" ")[0]}</button>`).join("")}</div>
-      <div class="linkbox" id="sharelink">${mk("/monitor")}</div>
-      <div class="small">Scan on each phone / the TV browser. The link carries the connection — no setup on those devices.</div></div>
+    <div class="card qrbox">
+      <div class="row" style="width:100%">${VIEWS.map(([h,n])=>`<button class="${uiShare===h?"on-chip":"btn-ghost"}" onclick="act.shareView('${h}')">${n}</button>`).join("")}</div>
+      <div id="qr"></div>
+      <div class="row" style="width:100%">
+        <button class="btn-acc" onclick="act.share()">Share ${name} link</button>
+        <button id="copybtn" onclick="act.copy()">Copy link</button>
+      </div>
+      <div class="linkbox" id="sharelink">${shareUrl}</div>
+      <div class="small">The link carries the connection and the view — the other device opens it and is in. Scan the QR or send it by AirDrop / text.</div></div>
     <div class="row"><button class="btn-ghost" onclick="act.forget()">Disconnect this device</button></div>`;
-  }else{
+    }else{
     share=`<div class="sect">Connect (once, on this device)</div>
     <div class="card">
       <div class="small" style="margin-bottom:8px">Paste the <b>firebaseConfig</b> block from the Firebase console (SETUP.md walks through it):</div>
@@ -443,11 +468,10 @@ function homeView(){
   <div class="banner-off" id="offb">Offline — showing the last known state. Changes will sync when the network returns.</div>
   <div class="home">${links.map(([h,n,d])=>`<button onclick="act.go('${h}')">${n}<span class="desc">${d}</span></button>`).join("")}</div>
   ${share}</div>`;
-  if(has)drawQR(location.origin+location.pathname+"#/monitor?cfg="+cfgB64(readCfg()));
+  if(has)drawQR(shareUrl);
 }
 window.drawQR=async url=>{
-  const el=document.getElementById("qr"),lk=document.getElementById("sharelink");
-  if(lk)lk.textContent=url;
+  const el=document.getElementById("qr");
   if(!el)return; el.innerHTML="";
   try{
     if(!window.QRCode){await new Promise((res,rej)=>{const s=document.createElement("script");
@@ -468,13 +492,21 @@ setInterval(()=>{
   const {path}=route();
   if(path==="/monitor"&&(S.deaths>=S.threshold||(S.timer.mode==="run"&&remOf(S.timer)===0)!==!!document.querySelector(".overlay.crew")))render();
 },250);
-window.__state=()=>JSON.parse(JSON.stringify(S));
+window.__state=()=>JSON.parse(JSON.stringify(S));window.__conn=()=>conn;window.__offset=()=>offset;
 window.addEventListener("hashchange",()=>{uiTab=null;render()});
 /* ---------------- boot ---------------- */
 (async()=>{
   const j=readCfg();
   const {q}=route();
-  if(j&&j.cfg){try{backend=await fbBackend(j.cfg,j.gameId||"footprints")}catch(e){conn="off";backend=demoBackend()}}
+  render();                                   // paint immediately; connect in the background
+  if(j&&j.cfg){
+    try{
+      backend=await Promise.race([
+        fbBackend(j.cfg,j.gameId||"footprints"),
+        new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),8000))
+      ]);
+    }catch(e){conn="off";backend=demoBackend();render()}
+  }
   else backend=demoBackend();
   if(q.get("demo")==="live"){
     merge(S,{round:2,deaths:3,threshold:6,targetPts:8,impostersCaught:1,sabotagesUsed:1,

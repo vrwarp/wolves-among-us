@@ -20,11 +20,11 @@ Firestore. Free tier; a whole game night is a few hundred reads/writes ($0).
 ## 4. Deploy this folder to Firebase Hosting  (4 min)
 Needs Node.js installed once (nodejs.org, LTS).
 
-    npm install -g firebase-tools
-    firebase login
     cd companion
-    firebase use --add        # pick your project, alias: default
-    firebase deploy
+    npm install               # installs firebase-tools locally (one time)
+    npx firebase login
+    npx firebase use --add    # pick your project, alias: default
+    npm run deploy
 
 That prints your URL:  **https://YOUR-PROJECT.web.app**
 (`deploy` also publishes `firestore.rules` — nothing to paste by hand.)
@@ -52,6 +52,11 @@ That prints your URL:  **https://YOUR-PROJECT.web.app**
 - The dot top-right: green = live sync · grey = demo (not connected) · red = offline
   (state freezes, catches up when wifi returns).
 - Paper is the backup: answer sheets and the whiteboard work if wifi dies.
+
+## Before the night: 2-minute smoke test
+Open the URL on two phones. Death + on one appears on the other within a second;
+start a Sabotage on one and Undo it from the other. If that works, everything
+works. (`test/EMULATOR.md` has the full automated multi-device test.)
 
 ## Security note (honest version)
 Anyone who has the link can change the game state — that's what makes setup

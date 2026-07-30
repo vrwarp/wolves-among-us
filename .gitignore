@@ -3,3 +3,8 @@ __pycache__/
 .DS_Store
 _to_delete/
 .fuse_hidden*
+node_modules/
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
