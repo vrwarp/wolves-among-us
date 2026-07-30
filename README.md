@@ -22,7 +22,9 @@ easier than the BLUE one (green scores 2, blue 3).
 - `deck/` — 24-slide briefing deck (`build.js` regenerates the .pptx).
 - `companion/` — single-file web app (monitor + 4 role views, shared clock,
   deaths, sabotage, undo, answer lookup). `appdata.json` is embedded in
-  `index.html`; `test_undo.py` is the functional test.
+  `index.html`. `npm run test:emulator` runs the whole multi-device suite
+  against Google's real Firestore emulator — see `companion/test/EMULATOR.md`,
+  and read `companion/test/FINDINGS.md` before game night.
 - `generators/` — every script that builds the pack. `legacy/` holds the
   16- and 25-group era, superseded but kept for history.
 - `qa/` — the verification suite: reads the *rendered PDFs* back (poppler),

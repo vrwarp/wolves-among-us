@@ -9,6 +9,8 @@
     "emulator": "firebase emulators:start --only firestore --project demo-footprints",
     "test": "node test/run-tests.js mock",
     "test:emulator": "firebase emulators:exec --only firestore --project demo-footprints \"node test/run-tests.js emu\"",
+    "test:quick": "firebase emulators:exec --only firestore --project demo-footprints \"node test/run-tests.js emu test_multidevice.mjs test_comprehensive.mjs\"",
+    "test:game": "firebase emulators:exec --only firestore --project demo-footprints \"node test/run-tests.js emu test_fullgame.mjs\"",
     "deploy": "firebase deploy"
   },
   "devDependencies": {
