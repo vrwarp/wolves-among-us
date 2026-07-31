@@ -1,0 +1,12 @@
+{
+  "name": "footprints-deck",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Briefing deck generator for Among Us: Footprints — run from the repo root: node deck/build.js",
+  "scripts": {
+    "build": "cd .. && node deck/build.js"
+  },
+  "dependencies": {
+    "pptxgenjs": "^3.12.0"
+  }
+}
