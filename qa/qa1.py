@@ -11,7 +11,7 @@ print("== 1. INVENTORY & PAGE COUNTS ==")
 expect={ "01-index-cards/index-cards-32-unique.pdf":16, "01-index-cards/index-cards-96-deck.pdf":48,
  "02-sudoku/sudoku-puzzles.pdf":20, "02-sudoku/sudoku-answers.pdf":5,
  "05-doors/door-code-sheets.pdf":7, "06-signs/gospel-box-signs.pdf":6, "06-signs/station-signs.pdf":8,
- "07-counselor/answer-sheet.pdf":4, "07-counselor/role-cards.pdf":5,
+ "07-counselor/answer-sheet.pdf":4, "07-counselor/role-cards.pdf":6,
  "08-sabotage/sabotage-central-command.pdf":1, "08-sabotage/sabotage-supply-props.pdf":3}
 disk={p.split('footprints-print-pack/')[1] for p in glob.glob('footprints-print-pack/**/*.pdf',recursive=True)}
 chk(disk==set(expect), f"exactly the 11 expected PDFs on disk (extra: {disk-set(expect)}, missing: {set(expect)-disk})")

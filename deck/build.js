@@ -84,7 +84,7 @@ shout('NO RUNNING','Walking means there is always a foot on the ground. This one
   .addNotes('Say this first and say it again at the end. Enforce it hardest during a Sabotage and when someone is walking to report a body.');
 
 rows('How the night works','THE FLOW',[
-  {n:1,name:'Do the tasks on your card',desc:'Find a counselor to stamp each one. Four counselors, four different stamps.'},
+  {n:1,name:'Do the tasks on your card',desc:'Find a counselor to mark each one. Four counselors, four different markers.'},
   {n:2,name:'Hit tonight’s target',desc:'Your card is worth more than you need. You pick which tasks to do.'},
   {n:3,name:'Survive',desc:'Three of you are imposters. A tap on the shoulder with a spoon and you are dead.'},
 ],'Two rounds tonight — maybe three if we have time.')
@@ -136,12 +136,12 @@ duo('Gospel & Theme','1 POINT',
     'Each box shows a sentence with the first word blanked out.',
     'Find the one YOUR word completes.',
     'Take one card and show it to any counselor.',
-    'Wrong box, no stamp.'],hc:B});
+    'Wrong box, no mark.'],hc:B});
 
 duo('Special Delivery','2 POINTS  ·  THREE RED BALLS',
   {head:'Carry one ball',body:[
     'Your card tells you which way: lobby to dead room, or dead room to lobby.',
-    'Hand it to the counselor at the other end. They stamp your card.',
+    'Hand it to the counselor at the other end. They mark your card.',
     'Hand off AT THE DOOR of the dead room. Do not go inside.']},
   {head:'No ball there?',body:[
     'Go to the other station, take one, and bring it back.',
@@ -154,7 +154,7 @@ rows('The kill','IMPOSTERS',[
   {n:1,name:'Tap them with your spoon',desc:'Shoulder or upper back only. Nothing else, ever.'},
   {n:2,name:'Say nothing. Keep walking.',desc:'Do not react, do not look back, do not smile.'},
   {n:3,name:'Count silently to twenty',desc:'That is your reload. You cannot kill again until you finish counting.'},
-],'Do real tasks. Get real stamps. Your card should look exactly like everyone else’s.')
+],'Do real tasks. Get real marks. Your card should look exactly like everyone else’s.')
   .addNotes('Brief the three imposters privately before the room fills.');
 
 rows('Sabotage: Lights Out','IMPOSTERS  ·  TWICE PER ROUND',[

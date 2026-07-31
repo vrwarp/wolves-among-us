@@ -121,7 +121,7 @@ for word,rest in SENT:
     c.setFillColor(black); c.setFont("Helvetica-Bold",25)
     c.drawString(44,y-46,"Is your word the one that fits? Take ONE card.")
     c.setFillColor(GREY); c.setFont("Helvetica",19)
-    c.drawString(44,y-78,"Then show it to any counselor. Wrong box, no stamp.")
+    c.drawString(44,y-78,"Then show it to any counselor. Wrong box, no mark.")
     c.setFillColor(GREY); c.setFont("Helvetica",8.5)
     c.drawRightString(PW-44,44,f"facilitator: this box holds the {word} cards")
     c.showPage()

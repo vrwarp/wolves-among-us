@@ -29,7 +29,7 @@ Doors are labelled **U1 U2 U3 U4** upstairs and **D1 D2 D3** downstairs. The she
 
 **`07-counselor/answer-sheet.pdf`** · 4 pages × **4 copies = 16 sheets** · plain
 
-All four counselors carry all four pages. Before the doors open, write on **every copy**:
+All four counselors on the floor carry all four pages. Before the doors open, write on **every copy**:
 
 - **TONIGHT'S TARGET** — the number you announce in the briefing
 - **PEW BIBLE EDITION** — the page numbers are worthless against a different printing
@@ -58,9 +58,9 @@ Tape each prop at the door printed on it: **FUSE U1 · BATTERY U2 · KEYCARD U4 
 
 ## 7. Role cards
 
-**`07-counselor/role-cards.pdf`** · 5 pages, **plus 3 extra copies of page 5** = 8 sheets · plain
+**`07-counselor/role-cards.pdf`** · 6 pages, **plus 4 extra copies of page 6** = 10 sheets · plain
 
-Pages 1–4 are one per counselor. Page 5 (**ALL COUNSELORS**) goes to all four.
+Pages 1–5 are one per counselor — page 1 is the **GAME MASTER**, who stands by the TV and runs the clock, the dials and Undo. Page 6 (**ALL COUNSELORS**) goes to all five.
 
 ## 8. Sudoku
 
@@ -87,9 +87,9 @@ Every puzzle is solver-verified to have exactly one solution. Checking by eye st
 | **Floor tape** | 2 lines for the flight zone (~12 ft apart), plus tape for signs and props |
 | **Green + blue origami kits** | green is the *easier* set — check this before the night |
 | **1 plastic spoon per student** | everyone carries one, including crewmates |
-| **4 distinct stamps or markers** | one per counselor, and the four must be unmistakably different |
+| **4 distinct markers** | one per counselor on the floor, and the four must be unmistakably different — the Game Master verifies nothing |
 | **Whiteboard + marker** | the public death count |
-| **2 stopwatches** | one for Central Command, one for the Ghost Guide |
+| **2 stopwatches** | the round clock for the Game Master, the phase timer for Central Command |
 | **3–4 flashlights** | for Sabotage |
 | **6 boxes or envelopes** | the gospel words |
 | **Pencils** | one per student plus spares |
@@ -108,9 +108,9 @@ Every puzzle is solver-verified to have exactly one solution. Checking by eye st
 - [ ] Sudoku and maze stacks out
 - [ ] Red balls in the bowls, one bowl at each end
 - [ ] Whiteboard blank, death count at 0, tonight's threshold written beside it
-- [ ] Both stopwatches zeroed
+- [ ] Both stopwatches zeroed — round clock (Game Master), phase timer (Central Command)
 - [ ] A spoon in **every** student's hand
-- [ ] Imposters briefed privately — do real tasks, get real stamps, count to 20 between kills, target anyone alone
+- [ ] Imposters briefed privately — do real tasks, get real marks, count to 20 between kills, target anyone alone
 - [ ] Every counselor has their role card, the ALL COUNSELORS page, and all 4 answer sheet pages
 
 ---

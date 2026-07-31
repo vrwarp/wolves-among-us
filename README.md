@@ -2,7 +2,7 @@
 
 Everything for the youth-group game night: the print pack, the briefing deck,
 the facilitator playbook, and the live companion app. ~20–25 students,
-grades 6–12, 4 counselors, 2–3 rounds. No student phones.
+grades 6–12, 5 counselors, 2–3 rounds. No student phones.
 
 ## Start here on game week
 
@@ -20,7 +20,7 @@ easier than the BLUE one (green scores 2, blue 3).
 
 - `print-pack/` — the 13 finished PDFs + print guide. These are the artifacts; print from here.
 - `deck/` — 24-slide briefing deck (`build.js` regenerates the .pptx).
-- `companion/` — single-file web app (monitor + 4 role views, shared clock,
+- `companion/` — single-file web app (monitor + 5 role views, shared clock,
   deaths, sabotage, undo, answer lookup). `appdata.json` is embedded in
   `index.html`. `npm run test:emulator` runs the whole multi-device suite
   against Google's real Firestore emulator — see `companion/test/EMULATOR.md`,

@@ -116,7 +116,7 @@ line("“You have TWO MINUTES. Go.”", True, 13)
 y-=4
 line("Then start the two-minute count out loud at 90, 60, 30 and 10 seconds.", False, 11.5, 0, GREY)
 y-=10
-sect("OUTCOMES — mark these on the whiteboard and the round clock")
+sect("OUTCOMES — mark these on the whiteboard; the clock moves by itself")
 line("SUCCEED   All five on the desk inside two minutes", True, 12.5)
 line("+1:00 on the round clock. Lights back up.", False, 12, 22, GREY)
 y-=4
@@ -131,7 +131,7 @@ y-=8
 sect("SAFETY — say the first line out loud before the first Sabotage of the night")
 line("Lights DIM, never off. One counselor stands at the stairs and does nothing else.", True, 12)
 line("Flashlights to the stair counselor and the Ghost Guide.", False, 12)
-line("During Sabotage only, running costs you a stamp — crossed out on the spot.", False, 12)
+line("During Sabotage only, running costs you a mark — crossed out on the spot.", False, 12)
 y-=8
 sect("RESET — do this before play resumes")
 line("Hand the five props to five students and send them to re-place them.", False, 12)
