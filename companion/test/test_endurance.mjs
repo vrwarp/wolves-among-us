@@ -69,7 +69,7 @@ section("2 · the TV really counts down");
   check("a paused clock stops on the TV too", p0===p1, `${p0}s → ${p1}s`);
 
   // the phase stopwatch counts down independently
-  await act(A,"sab",2);
+  await act(A,"sab");
   await until(TV,"!!document.querySelector('[data-phclk]')");
   const ph0 = toSec(await TV.evaluate("document.querySelector('[data-phclk]').textContent"));
   await settle(4000);
@@ -169,7 +169,7 @@ section("4b · a phone that goes in a pocket");
   await hide(true);                       // screen locks, phone goes in a pocket
   await settle(45000);
   await act(CC,"dAdj",1);                 // the game moves on without it
-  await act(CC,"sab",2);
+  await act(CC,"sab");
   await settle(2500);
 
   await hide(false);                      // taken back out

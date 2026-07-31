@@ -58,9 +58,9 @@ await act(A,"start"); await act(A,"dAdj",2);
 await until(TV,"window.__state().deaths===2");
 check("clock + deaths reach the TV", (await st(TV)).timer.mode==="run" && (await st(TV)).deaths===2);
 
-await act(F,"sab",2);
+await act(F,"sab");
 await until(TV,"window.__state().banner==='sabotage'");
-check("the foreman's sabotage reaches the TV", (await st(TV)).sabotageSet===2);
+check("the foreman's sabotage reaches the TV", (await st(TV)).sabItems.length===5);
 check("the TV paints the sabotage overlay", /SABOTAGE/.test(await TV.evaluate("document.body.innerHTML")));
 
 await act(A,"sabFail");

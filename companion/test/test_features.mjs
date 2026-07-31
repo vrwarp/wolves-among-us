@@ -67,7 +67,7 @@ section("3 · sabotage, meeting and pause cues");
   await act(CC,"start"); await allAgree(all);
 
   await clearSounds(all);
-  await act(RF,"sab",2);
+  await act(RF,"sab");
   await until(TV,"window.__state().banner==='sabotage'");
   await settle(700);
   for(const [p,n] of [[CC,"CC"],[TV,"the TV"],[RF,"the Referee"]])
@@ -107,7 +107,7 @@ section("3 · sabotage, meeting and pause cues");
 section("4 · sound restraint");
 {
   const CC = await mk("/c/cc","f-quiet");
-  await act(CC,"start"); await act(CC,"sab",1);
+  await act(CC,"start"); await act(CC,"sab");
   await until(CC,"window.__state().banner==='sabotage'");
   await settle(500);
 
@@ -125,7 +125,7 @@ section("4 · sound restraint");
   check("mute reports itself muted", (await snd(CC)).muted===true);
   await sndReset(CC);
   await act(CC,"meeting"); await settle(700);
-  await act(CC,"sab",2);   await settle(700);
+  await act(CC,"sab");   await settle(700);
   check("a muted phone records no cues at all", (await snd(CC)).count===0, JSON.stringify((await snd(CC)).log));
   await act(CC,"mute");
   check("unmuting turns it back on", (await snd(CC)).muted===false);
@@ -224,7 +224,7 @@ section("6 · pause really freezes, and resume restores exactly");
     (await st(TV)).timer.mode==="pause", (await st(TV)).timer.mode);
 
   // the phase clock freezes and comes back too
-  await act(CC,"start"); await act(CC,"sab",3);
+  await act(CC,"start"); await act(CC,"sab");
   await until(TV,"window.__state().phase.mode==='run'");
   await pauseNow(GH);
   await until(TV,"window.__state().paused.on===true");
@@ -456,7 +456,7 @@ section("9b · the Game Master's three settings");
     /Sabotage — 0\/1 this round/.test(await html(FM)),
     (await html(FM)).match(/Sabotage — \d+\/\d+ this round/)?.[0]);
 
-  await act(FM,"sab",1); await settle(500);
+  await act(FM,"sab"); await settle(500);
   await act(FM,"sabOk");                             // resolve it, so the Set row is on screen again
   await until(FM,"window.__state().banner==='none'");
   await settle(500);
@@ -542,7 +542,7 @@ section("9b · the Game Master's three settings");
 
   /* --- settings for the night, not for the round --- */
   const pre = await st(GM);
-  await act(GM,"dAdj",2); await act(GM,"sab",1); await settle(700);
+  await act(GM,"dAdj",2); await act(GM,"sab"); await settle(700);
   check("New round moved on", await confirmNewRound(GM));
   await until(TV,`window.__state().round===${pre.round+1}`);
   const nr = await st(TV);

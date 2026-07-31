@@ -30,11 +30,11 @@ const until=(p,expr)=>p.waitForFunction(expr,null,{timeout:10000});
 console.log("== two devices connected live ==");
 const A=await mk("/c/cc"), B=await mk("/monitor");
 check("A and B both live",await st(A)&&await st(B));
-await act(A,"start");await act(A,"dAdj",1);await act(A,"sab",2);
+await act(A,"start");await act(A,"dAdj",1);await act(A,"sab");
 await until(B,"window.__state().banner==='sabotage' && window.__state().deaths===1");
 let sB=await st(B);
 check("B sees A's clock running",sB.timer.mode==="run");
-check("B sees death=1, set 2, phase SABOTAGE",sB.deaths===1&&sB.sabotageSet===2&&sB.phase.label==="SABOTAGE");
+check("B sees death=1, five props, phase SABOTAGE",sB.deaths===1&&sB.sabItems.length===5&&sB.phase.label==="SABOTAGE");
 
 console.log("== mid-game join must NOT reset the game (regression) ==");
 const C=await mk("/c/ghost");

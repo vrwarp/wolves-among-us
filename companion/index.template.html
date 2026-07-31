@@ -20,6 +20,7 @@ button:disabled:active{transform:none}
 .btn-bad{background:var(--bad);border-color:var(--bad);color:#fff}
 .btn-blue{background:var(--blue);border-color:var(--blue);color:#fff}
 .btn-ghost{background:transparent}
+.btn-sab{background:#96190c;border-color:#96190c;color:#fff}   /* the sabotage red, as on the TV and the card */
 .wrap{max-width:760px;margin:0 auto;padding:14px 14px 90px}
 h1{font-size:22px;margin:14px 0 4px}
 .sub{color:var(--mut);font-size:13px;margin-bottom:14px}
@@ -202,8 +203,12 @@ text-transform:uppercase;color:#4a453f;margin-bottom:3px}
 const DATA=/*__DATA__*/{};
 /* ---------------- state ---------------- */
 const DEF={round:1,targetPts:8,deaths:0,threshold:6,impostersCaught:0,sabotagesUsed:0,
-  imposters:3, sabotageMax:2,          // set by the Game Master, carried across rounds
-  sabotageSet:0,banner:"none",hist:[],
+  imposters:3, sabotageMax:2, sabProps:5,   // set by the Game Master, carried across rounds
+  // The props this sabotage wants, drawn fresh each time. The list itself is
+  // shared rather than an index into a table: whoever taps does the drawing,
+  // so anything else would have every device roll its own and read out a
+  // different five.
+  sabItems:[],banner:"none",hist:[],
   // A game-wide stop any role can call. `clock`/`phase` remember what was
   // running so resuming restores exactly that and nothing else.
   paused:{on:false,clock:false,phase:false,meet:false},
@@ -370,12 +375,21 @@ const cfgB64=j=>btoa(JSON.stringify(j)).replace(/\+/g,"-").replace(/\//g,"_").re
 /* ---------------- actions ---------------- */
 const P=o=>backend&&backend.patch(o);
 const T=()=>({...S.timer}), H=()=>({...S.phase});
-const FIELDS=["round","targetPts","deaths","threshold","imposters","sabotageMax","impostersCaught","sabotagesUsed","sabotageSet","banner","paused","timer","phase","meet"];
+const FIELDS=["round","targetPts","deaths","threshold","imposters","sabotageMax","sabProps","impostersCaught","sabotagesUsed","sabItems","banner","paused","timer","phase","meet"];
 const snap=()=>{const o={};FIELDS.forEach(k=>o[k]=JSON.parse(JSON.stringify(S[k])));return o};
 const doAct=(label,changes)=>{
   const hist=[...(S.hist||[]).slice(-9),{label,s:snap()}];
   P({...changes,hist});
 };
+// The six props, in the order they were placed — upstairs first, then down.
+// Every draw is sorted back into this order so the list reads the same way on
+// the TV and on the card Central Command is reading from.
+const PROPS=Object.keys(DATA.props);
+const NUM=["no","one","two","three","four","five","six"];
+// A game document written before the draw existed has no sabItems, and a phone
+// mid-sync can see the field before the array arrives. Neither should throw on
+// the TV in front of the room.
+const SABITEMS=()=>Array.isArray(S.sabItems)?S.sabItems.filter(p=>PROPS.includes(p)):[];
 const MEETPHASES=["REPORT","NOMINATIONS","CORNERS","VOTE"];
 const IDLE={mode:"idle",endsAt:0,remain:0,label:""};
 const MIDLE={mode:"idle",endsAt:0,remain:0,clock:false};
@@ -441,7 +455,7 @@ window.act={
   },
   meeting(){const t=T(), wasRunning=t.mode==="run";
     if(wasRunning){t.remain=remOf(t);t.mode="pause"}
-    doAct("Meeting started",{timer:t,banner:"meeting",sabotageSet:0,   // a meeting cancels any live sabotage outright
+    doAct("Meeting started",{timer:t,banner:"meeting",sabItems:[],   // a meeting cancels any live sabotage outright
       meet:{mode:"run",endsAt:now()+180000,remain:180000,clock:wasRunning},phase:IDLE})},
   endMeeting(){doAct("Meeting ended",afterMeeting())},
   phasePre(sec,label){
@@ -455,22 +469,32 @@ window.act={
   phaseStop(){doAct("Phase stopped",{phase:IDLE})},
   ejectCrew(){doAct("Crewmate ejected (+1 death)",afterMeeting({deaths:S.deaths+1}))},
   ejectImp(){doAct("Imposter caught",afterMeeting({impostersCaught:S.impostersCaught+1}))},
-  sab(n){doAct("Sabotage — set "+n,{banner:"sabotage",sabotageSet:n,sabotagesUsed:S.sabotagesUsed+1,
-    phase:{mode:"run",endsAt:now()+120000,remain:120000,label:"SABOTAGE"}})},
+  // The paper could only carry three printed sets, so the same three came round
+  // all night. Nothing here is printed, so draw instead: any of the six props,
+  // as many as the Game Master asked for. Listed back in door order, upstairs
+  // first, because Central Command reads it aloud.
+  sab(){const n=Math.max(1,Math.min(PROPS.length,S.sabProps|0||5));
+    const pool=PROPS.slice();
+    for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]]}
+    const items=pool.slice(0,n).sort((a,b)=>PROPS.indexOf(a)-PROPS.indexOf(b));
+    doAct("Sabotage — "+n+" props",{banner:"sabotage",sabItems:items,sabotagesUsed:S.sabotagesUsed+1,
+      phase:{mode:"run",endsAt:now()+120000,remain:120000,label:"SABOTAGE"}})},
   sabOk(){if(S.banner!=="sabotage")return;                          // no sabotage running = nothing to resolve
     const t=T();if(t.mode==="run")t.endsAt+=60000;else t.remain+=60000;
-    doAct("Sabotage success (+1:00)",{timer:t,banner:"none",sabotageSet:0,phase:IDLE})},
+    doAct("Sabotage success (+1:00)",{timer:t,banner:"none",sabItems:[],phase:IDLE})},
   sabFail(){if(S.banner!=="sabotage")return;
     const t=T();if(t.mode==="run")t.endsAt=Math.max(now(),t.endsAt-90000);else t.remain=Math.max(0,t.remain-90000);
-    doAct("Sabotage failed (+2 deaths, −1:30)",{timer:t,deaths:S.deaths+2,banner:"none",sabotageSet:0,phase:IDLE})},
+    doAct("Sabotage failed (+2 deaths, −1:30)",{timer:t,deaths:S.deaths+2,banner:"none",sabItems:[],phase:IDLE})},
   dAdj(n){doAct("Death "+(n>0?"+1":"−1"),{deaths:Math.max(0,S.deaths+n)})},
   thAdj(n){doAct("Threshold "+(n>0?"+1":"−1"),{threshold:Math.max(1,S.threshold+n)})},
   tgAdj(n){doAct("Target "+(n>0?"+1":"−1"),{targetPts:Math.min(11,Math.max(1,S.targetPts+n))})},
   impAdj(n){doAct("Imposters "+(n>0?"+1":"−1"),{imposters:Math.min(6,Math.max(1,S.imposters+n))})},
   sabMaxAdj(n){doAct("Sabotages "+(n>0?"+1":"−1"),{sabotageMax:Math.min(5,Math.max(0,S.sabotageMax+n))})},
+  sabPropsAdj(n){doAct("Props per sabotage "+(n>0?"+1":"−1"),
+    {sabProps:Math.min(PROPS.length,Math.max(2,(S.sabProps|0||5)+n))})},
   newRound(){askConfirm("newRound")},
   doNewRound(){
-    doAct("New round",{round:S.round+1,deaths:0,impostersCaught:0,sabotagesUsed:0,sabotageSet:0,banner:"none",
+    doAct("New round",{round:S.round+1,deaths:0,impostersCaught:0,sabotagesUsed:0,sabItems:[],banner:"none",
       paused:{on:false,clock:false,phase:false,meet:false},
       timer:{mode:"idle",endsAt:0,remain:S.timer.dur,dur:S.timer.dur},phase:IDLE,meet:MIDLE});
   },
@@ -614,15 +638,18 @@ function sabCard(){
   if(S.banner!=="sabotage")return "";
   // The counsellors' card keeps the doors — they placed the props and may need
   // to verify. The TV overlay does not: the students have to find them.
-  const items=(DATA.sets[S.sabotageSet]||[]).map(p=>
-    `<li><b>${p}</b><span>door ${DATA.props[p]}</span></li>`).join("");
+  const list=SABITEMS();
+  const items=list.map(p=>
+    `<li><b>${esc(p)}</b><span>door ${esc(DATA.props[p]||"?")}</span></li>`).join("");
   const over=remOf(S.phase)<=0;
   return `<div class="sabcard${over?" over":""}">
-    <div class="sabhead"><span>SABOTAGE · set ${S.sabotageSet}</span>
+    <div class="sabhead"><span>SABOTAGE · ${S.sabotagesUsed>S.sabotageMax
+      ? "no. "+S.sabotagesUsed          // the Game Master lowered the cap after these had already fired
+      : S.sabotagesUsed+" of "+S.sabotageMax}</span>
       <span class="mono sabclk" data-phclk>${fmt(remOf(S.phase))}</span></div>
     ${over?`<div class="sabover">Time is up — Central Command must call it</div>`:""}
     <ul class="sabitems">${items}</ul>
-    <div class="sabfoot">one item per person · five people · walk</div>
+    <div class="sabfoot">one item per person · ${NUM[list.length]||list.length} people · walk</div>
   </div>`;
 }
 function controlsHTML(role){
@@ -642,11 +669,14 @@ function controlsHTML(role){
         <button class="btn-bad" onclick="act.sabFail()">FAILED&nbsp; +2 deaths · −1:30</button>
       </div>`:`<div class="small">Sabotage running — Central Command resolves it at the desk.</div>`)
     :`<div class="row">
-        <button ${S.sabotagesUsed>=S.sabotageMax?"disabled":""} onclick="act.sab(1)">Set 1</button>
-        <button ${S.sabotagesUsed>=S.sabotageMax?"disabled":""} onclick="act.sab(2)">Set 2</button>
-        <button ${S.sabotagesUsed>=S.sabotageMax?"disabled":""} onclick="act.sab(3)">Set 3</button>
+        <button class="btn-sab btn-wide" ${S.sabotagesUsed>=S.sabotageMax?"disabled":""} onclick="act.sab()">Start sabotage${
+          S.sabotagesUsed>=S.sabotageMax?" — none left":` — ${NUM[Math.min(6,S.sabProps|0||5)]} props`}</button>
       </div>
-      <div class="small">${role==="cc"?"Picking a set flashes the TV, lists the five props and starts the 2:00 scramble.":"Tapped by an imposter? Wait ~5 seconds, start dimming, and pick a set — the TV and Central Command take it from there."}</div>`;
+      <div class="small">${S.sabotagesUsed>=S.sabotageMax
+        ? `All ${S.sabotageMax} sabotage${S.sabotageMax===1?"":"s"} for round ${S.round} have been used. The Game Master can add more.`
+        : role==="cc"
+          ? "Draws a fresh set of props, flashes the TV and starts the 2:00 scramble. Different every time — nothing to keep track of."
+          : "Tapped by an imposter? Wait ~5 seconds, start dimming, then tap this — the TV and Central Command take it from there."}</div>`;
   // Secondary next to Start/End meeting, and compact — six buttons at full size
   // pushed the ejection controls off a phone screen.
   // The four phases of a meeting, in playbook order. Tapping one names it on
@@ -735,7 +765,13 @@ function controlsHTML(role){
     <button ${S.sabotageMax<=0?"disabled":""} onclick="act.sabMaxAdj(-1)">−1 sabotage</button>
     <button ${S.sabotageMax>=5?"disabled":""} onclick="act.sabMaxAdj(1)">+1 sabotage</button>
   </div>
-  <div class="small">The Set buttons go dead on every phone once this many have fired. Resets each round.</div>
+  <div class="small">The sabotage button goes dead on every phone once this many have fired. Resets each round.</div>
+  <div class="sect">Props per sabotage — <b>${S.sabProps|0||5}</b> of the six</div>
+  <div class="row">
+    <button ${(S.sabProps|0||5)<=2?"disabled":""} onclick="act.sabPropsAdj(-1)">−1 prop</button>
+    <button ${(S.sabProps|0||5)>=6?"disabled":""} onclick="act.sabPropsAdj(1)">+1 prop</button>
+  </div>
+  <div class="small">Drawn at random from the six each time, so no two scrambles match. Five is the printed rule — one item per person, five people. Fewer is quicker; six sends the whole crew.</div>
   ${undoHTML()}
   <div class="sect">Round ${S.round}</div>
   <div class="row"><button class="btn-ghost" onclick="act.newRound()">New round — resets deaths &amp; clock</button></div>`;
@@ -828,9 +864,10 @@ function monitorView(){
   else if(PAUSED())overlay=`<div class="overlay paused"><h2>PAUSED</h2><div class="pclk mono" data-clk>${fmt(rT)}</div>
       <div class="items">Stop where you are — every clock is frozen.</div></div>`;
   else if(S.banner==="sabotage"){
-    const items=(DATA.sets[S.sabotageSet]||[]).map(p=>`${p}`).join("<br>");
+    const list=SABITEMS();
+    const items=list.map(p=>esc(p)).join("<br>");
     overlay=`<div class="overlay sab"><h2>SABOTAGE</h2><div class="pclk mono" data-phclk>${fmt(ph)}</div>
-      <div class="items">${items}</div><div class="items" style="font-size:2vw;color:#ffc9b8">ONE ITEM PER PERSON · FIVE PEOPLE · WALK</div></div>`;}
+      <div class="items">${items}</div><div class="items" style="font-size:2vw;color:#ffc9b8">ONE ITEM PER PERSON · ${(NUM[list.length]||list.length+"").toUpperCase()} PEOPLE · WALK</div></div>`;}
   else if(S.banner==="meeting"){
     const mt=remOf(S.meet), over=S.meet.mode!=="idle"&&mt<=0;
     overlay=`<div class="overlay meet${over?" over":""}"><h2>EMERGENCY MEETING</h2>
@@ -985,10 +1022,10 @@ window.addEventListener("hashchange",()=>{uiTab=null;render()});
   if(q.get("demo")==="live"){
     merge(S,{round:2,deaths:3,threshold:6,targetPts:8,impostersCaught:1,sabotagesUsed:1,
       timer:{mode:"run",endsAt:Date.now()+323000,remain:323000,dur:480000}});
-    if(q.get("banner")==="sabotage")merge(S,{banner:"sabotage",sabotageSet:2,phase:{mode:"run",endsAt:Date.now()+87000,remain:87000,label:"SABOTAGE"}});
+    if(q.get("banner")==="sabotage")merge(S,{banner:"sabotage",sabItems:["FUSE","BATTERY","KEYCARD","O2 TANK","REACTOR ROD"],phase:{mode:"run",endsAt:Date.now()+87000,remain:87000,label:"SABOTAGE"}});
     if(q.get("banner")==="meeting")merge(S,{banner:"meeting",phase:{mode:"run",endsAt:Date.now()+150000,remain:150000,label:"NOMINATIONS"}});
     if(q.get("win")==="imp")merge(S,{deaths:6});
-    S.hist=[{label:"Sabotage — set 2",s:(()=>{const o=JSON.parse(JSON.stringify(S));delete o.hist;delete o.timer.dur;o.timer={...S.timer};return {round:o.round,targetPts:o.targetPts,deaths:Math.max(0,o.deaths-0),threshold:o.threshold,impostersCaught:o.impostersCaught,sabotagesUsed:Math.max(0,o.sabotagesUsed-1),sabotageSet:0,banner:"none",timer:o.timer,phase:{mode:"idle",endsAt:0,remain:0,label:""}}})()}];
+    S.hist=[{label:"Sabotage — 5 props",s:(()=>{const o=JSON.parse(JSON.stringify(S));delete o.hist;delete o.timer.dur;o.timer={...S.timer};return {round:o.round,targetPts:o.targetPts,deaths:Math.max(0,o.deaths-0),threshold:o.threshold,impostersCaught:o.impostersCaught,sabotagesUsed:Math.max(0,o.sabotagesUsed-1),sabItems:[],banner:"none",timer:o.timer,phase:{mode:"idle",endsAt:0,remain:0,label:""}}})()}];
   }
   if(q.get("tab"))uiTab=q.get("tab");
   if(q.get("grp")){uiMode="grp";uiNum=q.get("grp")}

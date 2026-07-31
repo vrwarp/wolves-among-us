@@ -61,7 +61,7 @@ section("round 1 — by the book");
   await beat("a second kill", CC, p=>act(p,"dAdj",1), s=>s.deaths===2);
 
   await beat("an imposter taps the Referee — Referee starts Sabotage set 2", RF,
-    p=>act(p,"sab",2), s=>s.banner==="sabotage" && s.sabotageSet===2 && s.sabotagesUsed===1);
+    p=>act(p,"sab"), s=>s.banner==="sabotage" && s.sabItems.length===5 && s.sabotagesUsed===1);
   const sab = await st(TV), tvHtml = await html(TV);
   const props = ["FUSE","BATTERY","KEYCARD","O2 TANK","REACTOR ROD"];
   // the doors are deliberately NOT on the TV — finding the props is the scramble
@@ -74,7 +74,7 @@ section("round 1 — by the book");
   check("the Foreman is told CC resolves it", /Central Command resolves it/.test(await html(FM)));
 
   await beat("the crew makes it — CC hits SUCCESS", CC, p=>act(p,"sabOk"),
-    s=>s.banner==="none" && s.sabotageSet===0);
+    s=>s.banner==="none" && s.sabItems.length===0);
   const afterOk = await st(TV);
   check("SUCCESS bought the crew a minute", remaining(afterOk) > 480, remaining(afterOk)+"s");
 
@@ -92,8 +92,8 @@ section("round 1 — by the book");
     s=>s.deaths===3 && s.banner==="none");
 
   await beat("the GM resumes the clock", GM, p=>act(p,"start"), s=>s.timer.mode==="run");
-  await beat("the second sabotage — Foreman gets tapped, set 3", FM, p=>act(p,"sab",3),
-    s=>s.sabotagesUsed===2 && s.sabotageSet===3);
+  await beat("the second sabotage — Foreman gets tapped, set 3", FM, p=>act(p,"sab"),
+    s=>s.sabotagesUsed===2 && s.sabItems.length===5);
   const sets = await CC.evaluate(()=>[...document.querySelectorAll("button")]
     .filter(x=>/^Set [123]$/.test(x.textContent.trim())).map(x=>x.disabled));
   check("with both sabotages spent the Set buttons are dead on every phone",
@@ -195,7 +195,7 @@ section("round 2 — reset and replay");
   const s = agree.state || await st(CC);
   check("round 2 starts clean: no deaths, no catches, no sabotages, full clock",
     s.round===2 && s.deaths===0 && s.impostersCaught===0 && s.sabotagesUsed===0 &&
-    s.sabotageSet===0 && s.banner==="none" && s.timer.mode==="idle" && s.timer.remain===480000,
+    s.sabItems.length===0 && s.banner==="none" && s.timer.mode==="idle" && s.timer.remain===480000,
     JSON.stringify(pick(s)).slice(0,200));
   check("the threshold and the point target carry over",
     s.threshold===before.threshold && s.targetPts===before.targetPts,
@@ -227,7 +227,7 @@ section("round 3 — everyone is tired and tapping at once");
   // four counsellors acting in the same second, as happens at the end of a night
   await Promise.all([
     act(CC,"dAdj",1),
-    act(FM,"sab",1),
+    act(FM,"sab"),
     act(GM,"adj",30000),
     act(CC,"phasePre",30,"REPORT"),
   ]);
@@ -236,10 +236,10 @@ section("round 3 — everyone is tired and tapping at once");
   const s = agree.state || await st(CC);
   check("the state is coherent, not a mash-up",
     ["none","meeting","sabotage"].includes(s.banner) &&
-    (s.banner!=="sabotage" || (s.sabotageSet>=1 && s.sabotageSet<=3)) &&
+    (s.banner!=="sabotage" || s.sabItems.length>0) &&
     ["idle","run","pause"].includes(s.timer.mode) && s.deaths>=0,
     JSON.stringify(pick(s)).slice(0,220));
-  note(`four-at-once landed on: deaths=${s.deaths} banner=${s.banner} set=${s.sabotageSet} phase=${s.phase.label||"—"}`);
+  note(`four-at-once landed on: deaths=${s.deaths} banner=${s.banner} props=${(s.sabItems||[]).length} phase=${s.phase.label||"—"}`);
 
   // everybody looks at the answers tab at the same time while the game runs
   await Promise.all([CC,FM,RF,GH].map(p=>act(p,"tab","answers")));

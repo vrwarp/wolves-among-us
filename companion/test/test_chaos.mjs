@@ -33,12 +33,12 @@ section("1 · every single action can be taken back");
     ["Phase stop",         ()=>set(["phasePre",90,"NOMINATIONS"]),  ["phaseStop"],        s=>s.phase.mode==="idle"],
     ["Crewmate ejected",   ()=>set(["meeting"]),                    ["ejectCrew"],        s=>s.banner==="none"],
     ["Imposter caught",    ()=>set(["meeting"]),                    ["ejectImp"],         s=>s.banner==="none"],
-    ["Sabotage set 1",     ()=>set(["endMeeting"],["phaseStop"]),   ["sab",1],            s=>s.sabotageSet===1],
-    ["Sabotage success",   ()=>set(["sab",2]),                      ["sabOk"],            s=>s.sabotageSet===0],
-    ["Sabotage set 3",     ()=>set(["sabOk"]),                      ["sab",3],            s=>s.sabotageSet===3],
-    ["Sabotage failed",    ()=>set(["sabOk"],["sab",1]),            ["sabFail"],          s=>s.sabotageSet===0],
-    ["Sab success, clock paused", ()=>set(["resetT"],["start"],["pause"],["sab",2]), ["sabOk"],   s=>s.sabotageSet===0],
-    ["Sab failed, clock paused",  ()=>set(["resetT"],["start"],["pause"],["sab",1]), ["sabFail"], s=>s.sabotageSet===0],
+    ["Sabotage",           ()=>set(["endMeeting"],["phaseStop"]),   ["sab"],              s=>s.sabItems.length===5],
+    ["Sabotage success",   ()=>set(["sab"]),                        ["sabOk"],            s=>s.sabItems.length===0],
+    ["Sabotage again",     ()=>set(["sabOk"]),                      ["sab"],              s=>s.sabItems.length===5],
+    ["Sabotage failed",    ()=>set(["sabOk"],["sab"]),              ["sabFail"],          s=>s.sabItems.length===0],
+    ["Sab success, clock paused", ()=>set(["resetT"],["start"],["pause"],["sab"]), ["sabOk"],   s=>s.sabItems.length===0],
+    ["Sab failed, clock paused",  ()=>set(["resetT"],["start"],["pause"],["sab"]), ["sabFail"], s=>s.sabItems.length===0],
     ["Death +1",           ()=>set(["dAdj",-1],["dAdj",-1]),        ["dAdj",1],           s=>s.deaths>0],
     ["Death −1",           ()=>set(["dAdj",1],["dAdj",1]),          ["dAdj",-1],          s=>s.deaths>=0],
     ["Threshold +1",       ()=>set(["thAdj",-1]),                   ["thAdj",1],          s=>s.threshold>1],
@@ -82,7 +82,7 @@ section("1 · every single action can be taken back");
 section("2 · New round, taken back");
 {
   const A = await mk("/c/cc","x-nr"), W = await mk("/monitor","x-nr");
-  await act(A,"start"); await act(A,"dAdj",3); await act(A,"sab",2); await act(A,"sabFail");
+  await act(A,"start"); await act(A,"dAdj",3); await act(A,"sab"); await act(A,"sabFail");
   await settle(900);
   const before = await st(A);
   await confirmNewRound(A);
@@ -238,7 +238,7 @@ section("5 · sequences nobody planned");
   const A = await mk("/c/cc","x-seq"), G = await mk("/c/ghost","x-seq"), M = await mk("/monitor","x-seq");
   await act(A,"start"); await settle(500);
 
-  await act(A,"sab",1); await settle(500);
+  await act(A,"sab"); await settle(500);
   await act(A,"meeting"); await settle(700);
   let s = await st(A);
   // the meeting's 3:00 hard stop is its own clock; it replaces the sabotage phase
@@ -246,7 +246,7 @@ section("5 · sequences nobody planned");
     s.banner==="meeting" && s.meet.mode==="run" && s.phase.mode==="idle",
     `banner=${s.banner} meet=${s.meet.mode} phase=${s.phase.label}`);
   check("…and cancels the sabotage outright rather than leaving it half-live",
-    s.sabotageSet===0, "set="+s.sabotageSet);
+    s.sabItems.length===0, "items="+JSON.stringify(s.sabItems));
   check("…but that sabotage still counts against the two per round", s.sabotagesUsed===1, "used="+s.sabotagesUsed);
   const inMeeting = await st(A);
   await act(A,"endMeeting"); await settle(600);
@@ -276,8 +276,8 @@ section("5 · sequences nobody planned");
 
   // the UI guard on a third sabotage — start the round clean so the count is exact
   await confirmNewRound(A); await settle(800);
-  await act(A,"sab",1); await settle(400); await act(A,"sabOk"); await settle(400);
-  await act(A,"sab",2); await settle(400); await act(A,"sabOk"); await settle(600);
+  await act(A,"sab"); await settle(400); await act(A,"sabOk"); await settle(400);
+  await act(A,"sab"); await settle(400); await act(A,"sabOk"); await settle(600);
   check("two sabotages used", (await st(A)).sabotagesUsed===2, "used="+(await st(A)).sabotagesUsed);
   const before3 = await st(A);
   const clicked = await tap(A,"Set 1");
@@ -334,9 +334,9 @@ if(EMU){
   await softUntil(A,"window.__conn()==='off'",30000);
   await softUntil(C,"window.__conn()==='off'",30000);
   await act(A,"dAdj",1); await act(A,"thAdj",1);
-  await act(C,"tgAdj",-1); await act(C,"sab",2);
+  await act(C,"tgAdj",-1); await act(C,"sab");
   await settle(1000);
-  check("each islanded phone still updates its own screen", (await st(A)).deaths===5 && (await st(C)).sabotageSet===2);
+  check("each islanded phone still updates its own screen", (await st(A)).deaths===5 && (await st(C)).sabItems.length===5);
   await A.context().setOffline(false); await C.context().setOffline(false);
   await softUntil(A,"window.__conn()==='live'",30000);
   await softUntil(C,"window.__conn()==='live'",30000);
@@ -344,9 +344,9 @@ if(EMU){
   check("two phones that were offline together reconcile to one state", agree2.ok, agree2.detail);
   const s = agree2.state || await st(A);
   check("nothing is left corrupt after the merge",
-    typeof s.deaths==="number" && s.deaths>=0 && [0,1,2,3].includes(s.sabotageSet) &&
+    typeof s.deaths==="number" && s.deaths>=0 && Array.isArray(s.sabItems) && s.sabItems.length<=6 &&
     ["none","meeting","sabotage"].includes(s.banner), JSON.stringify(pick(s)).slice(0,180));
-  note(`after both phones were offline and both tapped: deaths=${s.deaths}, target=${s.targetPts}, sabotage set=${s.sabotageSet} — the later write wins per field`);
+  note(`after both phones were offline and both tapped: deaths=${s.deaths}, target=${s.targetPts}, sabotage props=${(s.sabItems||[]).length} — the later write wins per field`);
 
   // a long blackout with a pile of queued taps
   await A.context().setOffline(true);
@@ -371,7 +371,7 @@ section("7 · soak — four phones, one minute, random taps");
     ["dAdj",1],["dAdj",-1],["thAdj",1],["thAdj",-1],["tgAdj",1],["tgAdj",-1],
     ["start"],["pause"],["adj",30000],["adj",-30000],["resetT"],
     ["meeting"],["endMeeting"],["phasePre",30,"REPORT"],["phasePre",90,"NOMINATIONS"],["phaseStop"],
-    ["ejectCrew"],["ejectImp"],["sab",1],["sab",2],["sab",3],["sabOk"],["sabFail"],["undo"],
+    ["ejectCrew"],["ejectImp"],["sab"],["sab"],["sab"],["sabOk"],["sabFail"],["undo"],
   ];
   let fired = 0;
   const t0 = Date.now();

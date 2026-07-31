@@ -311,7 +311,7 @@ section("3c · a meeting that ends under a pause hands the clock back on resume"
   // so resume has the same chance to resurrect it at 0:00.
   await act(A,"resetT"); await act(A,"start");
   await until(M,"window.__state().timer.mode==='run'");
-  await act(A,"sab",2);
+  await act(A,"sab");
   await until(M,"window.__state().phase.mode==='run'");
   await confirmPause(A);
   await until(M,"window.__state().paused.on===true");
@@ -322,7 +322,7 @@ section("3c · a meeting that ends under a pause hands the clock back on resume"
   await until(M,"window.__state().phase.mode==='idle'");
   await settle(300);
   check("SUCCESS still resolves the sabotage while the game is paused",
-    (await st(M)).banner==="none" && (await st(M)).sabotageSet===0);
+    (await st(M)).banner==="none" && (await st(M)).sabItems.length===0);
 
   await act(A,"resumeGame");
   await until(M,"window.__state().paused.on===false");
@@ -366,10 +366,10 @@ section("5 · sabotage lifecycle");
   await act(A,"start"); await until(A,"window.__state().timer.mode==='run'");
 
   // a floor counselor (foreman) can start one — imposters tap them, not CC
-  await act(F,"sab",2);
+  await act(F,"sab");
   await until(M,"window.__state().banner==='sabotage'");
   let s = await st(M);
-  check("foreman can start a sabotage", s.sabotageSet===2 && s.sabotagesUsed===1);
+  check("foreman can start a sabotage", s.sabItems.length===5 && s.sabotagesUsed===1);
   check("sabotage arms the 2:00 phase clock", s.phase.label==="SABOTAGE" && s.phase.remain===120000);
 
   const before = (await st(A)).timer.endsAt;
@@ -377,9 +377,9 @@ section("5 · sabotage lifecycle");
   await until(M,"window.__state().banner==='none'");
   s = await st(M);
   check("success adds exactly +1:00 to a running clock", s.timer.endsAt-before===60000, (s.timer.endsAt-before)+"ms");
-  check("success clears the set and the phase", s.sabotageSet===0 && s.phase.mode==="idle");
+  check("success clears the props and the phase", s.sabItems.length===0 && s.phase.mode==="idle");
 
-  await act(A,"sab",3);
+  await act(A,"sab");
   await until(F,"window.__state().banner==='sabotage'");
   const t0 = (await st(A)).timer.endsAt, d0 = (await st(A)).deaths;
   await act(A,"sabFail");
@@ -400,7 +400,7 @@ section("5 · sabotage lifecycle");
   await act(A,"pause");   await until(A,"window.__state().timer.mode==='pause'");
   await act(A,"resetT");  await until(A,"window.__state().timer.remain===480000");
   await act(A,"adj",-450000); await until(A,"window.__state().timer.remain===30000");
-  await act(A,"sab",1);   await until(A,"window.__state().banner==='sabotage'");
+  await act(A,"sab");   await until(A,"window.__state().banner==='sabotage'");
   await act(A,"sabFail"); await until(A,"window.__state().banner==='none'");
   check("failure clamps a short paused clock at 0:00", (await st(A)).timer.remain===0,
     (await st(A)).timer.remain+"ms");
@@ -436,7 +436,7 @@ section("6 · counters and clamps");
 section("7 · new round asks before it wipes the round");
 {
   const A = await mk("/c/gm","g-round"), M = await mk("/monitor","g-round");
-  await act(A,"start"); await act(A,"dAdj",1); await act(A,"sab",1);
+  await act(A,"start"); await act(A,"dAdj",1); await act(A,"sab");
   await until(M,"window.__state().deaths===1 && window.__state().banner==='sabotage'");
 
   const labels0 = await btnText(A);
@@ -464,7 +464,7 @@ section("7 · new round asks before it wipes the round");
   await settle(500);
   check("Cancel closes the dialog", (await modal(A))===null, JSON.stringify(await modal(A)));
   check("…and the round it was about to wipe is untouched",
-    (await st(A)).round===1 && (await st(A)).deaths===1 && (await st(A)).sabotageSet===1,
+    (await st(A)).round===1 && (await st(A)).deaths===1 && (await st(A)).sabItems.length===5,
     `round=${(await st(A)).round} deaths=${(await st(A)).deaths}`);
   check("…and nothing was written to the history",
     !(await st(A)).hist.some(h=>h.label==="New round"), (await st(A)).hist.map(h=>h.label).join(","));
@@ -492,7 +492,7 @@ section("7 · new round asks before it wipes the round");
   await until(M,"window.__state().round===2");
   const s = await st(M);
   check("confirming starts round 2", s.round===2);
-  check("new round clears deaths, catches, sabotages", s.deaths===0 && s.impostersCaught===0 && s.sabotagesUsed===0 && s.sabotageSet===0);
+  check("new round clears deaths, catches, sabotages", s.deaths===0 && s.impostersCaught===0 && s.sabotagesUsed===0 && s.sabItems.length===0);
   check("new round clears the sabotage banner and phase", s.banner==="none" && s.phase.mode==="idle");
   check("new round re-arms a full idle clock", s.timer.mode==="idle" && s.timer.remain===480000);
   check("new round keeps target and threshold", s.targetPts===8 && s.threshold===6);
@@ -532,13 +532,13 @@ section("8 · undo — depth, compounds, cross-device");
 
   // compound action restored in one step
   await act(A,"start"); await until(A,"window.__state().timer.mode==='run'");
-  await act(A,"sab",2); await until(B,"window.__state().banner==='sabotage'");
+  await act(A,"sab"); await until(B,"window.__state().banner==='sabotage'");
   const pre = await st(B);
   await act(A,"sabFail"); await until(B,"window.__state().deaths===7");
   await act(B,"undo"); await until(A,"window.__state().deaths===5");
   s = await st(A);
   check("undo of sabotage-fail restores deaths, banner, set and phase",
-    s.deaths===5 && s.banner==="sabotage" && s.sabotageSet===2 && s.phase.label==="SABOTAGE");
+    s.deaths===5 && s.banner==="sabotage" && s.sabItems.length===5 && s.phase.label==="SABOTAGE");
   check("undo of sabotage-fail restores the clock too",
     Math.abs(s.timer.endsAt-pre.timer.endsAt)<50, (s.timer.endsAt-pre.timer.endsAt)+"ms");
 
@@ -564,10 +564,10 @@ section("9 · monitor (TV) rendering");
     (h.match(/class="bx /g)||[]).length>=8 && /class="bx\s*\s*thr"/.test(h),
     (h.match(/class="bx[^"]*"/g)||[]).join(" "));
 
-  await act(A,"sab",2); await until(M,"document.querySelector('.overlay.sab')");
+  await act(A,"sab"); await until(M,"document.querySelector('.overlay.sab')");
   h = await html(M);
   check("sabotage overlay appears on the TV", /SABOTAGE/.test(h));
-  for(const prop of APP.sets["2"])
+  for(const prop of (await st(M)).sabItems)
     check(`  overlay lists ${prop}`, h.includes(prop));
   // finding them is the scramble — the TV must not give the locations away
   check("the overlay does not reveal which door each prop is at",
@@ -696,7 +696,7 @@ section("10 · answers tab — every group and every sudoku");
 
   // static reference block
   const ref = await html(A);
-  check("reference block lists the sabotage sets", APP.sets["1"].every(p=>ref.includes(p+" "+APP.props[p])));
+  check("reference block lists where every prop lives", Object.keys(APP.props).every(p=>ref.includes(p+" "+APP.props[p])));
   check("reference block lists the scoring", /mediums 2/.test(ref) && /hard 3/.test(ref) && /GREEN 2/.test(ref));
 }
 
@@ -759,11 +759,11 @@ section("11 · role views");
     await act(pages[r],"tab","controls");
   }
   // every role still writes to the same document
-  await act(pages.referee,"sab",1);
+  await act(pages.referee,"sab");
   await until(pages.ghost,"window.__state().banner==='sabotage'");
   await act(pages.cc,"phasePre",30,"REPORT");
   await until(pages.gm,"window.__state().phase.label==='REPORT'");
-  check("actions from any role reach every other role", (await st(pages.foreman)).sabotageSet===1);
+  check("actions from any role reach every other role", (await st(pages.foreman)).sabItems.length===5);
 
   // the break-glass section must survive the re-render any other phone causes
   await act(pages.gm,"desk");
@@ -829,7 +829,7 @@ section("12 · share links carry the connection");
 section("13 · reload, offline, recovery");
 {
   const A = await mk("/c/cc","g-net"), B = await mk("/monitor","g-net");
-  await act(A,"start"); await act(A,"dAdj",3); await act(A,"sab",1);
+  await act(A,"start"); await act(A,"dAdj",3); await act(A,"sab");
   await until(B,"window.__state().deaths===3 && window.__state().banner==='sabotage'");
 
   await A.reload({waitUntil:"domcontentloaded"});

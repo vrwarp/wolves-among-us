@@ -29,13 +29,13 @@ section("1 · refresh in every game state");
     ["clock adjusted twice",           async A => {await act(A,"start"); await act(A,"adj",30000); await act(A,"adj",-30000)}],
     ["meeting running",                async A => {await act(A,"start"); await act(A,"meeting")}],
     ["meeting + nominations phase",    async A => {await act(A,"meeting"); await act(A,"phasePre",90,"NOMINATIONS")}],
-    ["sabotage running",               async A => {await act(A,"start"); await act(A,"sab",2)}],
-    ["both sabotages spent",           async A => {await act(A,"sab",1); await act(A,"sabOk"); await act(A,"sab",3); await act(A,"sabFail")}],
+    ["sabotage running",               async A => {await act(A,"start"); await act(A,"sab")}],
+    ["both sabotages spent",           async A => {await act(A,"sab"); await act(A,"sabOk"); await act(A,"sab"); await act(A,"sabFail")}],
     ["deaths past the threshold",      async A => {for(let i=0;i<7;i++) await act(A,"dAdj",1)}],
     ["clock run down to 0:00",         async A => {await act(A,"start"); await act(A,"adj",-600000)}],
     ["round 3, mid-game",              async A => {await confirmNewRound(A); await settle(400); await confirmNewRound(A);
                                                    await act(A,"start"); await act(A,"dAdj",2)}],
-    ["right after an undo",            async A => {await act(A,"dAdj",1); await act(A,"sab",1); await settle(500); await act(A,"undo")}],
+    ["right after an undo",            async A => {await act(A,"dAdj",1); await act(A,"sab"); await settle(500); await act(A,"undo")}],
     ["ten-deep undo history",          async A => {for(let i=0;i<12;i++){await act(A,"dAdj",1); await settle(80)}}],
   ];
   for(const [name, setup] of cases){
@@ -151,7 +151,7 @@ section("1c · the Game Master's settings survive a refresh");
 section("2 · refresh must never reseed a live game");
 {
   const A = await mk("/c/cc","r-seed"), B = await mk("/monitor","r-seed");
-  await act(A,"start"); await act(A,"dAdj",4); await act(A,"sab",1);
+  await act(A,"start"); await act(A,"dAdj",4); await act(A,"sab");
   await until(B,"window.__state().deaths===4 && window.__state().banner==='sabotage'");
   await settle(500);                    // let every field of that burst land
   const before = await st(B);
@@ -203,7 +203,7 @@ section("3 · refresh timing edges");
   else note("the tap survived a refresh issued in the same tick");
 
   // reload while a 2-minute sabotage phase is ticking: the phase clock must not restart
-  await act(A,"sab",2); await settle(900);
+  await act(A,"sab"); await settle(900);
   const ph0 = (await st(A)).phase.endsAt;
   await settle(1200);
   await reload(A);
@@ -634,7 +634,7 @@ section("6e · the escaping never reaches anyone's eyes");
   // should be — so flatten it to an ordinary space before matching.
   const gmTxt = (await D.evaluate(()=>document.getElementById("app").innerText)).replace(/\u00a0/g," ");
   check("the Undo button names the last action in plain words",
-    /Undo — Sabotage — set 2/.test(gmTxt), gmTxt.split("\n").find(l=>/Undo/.test(l)));
+    /Undo — Sabotage — 5 props/.test(gmTxt), gmTxt.split("\n").find(l=>/Undo/.test(l)));
   check("…and the phase chip is the short word, not an entity", /\bSAB\b/.test(gmTxt),
     gmTxt.slice(0,90).replace(/\n/g," "));
 
@@ -705,7 +705,7 @@ section("7 · someone taps “Skip — demo mode” by mistake");
   check("a counsellor view in demo mode still flags itself grey",
     /dot demo/.test(await html(D)), (await html(D)).match(/class="dot [a-z]+"/)?.[0]);
   const before = await st(REAL);
-  await act(D,"dAdj",1); await act(D,"sab",1); await settle(1500);
+  await act(D,"dAdj",1); await act(D,"sab"); await settle(1500);
   check("nothing tapped in demo mode touches the real game",
     eq(pick(before), pick(await st(REAL))), diff(before, await st(REAL)));
   check("the demo phone shows its own private numbers", (await st(D)).deaths===1 && (await st(REAL)).deaths===4,
