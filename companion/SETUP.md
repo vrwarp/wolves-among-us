@@ -4,6 +4,14 @@ A single web page that keeps the round clock, death count, target, Sabotages and
 answer sheets in sync across the TV and all four counselor phones, using Firebase
 Firestore. Free tier; a whole game night is a few hundred reads/writes ($0).
 
+> **Already deployed:** **https://footprints-among-us.web.app**
+> Steps 1–4 below are done. Open that URL on one phone, paste the config from
+> `.firebaserc`'s project in the Firebase console (or just tap **Connect** — the
+> config block is in the console under Project settings → Your apps), then share
+> the QR to the other devices. To redeploy after an edit: `npm run deploy`.
+> To check the live site end to end: `node test/live-smoke.mjs`.
+> Skip to **step 5**.
+
 ## 1. Create the Firebase project  (3 min)
 1. Go to **console.firebase.google.com** → **Add project** → name it (e.g. `footprints`).
 2. Turn **off** Google Analytics when asked. Create.

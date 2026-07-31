@@ -11,6 +11,9 @@
     "test:emulator": "firebase emulators:exec --only firestore --project demo-footprints \"node test/run-tests.js emu\"",
     "test:quick": "firebase emulators:exec --only firestore --project demo-footprints \"node test/run-tests.js emu test_multidevice.mjs test_comprehensive.mjs\"",
     "test:game": "firebase emulators:exec --only firestore --project demo-footprints \"node test/run-tests.js emu test_fullgame.mjs\"",
+    "smoke:live": "node test/live-smoke.mjs",
+    "links": "node test/make-links.mjs",
+    "qr": "node test/make-qr-sheet.mjs device-links.html",
     "deploy": "firebase deploy"
   },
   "devDependencies": {

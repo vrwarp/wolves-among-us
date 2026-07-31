@@ -45,14 +45,18 @@ older snapshot.
 → *Tap Undo once. Watch the number move on the TV. Then tap again if needed.*
 
 **3. Grey dot means you are not connected — and it will not fix itself.**
-The app gives the database **8 seconds** to answer on first load. Miss that
-window — crowded wifi, six phones connecting at once, a slow captive portal —
-and it falls back to demo mode: a fresh-looking 0-death game with a **grey**
-dot. Taps there go nowhere, and it never retries. The same thing happens to a
-phone that reloads while the database is unreachable.
+The app gives the database a fixed budget to answer on first load. Miss it and
+it falls back to demo mode: a fresh-looking 0-death game with a **grey** dot.
+Taps there go nowhere, and it never retries. The same happens to a phone that
+reloads while the database is unreachable.
 
-This is the single most likely way to lose data on the night, and the tell is
-one pixel.
+That budget was **8 seconds**, and it was too tight — the very first client
+connection to the freshly created `footprints-among-us` database blew it during
+the real deploy, on a fast desktop with good wifi. Raised to **25 seconds**.
+Six phones connecting at once on church wifi is the same cold-start situation,
+so this was not theoretical.
+
+The fallback still exists, and the tell is still one pixel.
 → *Before round 1, walk the room and check every dot is **green**. If any phone
 is grey, refresh it. Green = live. Grey = talking to nobody. Red = offline but
 it will catch up.*
@@ -90,18 +94,25 @@ Verified across four wifi drops and a long blackout with six queued taps.
 > Undo: tap once, watch the TV, then tap again.
 > *New round* needs two taps, and paper is always the backup.
 
-## If you want one more change before tomorrow
+## The live deployment
 
-The 8-second give-up (finding 3) is the only thing here that can silently cost
-you data, and it is the one thing a counsellor cannot easily notice. Two options,
-both small:
+Deployed to **https://footprints-among-us.web.app** (project
+`footprints-among-us`, Firestore in `nam5`). `test/live-smoke.mjs` runs 22
+checks against the deployed page and the real database — three devices syncing,
+cross-device undo, a refresh rejoining, the published security rules, and that
+nothing but `index.html` is served. Re-run it any time:
 
-- Raise the timeout from 8s to ~20s in `index.html` (the `setTimeout(...,8000)`
-  inside the boot block). Slower phones then still get in.
-- Or make the failure loud: on fallback, show the offline banner instead of a
-  silent grey dot.
+    node test/live-smoke.mjs
 
-Not done — it is a judgement call about the night, not a bug fix.
+Hosting was set to publish the whole folder; it now publishes only `index.html`.
+The test suite, `appdata.json`, `package.json` and this file are no longer
+reachable from the public URL.
+
+**One thing to keep in mind:** every answer is embedded in `index.html` — all 32
+groups' door codes, the 80 sudoku solutions, the gospel words. Anyone who opens
+the URL and views source has the answer sheet. That is inherent to the
+single-file design; the "no student phones" rule is what makes it safe. Don't
+post the link anywhere students can reach it, and delete the project afterwards.
 
 ## Coverage
 

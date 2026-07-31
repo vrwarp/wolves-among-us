@@ -4,7 +4,12 @@
     "ignore": [
       "firebase.json",
       "firestore.rules",
-      "SETUP.md",
+      "*.md",
+      "*.json",
+      "*.py",
+      "*.log",
+      "index.template.html",
+      "test/**",
       "**/.*",
       "**/node_modules/**"
     ]
