@@ -21,7 +21,7 @@ button:active{transform:scale(.97)}
 .wrap{max-width:760px;margin:0 auto;padding:14px 14px 90px}
 h1{font-size:22px;margin:14px 0 4px}
 .sub{color:var(--mut);font-size:13px;margin-bottom:14px}
-.sect{margin:18px 0 8px;font-size:11px;font-weight:700;letter-spacing:.09em;color:var(--mut);text-transform:uppercase;
+.sect{margin:20px 0 8px;font-size:11.5px;font-weight:800;letter-spacing:.1em;color:#4a453f;text-transform:uppercase;
 border-bottom:1px solid var(--line);padding-bottom:5px}
 .row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
 .row>button{flex:1;min-width:70px}
@@ -31,12 +31,23 @@ border-bottom:1px solid var(--line);padding-bottom:5px}
 .small{font-size:12.5px;color:var(--mut)}
 /* status strip */
 .strip{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);
-display:flex;align-items:center;gap:14px;padding:10px 14px;flex-wrap:wrap}
-.strip .clk{font-size:30px;font-weight:800}
+display:flex;align-items:center;gap:11px;padding:10px 12px;flex-wrap:wrap}
+.strip .clk{font-size:29px;font-weight:800}
 .strip .cell b{font-size:17px}
 .strip .cell{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em;line-height:1.2}
-.dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-left:auto}
+.dot{width:11px;height:11px;border-radius:50%;display:inline-block;flex:none}
 .dot.live{background:var(--ok)} .dot.demo{background:#999} .dot.off{background:var(--bad)}
+/* the dot alone is too quiet for the one signal that matters — label it */
+.conn{margin-left:auto;display:flex;align-items:center;gap:5px;font-size:10.5px;font-weight:800;
+letter-spacing:.07em;text-transform:uppercase;padding:4px 8px;border-radius:20px;white-space:nowrap}
+.connbar{padding:10px 14px;font-size:13px;line-height:1.4}
+.connbar.demo{background:#2f2c29;color:#fff}
+.connbar.demo b{color:#ffd9a8}
+.connbar.off{background:#fbecea;color:var(--bad);border-bottom:1px solid #f0c4bd}
+.conn.live{color:var(--ok);background:#e9f4ef}
+.conn.demo{color:#5d5952;background:#ececea;box-shadow:inset 0 0 0 1.5px #c9c4bc}
+.conn.off{color:var(--bad);background:#fbecea;box-shadow:inset 0 0 0 1.5px #f0c4bd}
+.conn.only-dot{padding:5px;background:none}
 .chip{font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px}
 .chip.meeting{background:#eaf1f9;color:var(--blue)} .chip.sabotage{background:#fbecea;color:var(--bad)}
 /* tabs */
@@ -60,54 +71,74 @@ display:flex;align-items:center;gap:14px;padding:10px 14px;flex-wrap:wrap}
 /* number pad */
 .padwrap{max-width:340px;margin:0 auto}
 .padread{border:2px solid var(--line);border-radius:12px;background:var(--card);text-align:center;
-font-size:34px;font-weight:800;padding:10px;margin:6px 0 10px;min-height:62px}
+font-size:27px;font-weight:800;padding:5px;margin:4px 0 7px;min-height:46px}
 .padread.ok{border-color:var(--acc)}
-.padread .ph{color:#c9c4bc;font-size:18px;font-weight:600;line-height:2}
-.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.pk{font-size:24px;font-weight:700;padding:14px 0;border-radius:12px}
-.pk-mut{font-size:15px;color:var(--mut)}
+.padread .ph{color:#c9c4bc;font-size:15px;font-weight:600;line-height:2.2}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.pk{font-size:21px;font-weight:700;padding:9px 0;border-radius:10px}
+.pk-mut{font-size:14px;color:var(--mut)}
 /* monitor */
 .mon{background:#0f0f13;color:#f2f0ec;position:fixed;inset:0;overflow:hidden;display:flex;flex-direction:column;
-align-items:center;justify-content:center;gap:2.5vh;padding:3vh 3vw;text-align:center;position:relative}
-.mon .mclk{font-size:24vw;font-weight:800;line-height:.95;letter-spacing:-.02em}
-.mon .mlab{font-size:2vw;letter-spacing:.35em;color:#8a857e;text-transform:uppercase}
+align-items:center;justify-content:center;gap:2.5vh;padding:3vh 3vw;text-align:center}
+.mon .mclk{font-size:min(24vw,42vh);font-weight:800;line-height:.95;letter-spacing:-.02em}
+.mon .mlab{font-size:clamp(11px,2vw,26px);letter-spacing:.35em;color:#8a857e;text-transform:uppercase}
 .mon.warn .mclk{color:#ffb14a}.mon.crit .mclk{color:#ff6b57}
-.mstats{display:flex;gap:5vw;font-size:2.2vw;color:#c9c4bc}
-.mstats b{font-size:3.4vw;color:#fff;display:block}
+.mstats{display:flex;flex-wrap:wrap;justify-content:center;gap:4vw 5vw;font-size:clamp(11px,2.2vw,26px);color:#c9c4bc}
+.mstats b{font-size:clamp(20px,3.4vw,42px);color:#fff;display:block}
 .boxes{display:flex;gap:.7vw;flex-wrap:wrap;justify-content:center;max-width:92vw}
-.bx{width:4.4vw;height:4.4vw;min-width:34px;min-height:34px;border:2.5px solid #4a463f;border-radius:6px;
-display:flex;align-items:center;justify-content:center;font-size:1.7vw;color:#6b6660;font-weight:700}
+.bx{width:4.4vw;height:4.4vw;min-width:30px;min-height:30px;border:2.5px solid #4a463f;border-radius:6px;
+display:flex;align-items:center;justify-content:center;font-size:clamp(12px,1.7vw,22px);color:#6b6660;font-weight:700}
 .bx.hit{background:var(--bad);border-color:var(--bad);color:#fff}
 .bx.thr{border-color:#f2f0ec;border-width:3.5px;color:#f2f0ec}
 .overlay{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
 gap:2vh;padding:3vw;text-align:center;z-index:9}
-.overlay.sab{background:rgba(150,25,12,.96);animation:pulse 1.2s infinite}
-.overlay.meet{background:rgba(18,48,84,.96)}
-.overlay.win{background:rgba(140,20,10,.97)} .overlay.crew{background:rgba(20,90,60,.97)}
-@keyframes pulse{50%{background:rgba(120,16,6,.96)}}
-.overlay h2{font-size:5vw;margin:0;letter-spacing:.05em;color:#fff}
-.overlay .items{font-size:2.7vw;color:#fff;font-weight:700;line-height:1.45}
+/* opaque: at 96% the giant clock behind ghosts through and fights the prop list,
+   which is the one thing the room has to read */
+.overlay.sab{background:#96190c;animation:pulse 1.2s infinite}
+.overlay.meet{background:#123054}
+.overlay.win{background:#8c140a} .overlay.crew{background:#145a3c}
+@keyframes pulse{50%{background:#781006}}
+.overlay h2{font-size:clamp(28px,5vw,72px);margin:0;letter-spacing:.05em;color:#fff}
+.overlay .items{font-size:clamp(15px,2.7vw,34px);color:#fff;font-weight:700;line-height:1.45}
 .overlay .items span{color:#ffc9b8;font-weight:600}
-.overlay .pclk{font-size:8vw;font-weight:800;color:#fff;line-height:1}
+.overlay .pclk{font-size:clamp(44px,8vw,120px);font-weight:800;color:#fff;line-height:1}
 .mbtns{position:fixed;right:12px;bottom:10px;display:flex;gap:8px;opacity:.5}
 .mbtns button{background:#1d1c22;border-color:#333;color:#bbb;padding:8px 11px;font-size:12px}
 /* home */
-.home{display:grid;gap:10px;margin-top:16px}
-.home button{padding:18px;font-size:18px;border-radius:14px;text-align:left}
+.home{display:grid;gap:10px;margin-top:10px}
+.home button{padding:15px;font-size:17px;border-radius:14px;text-align:left}
 .home .desc{display:block;font-size:12.5px;color:var(--mut);font-weight:400;margin-top:2px}
+.hometop{display:flex;align-items:center;gap:10px}
+.hometop h1{flex:1;min-width:0}
+/* five view chips never fit one 375px row — two columns keeps every label whole */
+.viewpick{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;width:100%}
+.viewpick button{padding:11px 6px;font-size:14px;border-radius:10px}
+.viewpick button:last-child{grid-column:1/-1}
 textarea{width:100%;min-height:110px;font:12.5px ui-monospace,Menlo,monospace;border:1.5px solid var(--line);
 border-radius:10px;padding:10px;background:var(--card);color:var(--fg)}
 input[type=text]{font:inherit;border:1.5px solid var(--line);border-radius:10px;padding:10px;background:var(--card);width:100%}
 .qrbox{display:flex;flex-direction:column;align-items:center;gap:10px;padding:14px}
 #qr img,#qr canvas{border:8px solid #fff;border-radius:6px}
 .linkbox{word-break:break-all;font-size:11.5px;color:var(--mut);background:var(--card);
-border:1px dashed var(--line);border-radius:8px;padding:8px}
+border:1px dashed var(--line);border-radius:8px;padding:8px;max-height:46px;overflow:auto;
+-webkit-overflow-scrolling:touch}
 .banner-off{background:#fbecea;color:var(--bad);font-size:13px;padding:8px 12px;border-radius:8px;margin:8px 0;display:none}
 .arm{outline:3px solid var(--bad)}
 .on-chip{background:var(--fg);border-color:var(--fg);color:#fff}
 .btn-undo{background:#fff7ed;border-color:#f0c9a8;color:#8a4b12;font-weight:700}
-.kv{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);font-size:14.5px}
+.btn-step{padding:18px 14px;font-size:18px}
+.btn-wide{width:100%;padding:16px;font-size:18px}
+.phaserow{gap:5px}
+.phaserow button{padding:9px 3px;font-size:12.5px;min-width:0;color:var(--mut);letter-spacing:-.01em}
+.linkish{background:none;border:0;padding:0;font:inherit;font-weight:700;color:var(--acc);
+text-decoration:underline;cursor:pointer}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line);font-size:14.5px}
 .kv b{text-align:right}
+/* long values read as ragged right-aligned mush on a phone — stack them */
+.kv.stack{display:block}
+.kv.stack span{display:block;font-size:11.5px;font-weight:800;letter-spacing:.09em;
+text-transform:uppercase;color:#4a453f;margin-bottom:3px}
+.kv.stack b{display:block;text-align:left;font-weight:600;line-height:1.5}
 </style>
 </head>
 <body>
@@ -222,7 +253,7 @@ window.act={
   pad(d){const max=uiMode==="grp"?32:80;let n=uiNum+d;
     if(n.length>2||(+n>max&&+d>0&&+n>9))n=String(d);
     if(+n>max)n="";
-    uiNum=n.replace(/^0+/,"")||(d==="0"?"":n);render()},
+    uiNum=n.replace(/^0+/,"")||(d==="0"?"":n);render();revealAnswer()},
   padBack(){uiNum=uiNum.slice(0,-1);render()},
   padClr(){uiNum="";render()},
   go(h){location.hash=h},
@@ -268,7 +299,23 @@ function stripHTML(){
     <div class="cell">round<br><b>${S.round}</b></div>
     ${ph?`<span class="chip ${S.banner==="sabotage"?"sabotage":"meeting"}">${esc(S.phase.label)} <span class="mono" data-phclk>${fmt(remOf(S.phase))}</span></span>`:
       S.banner!=="none"?`<span class="chip ${S.banner}">${S.banner.toUpperCase()}</span>`:""}
-    <span class="dot ${conn}" title="${conn}"></span></div>`;
+    ${connHTML(true)}</div>`;
+}
+const CONNWORD={live:"live",demo:"no sync",off:"offline"};
+// In the strip, a healthy connection is just the green dot — the row is only
+// 375px wide and the game numbers earn that space. The word appears the moment
+// it is not healthy, which is when anyone needs to read it.
+function connHTML(compact){
+  if(compact && conn==="live") return `<span class="conn live only-dot" title="live"><span class="dot live"></span></span>`;
+  return `<span class="conn ${conn}" title="${conn}"><span class="dot ${conn}"></span>${CONNWORD[conn]||conn}</span>`;
+}
+// Quiet when it is fine, unmissable when it is not — a grey dot alone is too
+// easy to miss, and a phone that is not syncing loses everything tapped on it.
+function connBar(){
+  if(conn==="live")return "";
+  return conn==="off"
+    ? `<div class="connbar off">Offline — these are the last known numbers and they will catch up on their own. <b>Don't refresh.</b></div>`
+    : `<div class="connbar demo">Not connected — nothing you tap here reaches the other phones. <b>Refresh once</b>, or re-scan the QR.</div>`;
 }
 function undoHTML(){
   const last=(S.hist||[]).slice(-1)[0];
@@ -293,7 +340,9 @@ function controlsHTML(role){
         <button ${S.sabotagesUsed>=2?"disabled":""} onclick="act.sab(3)">Set 3</button>
       </div>
       <div class="small">${role==="cc"?"Picking a set flashes the TV, lists the five props and starts the 2:00 scramble.":"Tapped by an imposter? Wait ~5 seconds, start dimming, and pick a set — the TV and Central Command take it from there."}</div>`;
-  const phaseSection=`<div class="row">
+  // Secondary next to Start/End meeting, and compact — six buttons at full size
+  // pushed the ejection controls off a phone screen.
+  const phaseSection=`<div class="row phaserow">
       <button class="btn-ghost" onclick="act.phasePre(30,'REPORT')">0:30 report</button>
       <button class="btn-ghost" onclick="act.phasePre(90,'NOMINATIONS')">1:30 noms</button>
       <button class="btn-ghost" onclick="act.phasePre(30,'CORNERS')">0:30 corners</button>
@@ -309,8 +358,10 @@ function controlsHTML(role){
     return `<div class="sect">Phase stopwatch — yours</div>${phaseSection}
       <div class="sect">Sabotage — ${S.sabotagesUsed}/2 this round</div>${sabSection}
       ${undoHTML()}`;
+  // Ordered by how often it is touched on the night, so the busy controls are
+  // above the fold on a phone and the destructive one is last.
   return `
-  <div class="sect">Round clock — ${fmt(t.dur)} · only meetings pause it</div>
+  <div class="sect">Round clock — ${fmt(t.dur)}</div>
   <div class="row">
     ${t.mode==="run"?`<button class="btn-acc" onclick="act.pause()">Pause</button>`
       :`<button class="btn-ok" onclick="act.start()">${t.mode==="pause"?"Resume":"Start"}</button>`}
@@ -318,7 +369,12 @@ function controlsHTML(role){
     <button onclick="act.adj(30000)">+0:30</button>
     <button class="btn-ghost" onclick="act.resetT()">Reset</button>
   </div>
-  <div class="sect">Meeting — pauses the clock, 3:00 hard stop</div>
+  <div class="sect">Deaths — ${S.deaths} of ${S.threshold}</div>
+  <div class="row">
+    <button class="btn-step" onclick="act.dAdj(-1)">Death −</button>
+    <button class="btn-step btn-bad" onclick="act.dAdj(1)">Death +</button>
+  </div>
+  <div class="sect">Meeting — 3:00 hard stop</div>
   <div class="row">
     <button class="btn-blue" onclick="act.meeting()">Start meeting</button>
     <button onclick="act.endMeeting()">End meeting</button>
@@ -329,13 +385,12 @@ function controlsHTML(role){
     <button class="btn-bad" onclick="act.ejectCrew()">Crewmate ejected&nbsp; +1 death</button>
     <button class="btn-ok" onclick="act.ejectImp()">IMPOSTER caught&nbsp; no tick</button>
   </div>
-  <div class="sect">Sabotage — ${S.sabotagesUsed}/2 this round · none in the first 2:00</div>
+  <div class="sect">Sabotage — ${S.sabotagesUsed}/2 this round</div>
   ${sabSection}
-  <div class="sect">Counts</div>
-  <div class="row"><button onclick="act.dAdj(-1)">Death −</button><button onclick="act.dAdj(1)">Death +</button>
-  <button onclick="act.thAdj(-1)">Thresh −</button><button onclick="act.thAdj(1)">Thresh +</button></div>
-  <div class="row"><button onclick="act.tgAdj(-1)">Target −</button><button onclick="act.tgAdj(1)">Target +</button></div>
   ${undoHTML()}
+  <div class="sect">Round settings</div>
+  <div class="row"><button onclick="act.thAdj(-1)">Thresh −</button><button onclick="act.thAdj(1)">Thresh +</button>
+  <button onclick="act.tgAdj(-1)">Target −</button><button onclick="act.tgAdj(1)">Target +</button></div>
   <div class="sect">Round ${S.round}</div>
   <div class="row"><button class="btn-ghost${armed?" arm":""}" onclick="act.newRound(this)">${
     armed?"Tap again to confirm":"New round — resets deaths &amp; clock"}</button></div>`;
@@ -359,6 +414,18 @@ function sudHTML(n){
   <table class="sud">${rows}</table>
   <div class="small"><span style="color:var(--acc);font-weight:700">orange</span> = printed givens — if the slip's givens don't match, it's a different puzzle number</div></div>`;
 }
+// A phone screen cannot hold the keypad and a full answer card at once, so after
+// a digit lands, bring the answer up to the top of the view. Nothing to do if it
+// is already on screen — never yank the page out from under a reading thumb.
+function revealAnswer(){
+  const el=document.getElementById("ansres");
+  if(!el)return;
+  const r=el.getBoundingClientRect();
+  if(r.top>=56 && r.bottom<=innerHeight)return;
+  const strip=document.querySelector(".strip");
+  const off=(strip?strip.getBoundingClientRect().height:0)+6;
+  scrollTo({top:scrollY+r.top-off,behavior:"smooth"});
+}
 function answersHTML(){
   const max=uiMode==="grp"?32:80, n=+uiNum;
   const ok=n>=1&&n<=max&&uiNum!=="";
@@ -381,10 +448,10 @@ function answersHTML(){
   ${result}
   <div class="sect">Reference</div>
   <div class="card">
-    <div class="kv"><span>Points</span><b>Doors 1 · Gospel 1 · mediums 2 · hard 3 · GREEN 2 · BLUE 3</b></div>
-    <div class="kv"><span>Sabotage sets</span><b>${[1,2,3].map(i=>`S${i}: `+DATA.sets[i].map(p=>p+" "+DATA.props[p]).join(" · ")).join("<br>")}</b></div>
-    <div class="kv"><span>Deal round 2 / 3</span><b>deck 2 from group 11 · deck 3 from group 21</b></div>
-    <div class="kv"><span>Threshold dial</span><b>start 6 · calm imposters → 4 · fast imposters → 8</b></div>
+    <div class="kv stack"><span>Points</span><b>Doors 1 · Gospel 1 · mediums 2 · hard 3 · GREEN 2 · BLUE 3</b></div>
+    <div class="kv stack"><span>Sabotage sets</span><b>${[1,2,3].map(i=>`S${i}: `+DATA.sets[i].map(p=>p+" "+DATA.props[p]).join(" · ")).join("<br>")}</b></div>
+    <div class="kv stack"><span>Deal round 2 / 3</span><b>deck 2 from group 11 · deck 3 from group 21</b></div>
+    <div class="kv stack"><span>Threshold dial</span><b>start 6 · calm imposters → 4 · fast imposters → 8</b></div>
   </div>`;
 }
 function counselorView(role){
@@ -394,9 +461,9 @@ function counselorView(role){
   let body="";
   if(uiTab==="controls")body=controlsHTML(role);
   else if(uiTab==="answers")body=answersHTML();
-  else body=`<div class="sect">${ROLES[role]}</div><div class="card">${CRIB[role].map(c=>`<div class="kv" style="border:0;padding:5px 0"><span style="max-width:100%">· ${c}</span></div>`).join("")}</div>
+  else body=`<div class="sect">${ROLES[role]} — the short version</div><div class="card">${CRIB[role].map(c=>`<div class="kv" style="border:0;padding:5px 0"><span style="max-width:100%">· ${c}</span></div>`).join("")}</div>
     <div class="small" style="margin-top:10px">Full rules: FACILITATOR-PLAYBOOK.pdf · your paper role card has the long version.</div>`;
-  app.innerHTML=stripHTML()+`<div class="wrap">
+  app.innerHTML=stripHTML()+connBar()+`<div class="wrap">
     <div class="sub" style="margin:10px 0 0;display:flex;justify-content:space-between">
       <b>${ROLES[role]}</b><a href="#/" style="color:var(--mut)">switch role</a></div>
     <div class="tabs">${tabs}</div>${body}</div>`;
@@ -450,7 +517,7 @@ function homeView(){
     const name=(VIEWS.find(v=>v[0]===uiShare)||VIEWS[0])[1];
     share=`<div class="sect">Share to other devices</div>
     <div class="card qrbox">
-      <div class="row" style="width:100%">${VIEWS.map(([h,n])=>`<button class="${uiShare===h?"on-chip":"btn-ghost"}" onclick="act.shareView('${h}')">${n}</button>`).join("")}</div>
+      <div class="viewpick">${VIEWS.map(([h,n])=>`<button class="${uiShare===h?"on-chip":"btn-ghost"}" onclick="act.shareView('${h}')">${n}</button>`).join("")}</div>
       <div id="qr"></div>
       <div class="row" style="width:100%">
         <button class="btn-acc" onclick="act.share()">Share ${name} link</button>
@@ -466,15 +533,20 @@ function homeView(){
       <textarea id="cfgtxt" placeholder="const firebaseConfig = { apiKey: ... };"></textarea>
       <div style="margin:8px 0 4px" class="small">Game id (any word — same on every device):</div>
       <input type="text" id="gid" value="footprints-${Math.random().toString(36).slice(2,6)}">
-      <div class="row"><button class="btn-acc" onclick="act.saveCfg()">Connect</button>
-      <button class="btn-ghost" onclick="act.demo()">Skip — demo mode (this device/browser only)</button></div>
+      <div class="row"><button class="btn-acc btn-wide" onclick="act.saveCfg()">Connect</button></div>
+      <div class="small" style="text-align:center;margin-top:10px">
+        Just looking? <button class="linkish" onclick="act.demo()">Skip — demo mode</button><br>
+        Demo mode runs on this device only. Nothing you tap is shared.</div>
     </div>`;
   }
-  app.innerHTML=`<div class="wrap"><h1>Footprints Companion</h1>
-  <div class="sub">${has?`Connected · game “${readCfg().gameId}” · state syncs live to every device`:"Not connected — demo mode syncs between tabs on this device only"}</div>
+  const roles=`<div class="sect">${has?"Open a view on this device":"Preview a view (demo only)"}</div>
+  <div class="home">${links.map(([h,n,d])=>`<button onclick="act.go('${h}')">${n}<span class="desc">${d}</span></button>`).join("")}</div>`;
+  app.innerHTML=`<div class="wrap">
+  <div class="hometop"><h1>Footprints Companion</h1>${connHTML()}</div>
+  <div class="sub">${has?`Game “${esc(readCfg().gameId)}” · every device with the link shares this state`
+    :"Not connected — nothing is shared yet. Connect first, then send the QR to the other phones."}</div>
   <div class="banner-off" id="offb">Offline — showing the last known state. Changes will sync when the network returns.</div>
-  <div class="home">${links.map(([h,n,d])=>`<button onclick="act.go('${h}')">${n}<span class="desc">${d}</span></button>`).join("")}</div>
-  ${share}</div>`;
+  ${has?roles+share:share+roles}</div>`;
   if(has)drawQR(shareUrl);
 }
 window.drawQR=async url=>{
