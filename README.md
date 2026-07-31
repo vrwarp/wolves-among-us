@@ -10,7 +10,7 @@ grades 6–12, 5 counselors, 2–3 rounds. No student phones.
 |---|---|
 | **What to print** | `print-pack/PRINT-ME-FIRST.md` — every file, copy count, paper type |
 | **The rules** | `print-pack/FACILITATOR-PLAYBOOK.pdf` — 4 pages, self-contained |
-| **The briefing deck** | `deck/among-us-footprints.pptx` (PDF preview beside it) |
+| **The briefing deck** | `deck/among-us-footprints.pptx` — rebuild with `node deck/build.js` |
 | **The companion app** | `companion/SETUP.md` — 10-minute Firebase deploy, then QR the phones |
 
 Still manual: 80 mazes (checked by eye), and confirm the GREEN origami kit is
