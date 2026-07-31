@@ -832,15 +832,23 @@ function controlsHTML(role){
   ${sabSection}`;
 
   /* --- everything the facilitator does from outside the fiction --- */
-  const gmControls=`
+  // The clock is the thing this phone is picked up for, usually in a hurry and
+  // often one-handed, so the four controls get a row each rather than sharing
+  // one: starting the round and bending it are both worth a thumb-sized target.
+  const gmClock=`
   <div class="sect">Round clock — ${fmt(t.dur)}</div>
   <div class="row">
-    ${t.mode==="run"?`<button class="btn-acc" onclick="act.pause()">Pause</button>`
-      :`<button class="btn-ok" onclick="act.start()">${t.mode==="pause"?"Resume":"Start"}</button>`}
-    <button onclick="act.adj(-30000)">−0:30</button>
-    <button onclick="act.adj(30000)">+0:30</button>
-    <button class="btn-ghost" onclick="act.resetT()">Reset</button>
+    ${t.mode==="run"?`<button class="btn-acc btn-wide" onclick="act.pause()">Pause</button>`
+      :`<button class="btn-ok btn-wide" onclick="act.start()">${t.mode==="pause"?"Resume the round":"Start the round"}</button>`}
   </div>
+  <div class="row">
+    <button class="btn-step" onclick="act.adj(-30000)">−0:30</button>
+    <button class="btn-step" onclick="act.adj(30000)">+0:30</button>
+  </div>
+  <div class="row"><button class="btn-ghost" onclick="act.resetT()">Reset to ${fmt(t.dur)}</button></div>`;
+  // Set once before the night and rarely touched again — below everything that
+  // gets reached for while a round is actually running.
+  const gmSetup=`
   <div class="sect">Round length — <b>${fmt(t.dur)}</b></div>
   <div class="row">
     <button ${t.dur<=60000?"disabled":""} onclick="act.durAdj(-30000)">−0:30</button>
@@ -878,19 +886,25 @@ function controlsHTML(role){
     <button ${(S.sabProps|0||5)<=2?"disabled":""} onclick="act.sabPropsAdj(-1)">−1 prop</button>
     <button ${(S.sabProps|0||5)>=6?"disabled":""} onclick="act.sabPropsAdj(1)">+1 prop</button>
   </div>
-  <div class="small">Drawn at random from the six each time, so no two scrambles match. Five is the printed rule — one item per person, five people. Fewer is quicker; six sends the whole crew.</div>
-  ${undoHTML()}
-  <div class="sect">Round ${S.round}</div>
-  <div class="row"><button class="btn-ghost" onclick="act.newRound()">New round — resets deaths &amp; clock</button></div>`;
+  <div class="small">Drawn at random from the six each time, so no two scrambles match. Five is the printed rule — one item per person, five people. Fewer is quicker; six sends the whole crew.</div>`;
 
-  if(role==="gm")
-    return `${sabCard()}${meetCard()}${gmControls}
-      ${callSection}
-      ${pauseSection}
-      <div class="sect">If the desk goes down</div>
+  const deskTakeover=`<div class="sect">If the desk goes down</div>
       <div class="row"><button class="btn-ghost disclose" onclick="act.desk()">${uiDesk?"▾":"▸"}&nbsp; Take over the desk — meetings, ejections, deaths</button></div>
       ${uiDesk?`<div class="small">You are now holding Central Command's controls as well. Only one of you should use these at a time — the death count is one number and the later tap wins.</div>${deskControls}`
               :`<div class="small">Central Command owns these. Open this only if their phone drops out.</div>`}`;
+
+  // Ordered by when it is needed, not by how the game is described: everything
+  // reached for during a live round first, then the between-rounds button, then
+  // the dials that are set before the night and left alone.
+  if(role==="gm")
+    return `${sabCard()}${meetCard()}${gmClock}
+      ${callSection}
+      ${pauseSection}
+      ${undoHTML()}
+      ${deskTakeover}
+      <div class="sect">Round ${S.round}</div>
+      <div class="row"><button class="btn-ghost" onclick="act.newRound()">New round — resets deaths &amp; clock</button></div>
+      ${gmSetup}`;
 
   // cc — in the fiction, at the desk. Ordered by how often it is touched.
   return `${sabCard()}${deskControls}
