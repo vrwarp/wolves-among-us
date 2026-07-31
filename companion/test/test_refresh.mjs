@@ -231,13 +231,27 @@ section("6 · refresh from a share link, and losing the config");
   check("it stays connected from stored config once the link params are gone",
     (await st(N)).deaths===5 && await conn(N)==="live");
 
-  // storage wiped (private tab, or "clear site data")
+  // Storage wiped ("clear site data", or a browser that never had it). The URL
+  // still carries the connection, so the phone puts itself back together.
   await N.evaluate("localStorage.clear()");
   await N.reload({waitUntil:"domcontentloaded"});
+  const healed = await softUntil(N,"window.__conn()==='live'",30000);
+  check("a phone whose storage is wiped recovers from the link in its address bar", healed,
+    "conn="+await conn(N));
+  check("…and comes back to the real game, not a fresh one", (await st(N)).deaths===5,
+    "deaths="+(await st(N)).deaths);
+  note("wiped storage is survivable now: the address bar is itself a working share link");
+
+  // A genuinely fresh phone — no storage, no link — must ask to connect rather
+  // than quietly showing a plausible empty game.
+  const fresh = await (await newCtx()).newPage();
+  fresh.on("pageerror", e=>pageErrs.push("bare: "+e));
+  await fresh.goto(`${BASE}/#/`, {waitUntil:"domcontentloaded"});
   await settle(2500);
-  check("a phone whose storage is wiped lands on the connect screen, not a fake game",
-    /Paste the/.test(await html(N)) || await conn(N)!=="live", "conn="+await conn(N));
-  note("recovery for a wiped phone: re-scan the QR — the link carries the config");
+  check("a phone opening the bare URL is asked to connect, not shown a fake game",
+    /Paste the/.test(await html(fresh)), "conn="+await conn(fresh));
+  check("…and does not claim to be live", await conn(fresh)!=="live", await conn(fresh));
+  note("recovery for a phone that has lost both: re-scan the QR — the link carries the config");
 }
 
 /* ================================================================= */
@@ -274,6 +288,54 @@ if(EMU){
   check("after recovery it is on the real game", await conn(S)==="live", await conn(S));
   await ctx.unroute("**/*").catch(()=>{});
 } else note("skipped (needs the real emulator)");
+
+/* ================================================================= */
+section("6c · a scanned QR keeps working after switching roles");
+{
+  // REGRESSION: role switching used to drop ?cfg= from the URL, leaving the
+  // connection only in localStorage. A scanned QR often lands in a private tab
+  // or an in-app browser where localStorage throws and the app falls back to an
+  // in-memory store — so the next reload put the phone on the connect screen.
+  const A = await mk("/c/cc","r-qr");
+  await act(A,"dAdj",3); await settle(600);
+  await A.evaluate("location.hash='#/'"); await settle(500);
+  await act(A,"shareView","/c/foreman"); await settle(400);   // a role view, as a counsellor would be sent
+  const link = await A.evaluate("document.getElementById('sharelink')?.textContent||''");
+  check("a share link is available to scan", link.includes("cfg=")&&link.includes("/c/foreman"), link.slice(0,60));
+
+  for(const storage of [true,false]){
+    const ctx = await newCtx();
+    if(!storage) await ctx.addInitScript(()=>{           // private tab / in-app browser
+      Object.defineProperty(window,"localStorage",{configurable:true,get(){throw new Error("blocked")}});
+    });
+    const P = await ctx.newPage();
+    const label = storage ? "with storage" : "with localStorage blocked";
+    P.on("pageerror", e=>pageErrs.push("qr("+label+"): "+e));
+    await P.goto(link.replace("http://localhost:8124", BASE), {waitUntil:"domcontentloaded"});
+    await live(P);
+    check(`${label}: the scanned link joins the game`, (await st(P)).deaths===3, "deaths="+(await st(P)).deaths);
+
+    await P.click('a:has-text("switch role")');
+    await settle(900);
+    check(`${label}: switching role stays connected`, await conn(P)==="live", await conn(P));
+    check(`${label}: it does not fall back to the connect screen`, !/Paste the/.test(await html(P)));
+    check(`${label}: the address bar still carries the connection`,
+      (await P.evaluate("location.hash")).includes("cfg="), await P.evaluate("location.hash"));
+
+    const cc = await P.$('button:has-text("Central Command")');
+    if(cc){await cc.click(); await settle(900)}
+    check(`${label}: picking a role from there is still live`,
+      await conn(P)==="live" && (await st(P)).deaths===3, await conn(P)+" deaths="+(await st(P)).deaths);
+
+    // the thing that actually broke it on a phone: a reload after switching
+    await P.reload({waitUntil:"domcontentloaded"});
+    await settle(1500);
+    const back = await softUntil(P,"window.__conn()==='live'",30000);
+    check(`${label}: a reload after switching rejoins the game`, back, "conn="+await conn(P));
+    check(`${label}: …with the real numbers, not a fresh game`, (await st(P)).deaths===3,
+      "deaths="+(await st(P)).deaths);
+  }
+}
 
 /* ================================================================= */
 section("7 · someone taps “Skip — demo mode” by mistake");

@@ -272,11 +272,33 @@ async function fbBackend(cfg,gameId){
   return {patch(o){F.setDoc(ref,o,{merge:true}).catch(()=>{conn="off";render()})}};
 }
 /* ---------------- config ---------------- */
+// The link is the connection. localStorage is not always there — a scanned QR
+// often lands in a private tab or an in-app browser where it throws, and the
+// in-memory fallback dies on the next reload. So once we know the config, every
+// link this app builds carries it, and the address bar stays a working link.
+let cfgToken="";
 function readCfg(){
   const h=new URLSearchParams(location.hash.split("?")[1]||"");
   if(h.get("cfg")){try{const j=JSON.parse(atob(h.get("cfg").replace(/-/g,"+").replace(/_/g,"/")));
-    store.setItem("fpCfg",JSON.stringify(j));return j}catch(e){}}
-  try{return JSON.parse(store.getItem("fpCfg"))}catch(e){return null}
+    store.setItem("fpCfg",JSON.stringify(j));cfgToken=cfgB64(j);return j}catch(e){}}
+  try{const j=JSON.parse(store.getItem("fpCfg")); if(j)cfgToken=cfgB64(j); return j}catch(e){return null}
+}
+// Build an in-app hash that keeps the connection with it.
+function hashFor(h){
+  const raw=String(h).replace(/^#/,"");
+  if(!cfgToken)return "#"+raw;
+  const [p,q]=raw.split("?");
+  const params=new URLSearchParams(q||"");
+  params.set("cfg",cfgToken);
+  return "#"+p+"?"+params.toString();
+}
+// Put the config back into the address bar without reloading, so a refresh —
+// or reopening the tab from history — still lands in the game.
+function keepCfgInUrl(){
+  if(!cfgToken)return;
+  const q=new URLSearchParams(location.hash.split("?")[1]||"");
+  if(q.get("cfg")===cfgToken)return;
+  try{history.replaceState(null,"",hashFor(location.hash||"#/"))}catch(e){}
 }
 function parseCfgText(t){
   const a=t.indexOf("{"),b=t.lastIndexOf("}");
@@ -356,7 +378,7 @@ window.act={
     uiNum=n.replace(/^0+/,"")||(d==="0"?"":n);render();revealAnswer()},
   padBack(){uiNum=uiNum.slice(0,-1);render()},
   padClr(){uiNum="";render()},
-  go(h){location.hash=h},
+  go(h){location.hash=hashFor(h)},
   shareView(v){uiShare=v;render()},
   async share(){
     try{if(navigator.share){await navigator.share({title:"Footprints Companion",text:"Join the game — open this on your phone:",url:shareUrl});return}}catch(e){if(e&&e.name==="AbortError")return}
@@ -377,8 +399,9 @@ window.act={
     try{const cfg=parseCfgText(txt);store.setItem("fpCfg",JSON.stringify({cfg,gameId:gid}));location.reload()}
     catch(e){alert("Couldn't read that config. Paste the whole firebaseConfig = { ... } block from the Firebase console.")}
   },
-  demo(){store.removeItem("fpCfg");store.setItem("fpDemo","1");location.hash="#/";location.reload()},
-  forget(){store.removeItem("fpCfg");store.removeItem("fpDemo");location.reload()},
+  demo(){store.removeItem("fpCfg");store.setItem("fpDemo","1");cfgToken="";location.hash="#/";location.reload()},
+  // must drop the token from the URL too, or the reload would just read it back in
+  forget(){store.removeItem("fpCfg");store.removeItem("fpDemo");cfgToken="";location.hash="#/";location.reload()},
 };
 /* ---------------- views ---------------- */
 const app=document.getElementById("app");
@@ -583,7 +606,7 @@ function counselorView(role){
     <div class="small" style="margin-top:10px">Full rules: FACILITATOR-PLAYBOOK.pdf · your paper role card has the long version.</div>`;
   app.innerHTML=stripHTML()+connBar()+`<div class="wrap">
     <div class="sub" style="margin:10px 0 0;display:flex;justify-content:space-between">
-      <b>${ROLES[role]}</b><span class="hdrbtns">${soundBtn()}<a href="#/" style="color:var(--mut)">switch role</a></span></div>
+      <b>${ROLES[role]}</b><span class="hdrbtns">${soundBtn()}<a href="${hashFor('/')}" style="color:var(--mut)">switch role</a></span></div>
     <div class="tabs">${tabs}</div>${body}</div>`;
 }
 function monitorView(){
@@ -680,6 +703,7 @@ window.drawQR=async url=>{
 };
 /* ---------------- render / tick ---------------- */
 function render(){
+  keepCfgInUrl();
   const {path}=route();
   if(path==="/monitor")monitorView();
   else if(path.startsWith("/c/")){const r=path.split("/")[2];ROLES[r]?counselorView(r):homeView()}
