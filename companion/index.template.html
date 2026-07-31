@@ -379,9 +379,16 @@ const MIDLE={mode:"idle",endsAt:0,remain:0,clock:false};
 // clock, so leaving it stopped meant nobody at the desk could restart it.
 const afterMeeting=extra=>{
   const o={banner:"none",phase:IDLE,meet:MIDLE,...(extra||{})};
-  if(S.meet.clock&&!PAUSED()){
-    const t=T();
-    if(t.mode==="pause"){t.endsAt=now()+t.remain;t.mode="run";o.timer=t}
+  if(S.meet.clock){
+    if(PAUSED()){
+      // The whole game is stopped, so do not start anything now — hand the
+      // intent to resumeGame instead, or the round clock is left off with
+      // nobody at the desk able to restart it.
+      o.paused={...S.paused,clock:true,meet:false};
+    }else{
+      const t=T();
+      if(t.mode==="pause"){t.endsAt=now()+t.remain;t.mode="run";o.timer=t}
+    }
   }
   return o;
 };
@@ -401,11 +408,14 @@ window.act={
   },
   resumeGame(){
     if(!PAUSED())return;
-    const t=T(), ph=H(), p=S.paused;
-    if(p.clock){t.endsAt=now()+t.remain;t.mode="run"}
-    if(p.phase){ph.endsAt=now()+ph.remain;ph.mode="run"}
-    const mt={...S.meet};
-    if(p.meet){mt.endsAt=now()+mt.remain;mt.mode="run"}
+    const t=T(), ph=H(), mt={...S.meet}, p=S.paused;
+    // Only restart a clock that is still holding at "pause". Something may have
+    // ended while the game was paused — a meeting closed, a sabotage resolved —
+    // and those set their clock to idle. Restarting one of those resurrects a
+    // phase or a meeting that is over, as a phantom stuck at 0:00.
+    if(p.clock && t.mode==="pause"){t.endsAt=now()+t.remain;t.mode="run"}
+    if(p.phase && ph.mode==="pause"){ph.endsAt=now()+ph.remain;ph.mode="run"}
+    if(p.meet  && mt.mode==="pause"){mt.endsAt=now()+mt.remain;mt.mode="run"}
     doAct("Game resumed",{timer:t,phase:ph,meet:mt,paused:{on:false,clock:false,phase:false,meet:false}});
   },
   start(){if(PAUSED())return act.resumeGame();

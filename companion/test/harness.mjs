@@ -22,6 +22,8 @@ export const APP = JSON.parse(readFileSync(join(HERE,"..","appdata.json"),"utf8"
 // The app's own documented starting state. Key order matters: section 1 of the
 // comprehensive suite compares this against the seeded document verbatim.
 export const DEF = {round:1,targetPts:8,deaths:0,threshold:6,impostersCaught:0,sabotagesUsed:0,
+  // the Game Master's dials — set once for the night and carried across rounds
+  imposters:3,sabotageMax:2,
   sabotageSet:0,banner:"none",hist:[],
   paused:{on:false,clock:false,phase:false,meet:false},
   // the 3:00 meeting hard stop is its own clock, kept apart from `phase` so the
@@ -30,8 +32,8 @@ export const DEF = {round:1,targetPts:8,deaths:0,threshold:6,impostersCaught:0,s
   timer:{mode:"idle",endsAt:0,remain:480000,dur:480000},
   phase:{mode:"idle",endsAt:0,remain:0,label:""}};
 // The fields an undo snapshot restores — everything except the history itself.
-export const FIELDS = ["round","targetPts","deaths","threshold","impostersCaught",
-  "sabotagesUsed","sabotageSet","banner","paused","timer","phase","meet"];
+export const FIELDS = ["round","targetPts","deaths","threshold","imposters","sabotageMax",
+  "impostersCaught","sabotagesUsed","sabotageSet","banner","paused","timer","phase","meet"];
 
 /* ---------------- reporting ---------------- */
 let pass=0, failed=0, sec="";

@@ -207,7 +207,10 @@ section("round 2 — reset and replay");
   await beat("−0:30 to put it back", GM, p=>act(p,"adj",-30000));
   await beat("three quick deaths", CC, async p=>{
     for(let i=0;i<3;i++){await act(p,"dAdj",1); await settle(300)}}, s=>s.deaths===3);
-  await beat("CC starts the 2:00 sabotage stopwatch by hand", CC,
+  // The button that started a bare 2:00 scramble is gone from the desk — a
+  // sabotage now always comes in through a Set. The action itself still exists
+  // and still has to work, so this drives it directly rather than by tap.
+  await beat("a bare 2:00 sabotage stopwatch, started by the action alone", CC,
     p=>act(p,"phasePre",120,"SABOTAGE"), s=>s.phase.label==="SABOTAGE");
   await beat("CC stops it", CC, p=>act(p,"phaseStop"), s=>s.phase.mode==="idle");
   await beat("target bumped to 9 points", GM, p=>act(p,"tgAdj",1), s=>s.targetPts===9);

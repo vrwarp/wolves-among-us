@@ -111,6 +111,43 @@ section("1b · the 3:00 hard stop survives a refresh");
 }
 
 /* ================================================================= */
+// The three dials the Game Master sets before the night are the ones nobody
+// wants to re-enter at 7:30 with thirty students waiting. They are ordinary
+// fields in the shared document, so a reload has to bring them back — including
+// the round length, which is the one field the clock comparison above skips.
+section("1c · the Game Master's settings survive a refresh");
+{
+  const GM = await mk("/c/gm","r-gmset"), TV = await mk("/monitor","r-gmset");
+  await act(GM,"impAdj",1); await act(GM,"impAdj",1);       // five imposters
+  await act(GM,"sabMaxAdj",1);                              // three sabotages a round
+  await act(GM,"durAdj",-120000);                           // six-minute rounds
+  await settle(1000);
+  const before = await st(GM);
+  check("the settings are what the Game Master set",
+    before.imposters===5 && before.sabotageMax===3 && before.timer.dur===360000,
+    `imposters=${before.imposters} sabotageMax=${before.sabotageMax} dur=${before.timer.dur}`);
+
+  await reload(GM);
+  const after = await st(GM);
+  check("reload · the Game Master's settings come back",
+    eq(pick(before,NOCLOCK), pick(after,NOCLOCK)), diff(before,after,NOCLOCK));
+  check("reload · the round length comes back too",
+    after.timer.dur===360000 && after.timer.remain===360000, JSON.stringify(after.timer));
+  check("reload · the dials are on screen at the new values",
+    /Imposters — <b>5<\/b>/.test(await html(GM)) && /Sabotages — <b>3<\/b>/.test(await html(GM)),
+    ((await html(GM)).match(/(Imposters|Sabotages) — <b>\d<\/b>/g)||["neither"]).join(" | "));
+
+  // a phone that was never told about them reads them off the document
+  const LATE = await mk("/c/gm","r-gmset");
+  const late = await st(LATE);
+  check("a phone joining later picks the settings up on its own",
+    late.imposters===5 && late.sabotageMax===3 && late.timer.dur===360000,
+    `imposters=${late.imposters} sabotageMax=${late.sabotageMax} dur=${late.timer.dur}`);
+  check("…and the TV agrees", (await st(TV)).imposters===5 && (await st(TV)).sabotageMax===3,
+    JSON.stringify({i:(await st(TV)).imposters, s:(await st(TV)).sabotageMax}));
+}
+
+/* ================================================================= */
 section("2 · refresh must never reseed a live game");
 {
   const A = await mk("/c/cc","r-seed"), B = await mk("/monitor","r-seed");

@@ -383,6 +383,178 @@ section("9 · real taps, not scripted calls");
 }
 
 /* ================================================================= */
+// Three dials the Game Master owns and nobody else: how many imposters the TV
+// counts against, how many sabotages a round allows, and how long a round runs.
+// They live in the shared document and in FIELDS, so they reach every phone,
+// survive undo, and carry across rounds rather than resetting with the deaths.
+section("9b · the Game Master's three settings");
+{
+  const GM = await mk("/c/gm","f-gmset"), FM = await mk("/c/foreman","f-gmset"),
+        TV = await mk("/monitor","f-gmset");
+  // The round clock and the round length both render a "−0:30" and a "+0:30",
+  // so these are matched on the handler, not the label — and the labels use a
+  // real minus sign, which is not something to retype into a test.
+  const byCall = (p,call) => p.evaluate(c=>{
+    const b=[...document.querySelectorAll("button")].find(x=>(x.getAttribute("onclick")||"").includes(c));
+    return b ? {there:true, disabled:b.disabled} : {there:false, disabled:null};
+  }, call);
+  const byLabel = (p,label) => p.evaluate(t=>{
+    const b=[...document.querySelectorAll("button")].find(x=>x.textContent.trim().startsWith(t));
+    return b ? {there:true, disabled:b.disabled} : {there:false, disabled:null};
+  }, label);
+
+  const s0 = await st(GM);
+  check("the three settings start at the documented defaults",
+    s0.imposters===3 && s0.sabotageMax===2 && s0.timer.dur===480000,
+    `imposters=${s0.imposters} sabotageMax=${s0.sabotageMax} dur=${s0.timer.dur}`);
+  check("the dials belong to the Game Master and to no one else",
+    /Imposters —/.test(await html(GM)) && /Sabotages —/.test(await html(GM)) &&
+    /Round length/.test(await html(GM)) && !/Imposters —/.test(await html(FM)) &&
+    !/Round length/.test(await html(FM)));
+
+  /* --- imposters: 1..6 --- */
+  await act(GM,"impAdj",1);
+  await until(TV,"window.__state().imposters===4");
+  check("+1 imposter reaches every device", (await st(TV)).imposters===4);
+  for(let i=0;i<4;i++){await act(GM,"impAdj",1); await settle(170)}
+  await until(GM,"window.__state().imposters===6"); await settle(350);
+  check("imposters clamp at 6", (await st(GM)).imposters===6, "imposters="+(await st(GM)).imposters);
+  check("…and the +1 imposter button goes dead there",
+    (await byCall(GM,"impAdj(1)")).disabled===true, JSON.stringify(await byCall(GM,"impAdj(1)")));
+  for(let i=0;i<7;i++){await act(GM,"impAdj",-1); await settle(170)}
+  await until(GM,"window.__state().imposters===1"); await settle(350);
+  check("imposters clamp at 1", (await st(GM)).imposters===1, "imposters="+(await st(GM)).imposters);
+  check("…and the −1 imposter button goes dead there",
+    (await byCall(GM,"impAdj(-1)")).disabled===true, JSON.stringify(await byCall(GM,"impAdj(-1)")));
+  await act(GM,"impAdj",1); await until(TV,"window.__state().imposters===2");
+
+  /* --- sabotages per round: 0..5, and it really gates the Set buttons --- */
+  for(let i=0;i<5;i++){await act(GM,"sabMaxAdj",1); await settle(170)}
+  await until(GM,"window.__state().sabotageMax===5"); await settle(350);
+  check("sabotages per round clamp at 5", (await st(GM)).sabotageMax===5, "max="+(await st(GM)).sabotageMax);
+  check("…and the +1 sabotage button goes dead there",
+    (await byCall(GM,"sabMaxAdj(1)")).disabled===true, JSON.stringify(await byCall(GM,"sabMaxAdj(1)")));
+  for(let i=0;i<6;i++){await act(GM,"sabMaxAdj",-1); await settle(170)}
+  await until(GM,"window.__state().sabotageMax===0"); await settle(350);
+  check("sabotages per round clamp at 0", (await st(GM)).sabotageMax===0, "max="+(await st(GM)).sabotageMax);
+  check("…and the −1 sabotage button goes dead there",
+    (await byCall(GM,"sabMaxAdj(-1)")).disabled===true, JSON.stringify(await byCall(GM,"sabMaxAdj(-1)")));
+
+  // Zero allowed means the floor cannot start one at all. The Foreman is the
+  // test here on purpose: Set 1/2/3 is the whole of that phone's game control,
+  // and the dial that disables them lives on someone else's.
+  await until(FM,"window.__state().sabotageMax===0"); await settle(300);
+  check("at zero the Foreman's Set buttons are already dead",
+    (await byLabel(FM,"Set 1")).disabled===true && (await byLabel(FM,"Set 3")).disabled===true,
+    JSON.stringify(await byLabel(FM,"Set 1")));
+
+  await act(GM,"sabMaxAdj",1);                       // one sabotage a round
+  await until(FM,"window.__state().sabotageMax===1"); await settle(300);
+  check("raising the dial brings the Foreman's Set buttons back",
+    (await byLabel(FM,"Set 1")).disabled===false, JSON.stringify(await byLabel(FM,"Set 1")));
+  check("…and the Foreman's heading counts against the dial",
+    /Sabotage — 0\/1 this round/.test(await html(FM)),
+    (await html(FM)).match(/Sabotage — \d+\/\d+ this round/)?.[0]);
+
+  await act(FM,"sab",1); await settle(500);
+  await act(FM,"sabOk");                             // resolve it, so the Set row is on screen again
+  await until(FM,"window.__state().banner==='none'");
+  await settle(500);
+  check("the round's one sabotage was spent", (await st(FM)).sabotagesUsed===1,
+    "used="+(await st(FM)).sabotagesUsed);
+  check("spending the allowance kills the Set buttons on the Foreman's phone",
+    (await byLabel(FM,"Set 1")).disabled===true && (await byLabel(FM,"Set 2")).disabled===true &&
+    (await byLabel(FM,"Set 3")).disabled===true, JSON.stringify(await byLabel(FM,"Set 2")));
+  await act(GM,"sabMaxAdj",1);                       // the GM can hand out another
+  await until(FM,"window.__state().sabotageMax===2"); await settle(300);
+  check("the Game Master raising the dial re-arms the floor mid-round",
+    (await byLabel(FM,"Set 1")).disabled===false, JSON.stringify(await byLabel(FM,"Set 1")));
+
+  /* --- round length: 1:00..20:00 --- */
+  await act(GM,"resetT"); await settle(500);         // sabOk added a minute to the clock
+  const dIdle = await st(GM);
+  check("the round clock is idle, so a length change shows at once",
+    dIdle.timer.mode==="idle" && dIdle.timer.remain===dIdle.timer.dur, JSON.stringify(dIdle.timer));
+  await act(GM,"durAdj",30000);
+  await until(TV,"window.__state().timer.dur===510000");
+  const dUp = await st(TV);
+  check("+0:30 on an idle clock moves the length and the time left together",
+    dUp.timer.dur===510000 && dUp.timer.remain===510000, JSON.stringify(dUp.timer));
+
+  await act(GM,"durAdj",660000);                     // straight up to 19:30
+  await until(GM,"window.__state().timer.dur===1170000");
+  await act(GM,"durAdj",30000);
+  await until(GM,"window.__state().timer.dur===1200000");
+  check("round length clamps at 20:00", (await st(GM)).timer.dur===1200000);
+  check("…and the +0:30 length button goes dead there",
+    (await byCall(GM,"durAdj(30000)")).disabled===true, JSON.stringify(await byCall(GM,"durAdj(30000)")));
+  const hTop = (await st(GM)).hist.length;
+  await act(GM,"durAdj",30000); await settle(700);
+  check("…and a step past the top writes nothing at all",
+    (await st(GM)).timer.dur===1200000 && (await st(GM)).hist.length===hTop,
+    `${hTop} → ${(await st(GM)).hist.length} history entries`);
+
+  await act(GM,"durAdj",-1110000);                   // straight back down to 1:30
+  await until(GM,"window.__state().timer.dur===90000");
+  await act(GM,"durAdj",-30000);
+  await until(GM,"window.__state().timer.dur===60000");
+  check("round length clamps at 1:00", (await st(GM)).timer.dur===60000);
+  check("…and the −0:30 length button goes dead there",
+    (await byCall(GM,"durAdj(-30000)")).disabled===true, JSON.stringify(await byCall(GM,"durAdj(-30000)")));
+  const hBot = (await st(GM)).hist.length;
+  await act(GM,"durAdj",-30000); await settle(700);
+  check("…and a step past the bottom writes nothing either",
+    (await st(GM)).timer.dur===60000 && (await st(GM)).hist.length===hBot,
+    `${hBot} → ${(await st(GM)).hist.length} history entries`);
+
+  // With the clock running the new length is for the NEXT round; bending the
+  // round you are in is what the clock's own ±0:30 is for.
+  await act(GM,"durAdj",420000); await settle(500);  // back to 8:00
+  await act(GM,"start");
+  await until(TV,"window.__state().timer.mode==='run'");
+  const endsBefore = (await st(GM)).timer.endsAt;
+  await act(GM,"durAdj",30000);
+  await until(TV,"window.__state().timer.dur===510000");
+  const runAfter = await st(TV);
+  check("a length change while the clock runs never touches the round in progress",
+    runAfter.timer.dur===510000 && runAfter.timer.endsAt===endsBefore && runAfter.timer.mode==="run",
+    `endsAt ${endsBefore} → ${runAfter.timer.endsAt}`);
+  await act(GM,"resetT");
+  await until(TV,"window.__state().timer.mode==='idle'");
+  check("…and it takes effect on the next Reset", (await st(TV)).timer.remain===510000,
+    (await st(TV)).timer.remain+"ms");
+
+  /* --- undo puts all three back --- */
+  for(const [name,fn,arg,read] of [
+      ["imposters",           "impAdj",    1,     s=>s.imposters],
+      ["sabotages per round", "sabMaxAdj", 1,     s=>s.sabotageMax],
+      ["round length",        "durAdj",    30000, s=>s.timer.dur]]){
+    const before = await st(GM);
+    await act(GM,fn,arg); await settle(700);
+    const mid = await st(GM);
+    check(`${name} — the change lands`, read(mid)!==read(before), `${read(before)} → ${read(mid)}`);
+    await act(GM,"undo"); await settle(800);
+    const after = await st(GM);
+    check(`${name} — undo puts the whole snapshot back`, eq(pick(before), pick(after)), diff(before,after));
+    check(`${name} — and the dial itself reads the old value`, read(after)===read(before),
+      `${read(before)} → ${read(after)}`);
+  }
+
+  /* --- settings for the night, not for the round --- */
+  const pre = await st(GM);
+  await act(GM,"dAdj",2); await act(GM,"sab",1); await settle(700);
+  check("New round moved on", await confirmNewRound(GM));
+  await until(TV,`window.__state().round===${pre.round+1}`);
+  const nr = await st(TV);
+  check("New round clears the round but keeps all three settings",
+    nr.deaths===0 && nr.sabotagesUsed===0 &&
+    nr.imposters===pre.imposters && nr.sabotageMax===pre.sabotageMax && nr.timer.dur===pre.timer.dur,
+    `imposters=${nr.imposters} sabotageMax=${nr.sabotageMax} dur=${nr.timer.dur}`);
+  check("…and the new round's clock is set to that length",
+    nr.timer.remain===pre.timer.dur && nr.timer.mode==="idle", JSON.stringify(nr.timer));
+}
+
+/* ================================================================= */
 section("10 · no page errors");
 check("no uncaught exceptions from the new features", pageErrs.length===0, pageErrs.slice(0,4).join(" | "));
 
