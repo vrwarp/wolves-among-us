@@ -425,23 +425,33 @@ function meetStage(){
 const meetOver=()=>!!S.meet && S.meet.mode!=="idle" && S.meet.mode!=="gather" && remOf(S.meet)<=0;
 const GATHERING=()=>!!S.meet && S.meet.mode==="gather";
 const IDLE={mode:"idle",endsAt:0,remain:0,label:""};
-const MIDLE={mode:"idle",endsAt:0,remain:0,clock:false};
+const MIDLE={mode:"idle",endsAt:0,remain:0,clock:false,sab:false};
 // Ending a meeting — however it ends — puts the round clock back the way the
 // meeting found it. Central Command closes meetings but no longer owns the
 // clock, so leaving it stopped meant nobody at the desk could restart it.
 const afterMeeting=extra=>{
-  const o={banner:"none",phase:IDLE,meet:MIDLE,...(extra||{})};
+  // A meeting interrupts a scramble, it does not cancel it. If one was holding,
+  // the props are still drawn and the 2:00 goes back on with the time it had
+  // left — not a fresh one, and not silently dropped.
+  const held=!!(S.meet&&S.meet.sab)&&SABITEMS().length>0;
+  const o={banner:held?"sabotage":"none",phase:IDLE,meet:MIDLE,...(extra||{})};
+  // The whole game is stopped, so start nothing now — hand the intent to
+  // resumeGame instead, or a clock is left off with nobody able to restart it.
+  const defer={};
+  if(held){
+    const ph=H();
+    if(PAUSED())defer.phase=true;
+    else if(ph.mode==="pause"){ph.endsAt=now()+ph.remain;ph.mode="run"}
+    o.phase=ph;
+  }
   if(S.meet.clock){
-    if(PAUSED()){
-      // The whole game is stopped, so do not start anything now — hand the
-      // intent to resumeGame instead, or the round clock is left off with
-      // nobody at the desk able to restart it.
-      o.paused={...S.paused,clock:true,meet:false};
-    }else{
+    if(PAUSED())defer.clock=true;
+    else{
       const t=T();
       if(t.mode==="pause"){t.endsAt=now()+t.remain;t.mode="run";o.timer=t}
     }
   }
+  if(PAUSED())o.paused={...S.paused,...defer,meet:false};
   return o;
 };
 const PAUSED=()=>!!(S.paused&&S.paused.on);
@@ -495,15 +505,23 @@ window.act={
     if(S.meet && S.meet.mode!=="idle")return;                       // one at a time
     const t=T(), wasRunning=t.mode==="run";
     if(wasRunning){t.remain=remOf(t);t.mode="pause"}
-    doAct("Emergency meeting called",{timer:t,banner:"meeting",sabItems:[],  // cancels any live sabotage outright
-      meet:{mode:"gather",endsAt:0,remain:MEETTOTAL,clock:wasRunning},phase:IDLE})},
+    // A live scramble is held, not cancelled: the props stay drawn and the 2:00
+    // stops where it is. afterMeeting puts it back.
+    const held=S.banner==="sabotage", ph=H();
+    if(held&&ph.mode==="run"){ph.remain=remOf(ph);ph.mode="pause"}
+    doAct("Emergency meeting called",{timer:t,banner:"meeting",
+      meet:{mode:"gather",endsAt:0,remain:MEETTOTAL,clock:wasRunning,sab:held},
+      phase:held?ph:IDLE})},
   // Central Command starts the clock once the room is together. Straight from
   // idle it still works — that is the desk calling and starting in one go.
   meeting(){const t=T(), wasRunning=t.mode==="run", gathering=GATHERING();
     if(wasRunning){t.remain=remOf(t);t.mode="pause"}
-    doAct("Meeting started",{timer:t,banner:"meeting",sabItems:[],
+    const held=gathering?!!S.meet.sab:S.banner==="sabotage", ph=H();
+    if(!gathering&&held&&ph.mode==="run"){ph.remain=remOf(ph);ph.mode="pause"}
+    doAct("Meeting started",{timer:t,banner:"meeting",
       meet:{mode:"run",endsAt:now()+MEETTOTAL,remain:MEETTOTAL,
-            clock:gathering?!!S.meet.clock:wasRunning},phase:IDLE})},
+            clock:gathering?!!S.meet.clock:wasRunning,sab:held},
+      phase:held?ph:IDLE})},
   endMeeting(){doAct("Meeting ended — tie",afterMeeting())},
   // The desk can cut a meeting short: run the clock out rather than end it, so
   // the same three end-of-meeting choices are what closes it either way.
@@ -515,7 +533,8 @@ window.act={
   // all night. Nothing here is printed, so draw instead: any of the six props,
   // as many as the Game Master asked for. Listed back in door order, upstairs
   // first, because Central Command reads it aloud.
-  sab(){const n=Math.max(1,Math.min(PROPS.length,S.sabProps|0||5));
+  sab(){if(S.banner==="meeting")return;      // the room is together — there is nothing to scramble for
+    const n=Math.max(1,Math.min(PROPS.length,S.sabProps|0||5));
     const pool=PROPS.slice();
     for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]]}
     const items=pool.slice(0,n).sort((a,b)=>PROPS.indexOf(a)-PROPS.indexOf(b));
@@ -726,7 +745,19 @@ function controlsHTML(role){
     : `<div class="sect">Pause</div>
        <div class="row"><button class="btn-pause btn-wide" onclick="act.pauseGame()">Pause game — stops every clock</button></div>
        <div class="small">Any role can call this. It freezes the round clock and the phase clock everywhere, and chimes on every device.</div>`;
-  const sabSection=S.banner==="sabotage"
+  // No scramble while the room is standing together in the lobby — there is
+  // nothing to run for and nobody to run past. A sabotage that was already
+  // under way is only holding, and says so.
+  const inMeeting=S.banner==="meeting";
+  const heldSab=inMeeting&&!!(S.meet&&S.meet.sab)&&SABITEMS().length>0;
+  const sabSection=inMeeting
+    ?`<div class="row">
+        <button class="btn-sab btn-wide" disabled>Start sabotage — not during a meeting</button>
+      </div>
+      <div class="small">${heldSab
+        ? `The ${NUM[SABITEMS().length]||SABITEMS().length}-prop scramble is holding at <b>${fmt(remOf(S.phase))}</b> and starts again by itself the moment this meeting ends.`
+        : "The room is together in the lobby. Sabotage comes back when the meeting is over."}</div>`
+    : S.banner==="sabotage"
     ?(role==="cc"?`<div class="row">
         <button class="btn-ok" onclick="act.sabOk()">SUCCESS&nbsp; +1:00</button>
         <button class="btn-bad" onclick="act.sabFail()">FAILED&nbsp; +2 deaths · −1:30</button>
