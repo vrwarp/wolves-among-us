@@ -333,9 +333,14 @@ let cfgToken="";
 function readCfg(){
   const h=new URLSearchParams(location.hash.split("?")[1]||"");
   if(h.get("cfg")){try{const j=JSON.parse(atob(h.get("cfg").replace(/-/g,"+").replace(/_/g,"/")));
-    store.setItem("fpCfg",JSON.stringify(j));cfgToken=cfgB64(j);return j}catch(e){}}
-  try{const j=JSON.parse(store.getItem("fpCfg")); if(j)cfgToken=cfgB64(j); return j}catch(e){return null}
+    store.setItem("fpCfg",JSON.stringify(j));remember(j);cfgToken=cfgB64(j);return j}catch(e){}}
+  try{const j=JSON.parse(store.getItem("fpCfg")); if(j){remember(j);cfgToken=cfgB64(j)} return j}catch(e){return null}
 }
+// Kept past a Disconnect on purpose: reconnecting should not mean finding the
+// Firebase console again on a phone. Disconnect clears the live config; this is
+// only ever used to pre-fill the form.
+function remember(j){ if(j&&j.cfg)try{store.setItem("fpLastCfg",JSON.stringify(j))}catch(e){} }
+function lastCfg(){ try{const j=JSON.parse(store.getItem("fpLastCfg")); return j&&j.cfg?j:null}catch(e){return null} }
 // Build an in-app hash that keeps the connection with it.
 function hashFor(h){
   const raw=String(h).replace(/^#/,"");
@@ -514,7 +519,8 @@ window.act={
   demo(){store.removeItem("fpCfg");store.setItem("fpDemo","1");cfgToken="";location.hash="#/";location.reload()},
   forget(){askConfirm("forget")},
   // must drop the token from the URL too, or the reload would just read it back in
-  doForget(){store.removeItem("fpCfg");store.removeItem("fpDemo");cfgToken="";location.hash="#/";location.reload()},
+  doForget(){store.removeItem("fpCfg");store.removeItem("fpDemo");cfgToken="";location.hash="#/";location.reload()},   // fpLastCfg survives on purpose
+  forgetAll(){store.removeItem("fpLastCfg");render()},
 };
 /* Every confirmation in the app. Each says what will actually happen to the
    room, not what the button is called. */
@@ -871,12 +877,14 @@ function homeView(){
       <div class="small">The link carries the connection and the view — the other device opens it and is in. Scan the QR or send it by AirDrop / text.</div></div>
     <div class="row"><button class="btn-ghost" onclick="act.forget()">Disconnect this device</button></div>`;
     }else{
+    const last=lastCfg();
     share=`<div class="sect">Connect (once, on this device)</div>
     <div class="card">
       <div class="small" style="margin-bottom:8px">Paste the <b>firebaseConfig</b> block from the Firebase console (SETUP.md walks through it):</div>
-      <textarea id="cfgtxt" placeholder="const firebaseConfig = { apiKey: ... };"></textarea>
+      <textarea id="cfgtxt" placeholder="const firebaseConfig = { apiKey: ... };">${last?esc("const firebaseConfig = "+JSON.stringify(last.cfg,null,2)+";"):""}</textarea>
+      ${last?`<div class="small" style="margin-top:6px">Filled in from the last connection on this device. <button class="linkish" onclick="act.forgetAll()">clear it</button></div>`:""}
       <div style="margin:8px 0 4px" class="small">Game id (any word — same on every device):</div>
-      <input type="text" id="gid" value="footprints-${Math.random().toString(36).slice(2,6)}">
+      <input type="text" id="gid" value="${last?esc(last.gameId||""):"footprints-"+Math.random().toString(36).slice(2,6)}">
       <div class="row"><button class="btn-acc btn-wide" onclick="act.saveCfg()">Connect</button></div>
       <div class="small" style="text-align:center;margin-top:10px">
         Just looking? <button class="linkish" onclick="act.demo()">Skip — demo mode</button><br>
