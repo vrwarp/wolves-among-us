@@ -214,16 +214,129 @@ section("3b · every way out of a meeting hands the round clock back");
   await until(M,"window.__state().paused.on===false");
   await settle(500);
   p = await st(M);
-  // Whether the round clock should come back on here is a judgement call — the
-  // meeting ended under the pause, so nobody expects a running clock. What is
-  // not a judgement call is the meeting: it was ended, and resuming must not
-  // bring a 0:00 hard stop back onto the strip and the TV.
+  // Two things have to be true at once here, and they pull against each other.
+  // The meeting was ended, so resuming must not bring a 0:00 hard stop back onto
+  // the strip and the TV. But the meeting did take the round clock, and it could
+  // not hand it back under the pause, so the resume owes it — see 3c, which
+  // works the whole matrix.
   check("resuming does not resurrect the meeting that was already ended",
     p.meet.mode==="idle" && p.banner==="none", JSON.stringify(p.meet));
-  note(`meeting ended under a pause → after resume the round clock is "${p.timer.mode}"`);
+  check("…and the round clock the meeting took comes back with the resume",
+    p.timer.mode==="run", p.timer.mode);
   await act(A,"start"); await settle(500);
   check("…and the round clock is still startable afterwards", (await st(M)).timer.mode==="run",
     (await st(M)).timer.mode);
+}
+
+/* ================================================================= */
+// The mirror of 3b, and the other half of the same fix. afterMeeting() will not
+// start a clock under a PAUSED screen — a round clock ticking behind the word
+// PAUSED is worse than no clock at all — so a meeting that ends during a pause
+// hands the intent to resumeGame instead, via paused.clock. Miss that handover
+// and the meeting swallows the clock: the game resumes, the round is on, and
+// the desk has a stopped clock it cannot start.
+// The opposite mistake is the phantom: resume must never restart a clock that
+// something ENDED during the pause, or a finished meeting or sabotage comes
+// back stuck at 0:00.
+section("3c · a meeting that ends under a pause hands the clock back on resume");
+{
+  const A = await mk("/c/cc","g-mpause"), M = await mk("/monitor","g-mpause");
+  // the desk strip is where a phantom would show: MTG 0:00 or SAB 0:00
+  const chips = () => A.evaluate(
+    "[...document.querySelectorAll('.strip .chip')].map(c=>c.textContent.trim()).join(' | ')");
+
+  for(const [name, exit] of [["End meeting","endMeeting"],
+                             ["Crewmate ejected","ejectCrew"],
+                             ["IMPOSTER caught","ejectImp"]]){
+    await act(A,"resetT"); await act(A,"start");
+    await until(M,"window.__state().timer.mode==='run'");
+    await settle(600);                       // let real seconds come off it
+    await act(A,"meeting");
+    await until(M,"window.__state().meet.mode==='run'");
+    const held = (await st(M)).timer.remain;
+
+    await confirmPause(A);
+    await until(M,"window.__state().paused.on===true");
+    await act(A,exit);
+    await until(M,"window.__state().meet.mode==='idle'");
+    await settle(400);
+    let s = await st(M);
+    check(`${name} under a pause: nothing starts while the screen still says PAUSED`,
+      s.timer.mode!=="run" && s.paused.on===true, `${s.timer.mode}, paused.on=${s.paused.on}`);
+    check(`${name} under a pause: the clock the meeting took is held for the resume`,
+      s.paused.clock===true, JSON.stringify(s.paused));
+
+    await act(A,"resumeGame");
+    await until(M,"window.__state().paused.on===false");
+    await until(A,"window.__state().paused.on===false");
+    await settle(400);
+    s = await st(M);
+    check(`${name} under a pause: resuming hands the round clock back`,
+      s.timer.mode==="run", s.timer.mode);
+    check(`${name} under a pause: …from where the meeting froze it, not from full`,
+      Math.abs((s.timer.endsAt-Date.now())-held)<2500,
+      `${Math.round(held)}ms held → ${Math.round(s.timer.endsAt-Date.now())}ms`);
+    check(`${name} under a pause: and the meeting stays ended`,
+      s.meet.mode==="idle" && s.banner==="none" && s.phase.mode==="idle", JSON.stringify(s.meet));
+    check(`${name} under a pause: no phantom chip left on the desk strip`,
+      (await chips())==="", await chips());
+  }
+
+  // The same shape with a clock that was never started: there is nothing to
+  // hand back, and resume must not invent one.
+  await act(A,"resetT");
+  await until(M,"window.__state().timer.mode==='idle'");
+  await act(A,"meeting");
+  await until(M,"window.__state().meet.mode==='run'");
+  await confirmPause(A);
+  await until(M,"window.__state().paused.on===true");
+  await act(A,"endMeeting");
+  await until(M,"window.__state().meet.mode==='idle'");
+  await settle(400);
+  check("a meeting called on a stopped clock claims nothing for the resume",
+    (await st(M)).paused.clock===false, JSON.stringify((await st(M)).paused));
+  await act(A,"resumeGame");
+  await until(M,"window.__state().paused.on===false");
+  await until(A,"window.__state().paused.on===false");
+  await settle(400);
+  let s = await st(M);
+  check("…and resuming does not start a clock nobody had started",
+    s.timer.mode==="idle", s.timer.mode);
+  check("…nor bring the ended meeting back with it",
+    s.meet.mode==="idle" && s.banner==="none", JSON.stringify(s.meet));
+  check("…and the strip is left clean", (await chips())==="", await chips());
+
+  // A sabotage is the other thing that can finish under a pause. Its clock is
+  // `phase`, and paused.phase still says it was running when the pause landed —
+  // so resume has the same chance to resurrect it at 0:00.
+  await act(A,"resetT"); await act(A,"start");
+  await until(M,"window.__state().timer.mode==='run'");
+  await act(A,"sab",2);
+  await until(M,"window.__state().phase.mode==='run'");
+  await confirmPause(A);
+  await until(M,"window.__state().paused.on===true");
+  s = await st(M);
+  check("pausing during a sabotage freezes its clock and remembers it was running",
+    s.phase.mode==="pause" && s.paused.phase===true, JSON.stringify(s.paused));
+  await act(A,"sabOk");
+  await until(M,"window.__state().phase.mode==='idle'");
+  await settle(300);
+  check("SUCCESS still resolves the sabotage while the game is paused",
+    (await st(M)).banner==="none" && (await st(M)).sabotageSet===0);
+
+  await act(A,"resumeGame");
+  await until(M,"window.__state().paused.on===false");
+  await until(A,"window.__state().paused.on===false");
+  await settle(500);
+  s = await st(M);
+  check("a sabotage resolved under the pause stays resolved after the resume",
+    s.phase.mode==="idle" && s.phase.label==="" && s.banner==="none", JSON.stringify(s.phase));
+  check("…with no phantom SAB 0:00 chip on the strip",
+    !/SAB/.test(await chips()), await chips());
+  // …while the round clock, which really was only paused, still comes back: the
+  // guard must block the phantom without blocking the honest case.
+  check("…and the round clock the pause froze is running again",
+    s.timer.mode==="run", s.timer.mode);
 }
 
 /* ================================================================= */
