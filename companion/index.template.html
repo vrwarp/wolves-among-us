@@ -551,7 +551,10 @@ function modalHTML(){
 addEventListener("keydown",e=>{if(uiModal&&e.key==="Escape")act.confirmNo()});
 /* ---------------- views ---------------- */
 const app=document.getElementById("app");
-const esc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;");
+// Quotes matter: some of these land inside attributes, and the game id is
+// attacker-chosen — it rides in the ?cfg= token of a share link.
+const esc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+  .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
 function route(){const h=location.hash||"#/";const [path,q]=h.slice(1).split("?");return{path:path||"/",q:new URLSearchParams(q||"")}}
 const ROLES={gm:"Game Master",cc:"Central Command",foreman:"Foreman",referee:"Roaming Referee",ghost:"Ghost Guide"};
 const CRIB={
