@@ -19,15 +19,19 @@ export const CFG = EMU
   : {apiKey:"demo", projectId:PROJECT, sdkBase:BASE+"/test/mock"};
 export const APP = JSON.parse(readFileSync(join(HERE,"..","appdata.json"),"utf8"));
 
-// The app's own documented starting state.
+// The app's own documented starting state. Key order matters: section 1 of the
+// comprehensive suite compares this against the seeded document verbatim.
 export const DEF = {round:1,targetPts:8,deaths:0,threshold:6,impostersCaught:0,sabotagesUsed:0,
   sabotageSet:0,banner:"none",hist:[],
-  paused:{on:false,clock:false,phase:false},
+  paused:{on:false,clock:false,phase:false,meet:false},
+  // the 3:00 meeting hard stop is its own clock, kept apart from `phase` so the
+  // sub-phases (report / nominations / corners / vote) can run underneath it
+  meet:{mode:"idle",endsAt:0,remain:0,clock:false},
   timer:{mode:"idle",endsAt:0,remain:480000,dur:480000},
   phase:{mode:"idle",endsAt:0,remain:0,label:""}};
 // The fields an undo snapshot restores — everything except the history itself.
 export const FIELDS = ["round","targetPts","deaths","threshold","impostersCaught",
-  "sabotagesUsed","sabotageSet","banner","paused","timer","phase"];
+  "sabotagesUsed","sabotageSet","banner","paused","timer","phase","meet"];
 
 /* ---------------- reporting ---------------- */
 let pass=0, failed=0, sec="";
@@ -134,16 +138,27 @@ export const tap = async (p, startsWith) => {
   }
   return false;
 };
-// New round is a two-tap confirm with a 3-second arming window. Snapshots
-// re-render the view constantly, so a tap can land on a detached node and be
-// dropped — verify the round actually moved and retry the whole sequence if not.
+// The destructive actions open a confirmation dialog: act.<x>() only asks, and
+// act.confirmYes() does the work. These are the dialog's confirm labels, so a
+// click-driven test can find the right button (CONFIRMS in index.html).
+export const CONFIRM_YES = {pauseGame:"Pause the game", newRound:"Start the new round", forget:"Disconnect"};
+// Ask and answer in one go, by script. Deliberately not click-driven: most
+// callers only want the round moved on as setup, and several drive it from a
+// desk phone, where the button itself no longer lives — New round belongs to
+// the Game Master now. Sections that test the buttons click them for real.
+export const confirmAct = async (p, fn) => {
+  await act(p, fn);
+  await settle(140);
+  await act(p, "confirmYes");
+};
+export const confirmPause = p => confirmAct(p, "pauseGame");
+// New round, verified. Snapshots re-render the view constantly, so a call can
+// land mid-repaint and be dropped — check the round actually moved and retry.
 export const confirmNewRound = async (p, tries=3) => {
   const r0 = (await st(p)).round;
   for(let i=0;i<tries;i++){
-    if(await btnBy(p,"Tap again",{soft:true, ms:300})) await settle(3300);  // start unarmed
-    if(!await tap(p,"New round")){ await settle(400); continue }
-    await settle(200);
-    if(!await tap(p,"Tap again")) await tap(p,"New round");
+    await act(p,"confirmNo");                 // drop any dialog an earlier try left open
+    await confirmAct(p,"newRound");
     for(let w=0; w<24; w++){
       if((await st(p)).round === r0+1) return true;
       await settle(150);
@@ -151,6 +166,12 @@ export const confirmNewRound = async (p, tries=3) => {
   }
   return (await st(p)).round === r0+1;
 };
+// Is the confirmation dialog on screen, and what does it say?
+export const modal = p => p.evaluate(()=>{
+  const m=document.querySelector(".modal"); if(!m)return null;
+  return {title:m.querySelector("h2")?.textContent||"", body:m.querySelector("p")?.textContent||"",
+    buttons:[...m.querySelectorAll("button")].map(b=>b.textContent.trim())};
+});
 
 // Poll until every device reports identical game state (history excluded — it
 // is deliberately last-write-wins). Returns {ok, state} or {ok:false, detail}.

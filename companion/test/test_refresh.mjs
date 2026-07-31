@@ -57,6 +57,60 @@ section("1 · refresh in every game state");
 }
 
 /* ================================================================= */
+// A phone that reloads mid-meeting has to come back into the SAME meeting. The
+// hard stop is an absolute deadline in the shared document, so it must keep
+// counting down rather than restarting at 3:00 — and it has to remember that it
+// was the meeting that stopped the round clock, or ending it afterwards leaves
+// the round stranded with the clock off.
+section("1b · the 3:00 hard stop survives a refresh");
+{
+  const A = await mk("/c/cc","r-meet"), TV = await mk("/monitor","r-meet");
+  const mrem = s => s.meet.mode==="run" ? s.meet.endsAt-Date.now() : s.meet.remain;
+
+  await act(A,"start"); await until(TV,"window.__state().timer.mode==='run'");
+  await act(A,"meeting"); await until(TV,"window.__state().meet.mode==='run'");
+  await act(A,"phasePre",90,"NOMINATIONS");
+  await until(TV,"window.__state().phase.label==='NOMINATIONS'");
+  await settle(2500);                        // let real seconds come off the hard stop
+
+  const before = await st(A), r0 = mrem(before);
+  check("the hard stop is already counting down before the refresh",
+    before.meet.mode==="run" && r0 < 179000, Math.round(r0)+"ms left");
+
+  await reload(A);
+  const after = await st(A);
+  check("the refreshed phone is still in the meeting",
+    after.meet.mode==="run" && after.banner==="meeting", JSON.stringify(after.meet));
+  check("the hard stop did not restart at 3:00",
+    Math.abs(mrem(after)-r0) < 2500 && mrem(after) < 179000,
+    `${Math.round(r0)}ms → ${Math.round(mrem(after))}ms`);
+  check("…because its deadline is the same absolute moment",
+    after.meet.endsAt===before.meet.endsAt, `${before.meet.endsAt} → ${after.meet.endsAt}`);
+  check("the refreshed phone still knows the meeting took the round clock",
+    after.meet.clock===true && after.timer.mode==="pause", JSON.stringify(after.meet));
+  check("the sub-phase under it survives too",
+    after.phase.label==="NOMINATIONS" && after.phase.mode==="run", JSON.stringify(after.phase));
+  const shown = await A.evaluate("document.querySelector('[data-mtclk]')?.textContent");
+  check("the desk sees the meeting clock ticking, not a fresh 3:00",
+    !!shown && shown!=="3:00", shown);
+
+  // the TV mid-meeting is the screen the whole room is reading
+  await reload(TV);
+  check("the TV refreshed mid-meeting comes straight back to the meeting overlay",
+    !!(await TV.evaluate("!!document.querySelector('.overlay.meet')")) &&
+    /EMERGENCY MEETING/.test(await html(TV)));
+  check("…showing the same hard stop, not a restarted one",
+    Math.abs(mrem(await st(TV))-r0) < 4000, Math.round(mrem(await st(TV)))+"ms");
+
+  // and the thing that actually matters at 8pm: it still ends properly
+  await act(A,"endMeeting");
+  await until(A,"window.__state().meet.mode==='idle'");
+  await settle(500);
+  check("ending it after a refresh still hands the round clock back",
+    (await st(A)).timer.mode==="run", (await st(A)).timer.mode);
+}
+
+/* ================================================================= */
 section("2 · refresh must never reseed a live game");
 {
   const A = await mk("/c/cc","r-seed"), B = await mk("/monitor","r-seed");

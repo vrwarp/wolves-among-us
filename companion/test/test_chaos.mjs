@@ -96,6 +96,53 @@ section("2 · New round, taken back");
 }
 
 /* ================================================================= */
+// The 3:00 hard stop is a clock of its own in the shared document. Undo restores
+// whole snapshots, so if `meet` were ever left out of one, a take-back would
+// strand the room: the TV counting down a meeting that no longer exists, or a
+// meeting reinstated with no memory that it was holding the round clock.
+section("2b · undo puts the 3:00 hard stop back too");
+{
+  const A = await mk("/c/cc","x-meet"), W = await mk("/monitor","x-meet");
+  await act(A,"start"); await settle(400);
+  await act(A,"meeting"); await settle(500);
+  await act(A,"phasePre",90,"NOMINATIONS"); await settle(600);
+  const mid = await st(A);
+  check("a meeting is running with its own hard stop under a phase",
+    mid.meet.mode==="run" && mid.meet.clock===true && mid.phase.label==="NOMINATIONS",
+    JSON.stringify(mid.meet));
+
+  await act(A,"ejectCrew"); await settle(700);
+  check("the ejection cleared the hard stop", (await st(A)).meet.mode==="idle",
+    JSON.stringify((await st(A)).meet));
+
+  await act(A,"undo"); await settle(800);
+  const back = await st(A);
+  check("undo brings the meeting back, hard stop and all", eq(pick(mid), pick(back)), diff(mid,back));
+  check("…including exactly how much of the 3:00 was left",
+    back.meet.mode==="run" && back.meet.endsAt===mid.meet.endsAt,
+    `${mid.meet.endsAt} → ${back.meet.endsAt}`);
+  check("…and that it was the meeting holding the round clock",
+    back.meet.clock===true && back.timer.mode==="pause", JSON.stringify(back.meet));
+  check("the TV shows the restored meeting as well",
+    await softUntil(W,"window.__state().meet.mode==='run'",10000),
+    JSON.stringify((await st(W)).meet));
+
+  // step further back: past the phase, then past the meeting itself
+  await act(A,"undo"); await settle(800);
+  check("undoing the phase leaves the meeting standing",
+    (await st(A)).meet.mode==="run" && (await st(A)).phase.mode==="idle",
+    JSON.stringify((await st(A)).meet));
+  await act(A,"undo"); await settle(800);
+  const gone = await st(A);
+  check("undoing the meeting itself clears the hard stop entirely",
+    gone.meet.mode==="idle" && gone.meet.remain===0 && gone.meet.clock===false,
+    JSON.stringify(gone.meet));
+  check("…and hands the round clock back the way it was", gone.timer.mode==="run", gone.timer.mode);
+  const agree = await allAgree([A,W]);
+  check("the TV agrees after the whole meeting was undone", agree.ok, agree.detail);
+}
+
+/* ================================================================= */
 section("3 · fat fingers — repeats and rapid undo");
 {
   const A = await mk("/c/cc","x-fat");
@@ -194,8 +241,10 @@ section("5 · sequences nobody planned");
   await act(A,"sab",1); await settle(500);
   await act(A,"meeting"); await settle(700);
   let s = await st(A);
-  check("a meeting called during a sabotage takes over the banner", s.banner==="meeting" && s.phase.label==="MEETING",
-    `banner=${s.banner} phase=${s.phase.label}`);
+  // the meeting's 3:00 hard stop is its own clock; it replaces the sabotage phase
+  check("a meeting called during a sabotage takes over the banner",
+    s.banner==="meeting" && s.meet.mode==="run" && s.phase.mode==="idle",
+    `banner=${s.banner} meet=${s.meet.mode} phase=${s.phase.label}`);
   check("…and cancels the sabotage outright rather than leaving it half-live",
     s.sabotageSet===0, "set="+s.sabotageSet);
   check("…but that sabotage still counts against the two per round", s.sabotagesUsed===1, "used="+s.sabotagesUsed);

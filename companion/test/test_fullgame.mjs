@@ -14,14 +14,15 @@ const GAME = "night";
 const TV  = await mk("/monitor",   GAME);
 const CC  = await mk("/c/cc",      GAME);   // Central Command, at the desk
 const CC2 = await mk("/c/cc",      GAME);   // a second CC phone — a co-leader
+const GM  = await mk("/c/gm",      GAME);   // the facilitator, outside the game
 const FM  = await mk("/c/foreman", GAME);
 const RF  = await mk("/c/referee", GAME);
 const GH  = await mk("/c/ghost",   GAME);
-const ALL = [TV,CC,CC2,FM,RF,GH];
-const NAMES = ["TV","CC","CC2","Foreman","Referee","Ghost"];
+const ALL = [TV,CC,CC2,GM,FM,RF,GH];
+const NAMES = ["TV","CC","CC2","GM","Foreman","Referee","Ghost"];
 
 let step = 0;
-// Do a thing on one device, then require all six to land on the same state.
+// Do a thing on one device, then require every device to land on the same state.
 const beat = async (what, p, fn, expect) => {
   step++;
   await fn(p);
@@ -35,23 +36,23 @@ const beat = async (what, p, fn, expect) => {
 const remaining = s => s.timer.mode==="run" ? Math.round((s.timer.endsAt-Date.now())/1000) : Math.round(s.timer.remain/1000);
 
 /* ================================================================= */
-section("setup — six devices on one game");
+section("setup — seven devices on one game");
 {
   const agree = await allAgree(ALL);
-  check("all six devices connected and showing the same fresh game",
+  check("all seven devices connected and showing the same fresh game",
     agree.ok && eq(pick(agree.state), pick(DEF)), agree.ok?diff(DEF,agree.state):agree.detail);
   const conns = await Promise.all(ALL.map(p=>conn(p)));
   check("every device reports live sync", conns.every(c=>c==="live"), NAMES.map((n,i)=>n+"="+conns[i]).join(" "));
   const offs = await Promise.all(ALL.map(p=>p.evaluate("window.__offset()")));
-  check("all six clock offsets agree within a second", Math.max(...offs)-Math.min(...offs) < 1000, offs.join(","));
+  check("all seven clock offsets agree within a second", Math.max(...offs)-Math.min(...offs) < 1000, offs.join(","));
 }
 
 /* ================================================================= */
 section("round 1 — by the book");
 {
-  await beat("CC sets the threshold to 4 for a calm group", CC,
+  await beat("the GM sets the threshold to 4 for a calm group", GM,
     async p=>{await act(p,"thAdj",-1); await settle(250); await act(p,"thAdj",-1)}, s=>s.threshold===4);
-  await beat("CC starts the 8:00 round clock", CC, p=>act(p,"start"),
+  await beat("the GM starts the 8:00 round clock", GM, p=>act(p,"start"),
     s=>s.timer.mode==="run");
   const s0 = await st(TV);
   check("the TV shows about 8:00 left", Math.abs(remaining(s0)-480)<3, remaining(s0)+"s");
@@ -63,8 +64,9 @@ section("round 1 — by the book");
     p=>act(p,"sab",2), s=>s.banner==="sabotage" && s.sabotageSet===2 && s.sabotagesUsed===1);
   const sab = await st(TV), tvHtml = await html(TV);
   const props = ["FUSE","BATTERY","KEYCARD","O2 TANK","REACTOR ROD"];
-  check("the TV lists set 2's five props with their doors",
-    /SABOTAGE/.test(tvHtml) && props.every(x=>tvHtml.includes(x)),
+  // the doors are deliberately NOT on the TV — finding the props is the scramble
+  check("the TV lists set 2's five props, without giving their doors away",
+    /SABOTAGE/.test(tvHtml) && props.every(x=>tvHtml.includes(x)) && !/door [UD]\d/.test(tvHtml),
     props.filter(x=>!tvHtml.includes(x)).join(",")||"all present");
   check("the sabotage phase clock is running at 2:00 on every device",
     sab.phase.label==="SABOTAGE" && sab.phase.remain===120000,
@@ -78,18 +80,18 @@ section("round 1 — by the book");
 
   await beat("someone calls an emergency meeting", CC, p=>act(p,"meeting"),
     s=>s.banner==="meeting" && s.timer.mode==="pause");
-  await beat("Ghost runs the 0:30 report phase", GH, p=>act(p,"phasePre",30,"REPORT"),
+  await beat("CC runs the 0:30 report phase aloud", CC, p=>act(p,"phasePre",30,"REPORT"),
     s=>s.phase.label==="REPORT");
-  await beat("Ghost runs 1:30 of nominations", GH, p=>act(p,"phasePre",90,"NOMINATIONS"),
+  await beat("CC runs 1:30 of nominations", CC, p=>act(p,"phasePre",90,"NOMINATIONS"),
     s=>s.phase.label==="NOMINATIONS");
-  await beat("Ghost runs 0:30 in the corners", GH, p=>act(p,"phasePre",30,"CORNERS"),
+  await beat("CC runs 0:30 in the corners", CC, p=>act(p,"phasePre",30,"CORNERS"),
     s=>s.phase.label==="CORNERS");
-  await beat("Ghost runs the 0:30 vote", GH, p=>act(p,"phasePre",30,"VOTE"),
+  await beat("CC runs the 0:30 vote", CC, p=>act(p,"phasePre",30,"VOTE"),
     s=>s.phase.label==="VOTE");
   await beat("the vote ejects a crewmate — reveal on the spot", CC, p=>act(p,"ejectCrew"),
     s=>s.deaths===3 && s.banner==="none");
 
-  await beat("CC resumes the clock", CC, p=>act(p,"start"), s=>s.timer.mode==="run");
+  await beat("the GM resumes the clock", GM, p=>act(p,"start"), s=>s.timer.mode==="run");
   await beat("the second sabotage — Foreman gets tapped, set 3", FM, p=>act(p,"sab",3),
     s=>s.sabotagesUsed===2 && s.sabotageSet===3);
   const sets = await CC.evaluate(()=>[...document.querySelectorAll("button")]
@@ -108,7 +110,7 @@ section("round 1 — by the book");
 section("round 1 — the corrections");
 {
   // "wait — I hit FAILED, they actually got it"
-  await beat("the second CC phone undoes the mis-tapped FAILED", CC2, p=>act(p,"undo"),
+  await beat("the GM undoes CC's mis-tapped FAILED", GM, p=>act(p,"undo"),
     s=>s.deaths===3 && s.banner==="sabotage");
   const gone = await softUntil(TV,"!document.querySelector('.overlay.win')",10000);
   check("the win screen comes off the TV the moment the number is fixed", gone,
@@ -120,13 +122,13 @@ section("round 1 — the corrections");
   await beat("CC corrects the ejection: −1 death …", CC, p=>act(p,"dAdj",-1), s=>s.deaths===2);
   await beat("…and records the imposter catch", CC2, p=>act(p,"ejectImp"),
     s=>s.impostersCaught===1 && s.deaths===2);
-  await beat("threshold nudged back to 6 for the rest of the night", CC2,
+  await beat("the GM nudges the threshold back to 6 for the night", GM,
     async p=>{await act(p,"thAdj",1); await settle(250); await act(p,"thAdj",1)}, s=>s.threshold===6);
 
   // a mis-tap and an instant take-back, from a different phone than made it
   const clean = await st(CC);
   await beat("the Foreman fat-fingers Death + …", FM, p=>act(p,"dAdj",1), s=>s.deaths===3);
-  await beat("…and the other CC phone takes it straight back", CC2, p=>act(p,"undo"),
+  await beat("…and the GM takes it straight back", GM, p=>act(p,"undo"),
     s=>s.deaths===2);
   check("the take-back restored everything, not just the number",
     eq(pick(clean), pick(await st(CC))), diff(clean, await st(CC)));
@@ -172,7 +174,7 @@ section("round 1 — a phone dies and comes back");
 section("round 1 — the clock runs out");
 {
   await allAgree(ALL, 20000);
-  await beat("CC winds the clock all the way down", CC, p=>act(p,"adj",-600000),
+  await beat("the GM winds the clock all the way down", GM, p=>act(p,"adj",-600000),
     s=>s.timer.mode==="run");
   await until(TV,"!!document.querySelector('.mon.crit')||!!document.querySelector('.overlay.crew')",15000);
   await until(TV,"!!document.querySelector('.overlay.crew')||!!document.querySelector('.overlay.win')",20000);
@@ -185,11 +187,11 @@ section("round 1 — the clock runs out");
 section("round 2 — reset and replay");
 {
   const before = await st(CC);
-  await confirmNewRound(CC);
+  await confirmNewRound(GM);
   const landed = await softUntil(TV,`window.__state().round===${before.round+1}`,15000);
-  check("New round from CC reaches the TV", landed, "round="+(await st(TV)).round);
+  check("New round from the GM reaches the TV", landed, "round="+(await st(TV)).round);
   const agree = await allAgree(ALL, 15000);
-  check("New round from CC lands on all six devices", agree.ok, agree.detail);
+  check("New round from the GM lands on every device", agree.ok, agree.detail);
   const s = agree.state || await st(CC);
   check("round 2 starts clean: no deaths, no catches, no sabotages, full clock",
     s.round===2 && s.deaths===0 && s.impostersCaught===0 && s.sabotagesUsed===0 &&
@@ -200,31 +202,31 @@ section("round 2 — reset and replay");
     `thr ${before.threshold}→${s.threshold}, target ${before.targetPts}→${s.targetPts}`);
   check("the TV is showing Round 2", /Round 2/.test(await html(TV)));
 
-  await beat("clock on", CC, p=>act(p,"start"), s=>s.timer.mode==="run");
-  await beat("+0:30 because a station jammed", RF, p=>act(p,"adj",30000));
-  await beat("−0:30 to put it back", RF, p=>act(p,"adj",-30000));
+  await beat("clock on", GM, p=>act(p,"start"), s=>s.timer.mode==="run");
+  await beat("+0:30 because a station jammed", GM, p=>act(p,"adj",30000));
+  await beat("−0:30 to put it back", GM, p=>act(p,"adj",-30000));
   await beat("three quick deaths", CC, async p=>{
     for(let i=0;i<3;i++){await act(p,"dAdj",1); await settle(300)}}, s=>s.deaths===3);
-  await beat("Ghost starts the 2:00 sabotage stopwatch by hand", GH,
+  await beat("CC starts the 2:00 sabotage stopwatch by hand", CC,
     p=>act(p,"phasePre",120,"SABOTAGE"), s=>s.phase.label==="SABOTAGE");
-  await beat("Ghost stops it", GH, p=>act(p,"phaseStop"), s=>s.phase.mode==="idle");
-  await beat("target bumped to 9 points", CC2, p=>act(p,"tgAdj",1), s=>s.targetPts===9);
+  await beat("CC stops it", CC, p=>act(p,"phaseStop"), s=>s.phase.mode==="idle");
+  await beat("target bumped to 9 points", GM, p=>act(p,"tgAdj",1), s=>s.targetPts===9);
 }
 
 /* ================================================================= */
 section("round 3 — everyone is tired and tapping at once");
 {
-  await confirmNewRound(CC);
+  await confirmNewRound(GM);
   await until(TV,"window.__state().round===3",15000);
   check("round 3 started", (await st(TV)).round===3);
 
-  await act(CC,"start"); await allAgree(ALL);
+  await act(GM,"start"); await allAgree(ALL);
   // four counsellors acting in the same second, as happens at the end of a night
   await Promise.all([
     act(CC,"dAdj",1),
     act(FM,"sab",1),
-    act(RF,"adj",30000),
-    act(GH,"phasePre",30,"REPORT"),
+    act(GM,"adj",30000),
+    act(CC,"phasePre",30,"REPORT"),
   ]);
   const agree = await allAgree(ALL, 20000);
   check("four phones acting in the same second still converge", agree.ok, agree.detail);
@@ -251,7 +253,7 @@ section("round 3 — everyone is tired and tapping at once");
 section("end of the night");
 {
   const final = await allAgree(ALL, 20000);
-  check("all six devices finish on the identical state", final.ok, final.detail);
+  check("all seven devices finish on the identical state", final.ok, final.detail);
   const s = final.state || await st(CC);
   check("final state is sane", s.round===3 && s.deaths>=0 && s.threshold>=1 &&
     s.targetPts>=1 && s.targetPts<=11, JSON.stringify(pick(s)).slice(0,200));

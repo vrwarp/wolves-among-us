@@ -4,14 +4,14 @@
 //   EMU=1 node test/test_features.mjs
 import {EMU, DEF, FIELDS, section, check, note, eq, pick, diff, gid, settle,
         boot, mk, live, st, snd, sndReset, clearSounds, conn, act, until,
-        softUntil, html, btnText, tap, confirmNewRound, allAgree, raw,
-        pageErrs, finish} from "./harness.mjs";
+        softUntil, html, btnText, tap, confirmNewRound, confirmPause, modal,
+        CONFIRM_YES, allAgree, raw, pageErrs, finish} from "./harness.mjs";
 
 await boot();
 const NOCLOCK = FIELDS.filter(k=>k!=="timer"&&k!=="phase");
 const rem = s => s.timer.mode==="run" ? s.timer.endsAt-Date.now() : s.timer.remain;
-// two taps, both inside the 3s arming window
-const twice = async (p,fn) => {await act(p,fn); await settle(120); await act(p,fn)};
+// pause asks first: the tap opens the dialog, the dialog stops the game
+const pauseNow = p => confirmPause(p);
 
 /* ================================================================= */
 section("1 · the countdown, on every device");
@@ -89,7 +89,7 @@ section("3 · sabotage, meeting and pause cues");
   await act(CC,"endMeeting"); await allAgree(all);
 
   await clearSounds(all);
-  await twice(RF,"pauseGame");
+  await pauseNow(RF);
   await until(TV,"window.__state().paused.on===true");
   await settle(600);
   for(const [p,n] of [[CC,"CC"],[TV,"the TV"],[RF,"the Referee"]])
@@ -135,7 +135,7 @@ section("4 · sound restraint");
   await act(CC2,"start");
   await act(CC2,"adj",-(480000-8000));
   await until(CC2,"window.__state().timer.endsAt-Date.now()<9000");
-  await twice(CC2,"pauseGame");
+  await pauseNow(CC2);
   await until(CC2,"window.__state().paused.on===true");
   await sndReset(CC2);
   await settle(4000);
@@ -144,26 +144,38 @@ section("4 · sound restraint");
 }
 
 /* ================================================================= */
-section("5 · any role can pause, and it takes two taps");
+section("5 · any role can pause, and it asks first");
 {
-  for(const role of ["cc","foreman","referee","ghost"]){
+  for(const role of ["gm","cc","foreman","referee","ghost"]){
     const A = await mk("/c/"+role,"f-pause-"+role), TV = await mk("/monitor","f-pause-"+role);
     await act(A,"start");
     await until(TV,"window.__state().timer.mode==='run'");
 
     const before = await st(A);
-    await act(A,"pauseGame");                      // one tap only
+    await act(A,"pauseGame");                      // opens the dialog, nothing more
     await settle(500);
-    check(`${role}: one tap does not stop the game`, (await st(A)).paused.on===false,
+    check(`${role}: asking does not stop the game`, (await st(A)).paused.on===false,
       JSON.stringify((await st(A)).paused));
-    check(`${role}: one tap changes nothing at all`, eq(pick(before,NOCLOCK), pick(await st(A),NOCLOCK)),
+    check(`${role}: asking changes nothing at all`, eq(pick(before,NOCLOCK), pick(await st(A),NOCLOCK)),
       diff(before, await st(A), NOCLOCK));
-    check(`${role}: the button asks for a second tap`,
-      (await btnText(A)).some(t=>t.startsWith("Tap again to confirm")), (await btnText(A)).join(" | "));
+    const dlg = await modal(A);
+    check(`${role}: the dialog asks before pausing`,
+      !!dlg && /Pause the game\?/.test(dlg.title) && dlg.buttons.includes(CONFIRM_YES.pauseGame),
+      JSON.stringify(dlg));
+    check(`${role}: the dialog says what it will do to the room`,
+      !!dlg && /clock/i.test(dlg.body) && /resume/i.test(dlg.body), dlg && dlg.body);
 
-    await act(A,"pauseGame");                      // the confirming tap
+    // backing out must leave the game exactly as it was
+    await act(A,"confirmNo"); await settle(400);
+    check(`${role}: cancelling closes the dialog and pauses nothing`,
+      (await modal(A))===null && (await st(A)).paused.on===false, JSON.stringify(await st(A)).slice(0,120));
+    check(`${role}: cancelling leaves no trace in the history`,
+      !(await st(A)).hist.some(h=>h.label==="Game paused"), (await st(A)).hist.map(h=>h.label).join(","));
+
+    await act(A,"pauseGame");
+    await act(A,"confirmYes");                     // confirmed
     const landed = await softUntil(TV,"window.__state().paused.on===true",12000);
-    check(`${role}: the second tap pauses the game everywhere`, landed, "TV paused="+JSON.stringify((await st(TV)).paused));
+    check(`${role}: confirming pauses the game everywhere`, landed, "TV paused="+JSON.stringify((await st(TV)).paused));
     check(`${role}: the TV shows PAUSED`, /PAUSED/.test(await html(TV)) &&
       !!(await TV.evaluate("!!document.querySelector('.overlay.paused')")));
     check(`${role}: the counsellor strip shows PAUSED`, /chip paused/.test(await html(A)));
@@ -182,7 +194,7 @@ section("6 · pause really freezes, and resume restores exactly");
         GH = await mk("/c/ghost","f-freeze");
   await act(CC,"start");
   await until(TV,"window.__state().timer.mode==='run'");
-  await twice(GH,"pauseGame");
+  await pauseNow(GH);
   await until(TV,"window.__state().paused.on===true");
 
   const r0 = rem(await st(TV));
@@ -204,7 +216,7 @@ section("6 · pause really freezes, and resume restores exactly");
   // a clock that was NOT running must not start on resume
   await act(CC,"pause");
   await until(TV,"window.__state().timer.mode==='pause'");
-  await twice(GH,"pauseGame");
+  await pauseNow(GH);
   await until(TV,"window.__state().paused.on===true");
   await act(CC,"resumeGame");
   await until(TV,"window.__state().paused.on===false");
@@ -214,7 +226,7 @@ section("6 · pause really freezes, and resume restores exactly");
   // the phase clock freezes and comes back too
   await act(CC,"start"); await act(CC,"sab",3);
   await until(TV,"window.__state().phase.mode==='run'");
-  await twice(GH,"pauseGame");
+  await pauseNow(GH);
   await until(TV,"window.__state().paused.on===true");
   const p0 = (await st(TV)).phase.remain;
   check("the phase clock freezes as well", (await st(TV)).phase.mode==="pause", (await st(TV)).phase.mode);
@@ -238,15 +250,15 @@ section("7 · pause behaves like every other action");
   await act(CC,"start"); await settle(400);
   const before = await st(CC);
 
-  await twice(FM,"pauseGame");
+  await pauseNow(FM);
   await until(CC,"window.__state().paused.on===true");
   await act(CC,"undo");
   await settle(800);
   check("undo takes a pause back completely", eq(pick(before), pick(await st(CC))), diff(before, await st(CC)));
 
-  await twice(FM,"pauseGame");
+  await pauseNow(FM);
   await until(CC,"window.__state().paused.on===true");
-  await twice(FM,"pauseGame");
+  await pauseNow(FM);
   await settle(600);
   check("pausing an already paused game does nothing", (await st(CC)).paused.on===true);
   check("…and does not stack up history", (await st(CC)).hist.filter(h=>h.label==="Game paused").length===1,
@@ -257,7 +269,7 @@ section("7 · pause behaves like every other action");
   check("resuming a running game does nothing", (await st(CC)).paused.on===false);
 
   // Start on CC is the familiar control; while paused it should resume the game
-  await twice(FM,"pauseGame");
+  await pauseNow(FM);
   await until(CC,"window.__state().paused.on===true");
   await act(CC,"start");
   await settle(700);
@@ -268,7 +280,7 @@ section("7 · pause behaves like every other action");
   await until(FM,"window.__state().paused.on===false");   // let the floor phone catch up
 
   // a new round clears any pause
-  await twice(FM,"pauseGame");
+  await pauseNow(FM);
   await until(CC,"window.__state().paused.on===true");
   await confirmNewRound(CC);
   await until(CC,"window.__state().round===2");
@@ -277,10 +289,10 @@ section("7 · pause behaves like every other action");
   // and prove the stale case explicitly rather than just working around it
   const SLOW = await mk("/c/referee","f-pact");
   await until(SLOW,"window.__state().paused.on===false");
-  await twice(CC,"pauseGame");                     // CC pauses
+  await pauseNow(CC);                     // CC pauses
   await until(SLOW,"window.__state().paused.on===true");
   await act(CC,"resumeGame");                      // CC resumes…
-  await twice(SLOW,"pauseGame");                   // …SLOW taps pause before it hears about it
+  await pauseNow(SLOW);                   // …SLOW taps pause before it hears about it
   await settle(2500);
   const agree = await allAgree([CC,SLOW], 15000);
   check("a pause tapped from a phone that is behind still converges", agree.ok, agree.detail);
@@ -292,7 +304,7 @@ section("8 · pause survives the things that break state");
 {
   const CC = await mk("/c/cc","f-psurv"), TV = await mk("/monitor","f-psurv");
   await act(CC,"start"); await act(CC,"dAdj",2);
-  await twice(CC,"pauseGame");
+  await pauseNow(CC);
   await until(TV,"window.__state().paused.on===true");
   const before = await st(TV);
 
@@ -319,7 +331,7 @@ section("8 · pause survives the things that break state");
   // two phones pausing at the same instant
   const A = await mk("/c/referee","f-prace"), B = await mk("/c/ghost","f-prace"), M = await mk("/monitor","f-prace");
   await act(A,"start"); await allAgree([A,B,M]);
-  await Promise.all([twice(A,"pauseGame"), twice(B,"pauseGame")]);
+  await Promise.all([pauseNow(A), pauseNow(B)]);
   const agree = await allAgree([A,B,M], 15000);
   check("two phones pausing at once converge", agree.ok, agree.detail);
   check("…on paused, not on something in between", (agree.state||await st(M)).paused.on===true,
@@ -332,29 +344,33 @@ section("9 · real taps, not scripted calls");
   // REGRESSION: unlocking audio used to re-render on every pointerdown, which
   // swapped the button out mid-click and silently dropped the tap. Everything
   // here goes through actual clicks rather than window.act.
-  const A = await mk("/c/cc","f-taps"), TV = await mk("/monitor","f-taps");
+  // the clock and New round are the GM's; deaths are the desk's
+  const A = await mk("/c/gm","f-taps"), CC = await mk("/c/cc","f-taps"),
+        TV = await mk("/monitor","f-taps");
   check("the very first real tap registers", await tap(A,"Start"), (await btnText(A)).join(" | "));
   await until(TV,"window.__state().timer.mode==='run'",12000);
   check("…and reached the TV", (await st(TV)).timer.mode==="run");
 
-  check("a second tap right after also registers", await tap(A,"Death +"));
+  check("a real tap on the desk's phone registers too", await tap(CC,"Death +"));
   await until(TV,"window.__state().deaths===1",12000);
   check("…and that one too", (await st(TV)).deaths===1);
 
-  check("the two-tap pause works by real clicks", await tap(A,"Pause game"));
+  check("the pause button opens the dialog by real click", await tap(A,"Pause game"));
   await settle(220);
-  check("…the confirm label appears", (await btnText(A)).some(t=>t.startsWith("Tap again")));
-  await tap(A,"Tap again");
+  check("…the dialog is really on screen", !!(await modal(A)), JSON.stringify(await modal(A)));
+  check("…and its confirm button clicks", await tap(A,CONFIRM_YES.pauseGame));
   check("…and the confirm lands", await softUntil(TV,"window.__state().paused.on===true",12000),
     JSON.stringify((await st(TV)).paused));
   check("Resume game works by real click", await tap(A,"Resume game"));
   await until(TV,"window.__state().paused.on===false",12000);
 
   // New round, by clicks, while the game is paused
-  await tap(A,"Pause game"); await settle(200); await tap(A,"Tap again");
+  await tap(A,"Pause game"); await settle(200); await tap(A,CONFIRM_YES.pauseGame);
   await until(A,"window.__state().paused.on===true",12000);
   const r0 = (await st(A)).round;
-  await confirmNewRound(A);
+  check("New round opens its dialog by real click", await tap(A,"New round"));
+  await settle(220);
+  check("…and its confirm button clicks", await tap(A,CONFIRM_YES.newRound));
   check("New round works by real clicks even while paused",
     await softUntil(A,`window.__state().round===${r0+1}`,12000), "round="+(await st(A)).round);
   check("…and starting the round clears the pause", (await st(A)).paused.on===false);

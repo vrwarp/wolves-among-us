@@ -21,10 +21,11 @@ const b64url = o => Buffer.from(JSON.stringify(o),"utf8").toString("base64")
 const token = b64url({cfg:CFG, gameId:GAME});
 const VIEWS = [
   ["/monitor","TV Monitor","the big screen — big clock, deaths, sabotage callouts"],
-  ["/c/cc","Central Command","clock, meetings, ejections, sabotage, undo, answers"],
+  ["/c/gm","Game Master","outside the game: the round clock, the death-count dial, New round, and the only Undo"],
+  ["/c/cc","Central Command","in the game, at the desk: meetings and their phases, ejections, deaths, sabotage"],
   ["/c/foreman","Foreman","sabotage + answers + your role crib"],
   ["/c/referee","Roaming Referee","sabotage + answers + your role crib"],
-  ["/c/ghost","Ghost Guide","phase stopwatch + sabotage + answers"],
+  ["/c/ghost","Ghost Guide","sabotage + answers + your role crib"],
 ];
 const link = v => `${SITE}/#${v}?cfg=${token}`;
 
