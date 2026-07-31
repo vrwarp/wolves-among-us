@@ -5,6 +5,7 @@
 import {EMU, DEF, FIELDS, section, check, note, eq, pick, diff, gid, settle,
         boot, mk, live, st, snd, sndReset, clearSounds, conn, act, until,
         softUntil, html, btnText, tap, confirmNewRound, confirmPause, modal,
+        callMeeting,
         CONFIRM_YES, allAgree, raw, pageErrs, finish} from "./harness.mjs";
 
 await boot();
@@ -80,12 +81,21 @@ section("3 · sabotage, meeting and pause cues");
   check("clearing a sabotage does not re-alarm the room",
     !(await snd(TV)).log.includes("sabotage"), (await snd(TV)).log.join(",")||"(silent)");
 
+  // The chime belongs to the moment the room is called in, not to the moment
+  // the desk starts the 3:00 — that is the tap the whole building has to notice.
   await clearSounds(all);
-  await act(CC,"meeting");
-  await until(TV,"window.__state().banner==='meeting'");
+  await callMeeting(RF);
+  await until(TV,"window.__state().meet.mode==='gather'");
   await settle(700);
   for(const [p,n] of [[CC,"CC"],[TV,"the TV"],[RF,"the Referee"]])
-    check(`${n} chimes the emergency meeting`, (await snd(p)).log.includes("meeting"), (await snd(p)).log.join(","));
+    check(`${n} chimes the emergency meeting the moment it is called`,
+      (await snd(p)).log.includes("meeting"), (await snd(p)).log.join(","));
+  await clearSounds(all);
+  await act(CC,"meeting");
+  await until(TV,"window.__state().meet.mode==='run'");
+  await settle(700);
+  check("starting the 3:00 does not chime the room a second time",
+    !(await snd(TV)).log.includes("meeting"), (await snd(TV)).log.join(",")||"(silent)");
   await act(CC,"endMeeting"); await allAgree(all);
 
   await clearSounds(all);
@@ -124,8 +134,13 @@ section("4 · sound restraint");
   await act(CC,"mute");
   check("mute reports itself muted", (await snd(CC)).muted===true);
   await sndReset(CC);
-  await act(CC,"meeting"); await settle(700);
-  await act(CC,"sab");   await settle(700);
+  await act(CC,"doCallMeeting"); await settle(700);
+  await act(CC,"endMeeting");    await settle(700);
+  // sabotage is refused during a meeting, so the meeting has to be out of the
+  // way for this to be a real cue that a muted phone is declining to play
+  await act(CC,"sab");           await settle(700);
+  check("…and the sabotage really did start, so there was a cue to swallow",
+    (await st(CC)).banner==="sabotage", (await st(CC)).banner);
   check("a muted phone records no cues at all", (await snd(CC)).count===0, JSON.stringify((await snd(CC)).log));
   await act(CC,"mute");
   check("unmuting turns it back on", (await snd(CC)).muted===false);

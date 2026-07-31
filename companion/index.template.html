@@ -219,8 +219,12 @@ const DEF={round:1,targetPts:8,deaths:0,threshold:6,impostersCaught:0,sabotagesU
   // running so resuming restores exactly that and nothing else.
   paused:{on:false,clock:false,phase:false,meet:false},
   // the 3:00 meeting clock, kept apart from `phase` so the derived stages
-  // (report / nominations / corners / vote) can run without hiding it
-  meet:{mode:"idle",endsAt:0,remain:0,clock:false},
+  // (report / nominations / corners / vote) can run without hiding it.
+  // `clock` and `sab` remember what the meeting interrupted so ending it can
+  // put both back. Both belong here as well as in MIDLE: a merge write cannot
+  // delete a field, so a key missing from the starting shape can never be
+  // undone back out of the document once a meeting has written it.
+  meet:{mode:"idle",endsAt:0,remain:0,clock:false,sab:false},
   timer:{mode:"idle",endsAt:0,remain:480000,dur:480000},
   phase:{mode:"idle",endsAt:0,remain:0,label:""}};
 let S=JSON.parse(JSON.stringify(DEF));

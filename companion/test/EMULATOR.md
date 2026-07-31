@@ -22,7 +22,7 @@ night** — it has the counsellor briefing card.
 | file | what it covers |
 |---|---|
 | `test_multidevice.mjs` | the original 11-check smoke test: sync, mid-game-join regression, cross-device undo, clock offsets |
-| `test_comprehensive.mjs` | clock, meetings, phase presets, ejections, sabotage, counters and clamps, two-tap New round, undo depth, TV overlays, **all 32 groups and all 80 sudoku answers checked against `appdata.json`**, role views, share links + QR, Firestore security rules, shipped-data integrity |
+| `test_comprehensive.mjs` | clock, **the whole meeting — the gather, stages that advance with nobody tapping, every device deriving the same one, the two clocks ticking together, and a sabotage held rather than cancelled**, ejections, sabotage, counters and clamps, two-tap New round, undo depth, TV overlays, **all 32 groups and all 80 sudoku answers checked against `appdata.json`**, role views, share links + QR, Firestore security rules, shipped-data integrity |
 | `test_refresh.mjs` | reload in 13 different game states, five devices reloading at once, reload mid-write, mid-sabotage, two tabs on one phone, reload with wifi down, reload with the database unreachable, link-joined reload, wiped storage |
 | `test_chaos.mjs` | **every action performed then undone and compared field by field**, fat-finger repeats, panic-tapping undo, four phones acting in the same instant, sequences nobody planned, wifi flapping, and a 60-second four-phone random-tap soak |
 | `test_features.mjs` | sound cues (countdown, minute chime, sabotage, meeting, pause) and the game-wide pause any role can call — including a section that drives **real clicks**, which is how the audio-unlock tap regression was caught |

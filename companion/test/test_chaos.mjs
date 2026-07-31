@@ -3,7 +3,8 @@
 //   EMU=1 node test/test_chaos.mjs
 import {EMU, DEF, FIELDS, section, check, note, eq, pick, diff, gid, settle,
         boot, mk, live, st, conn, act, until, softUntil, html, btnText, btnBy,
-        tap, confirmNewRound, allAgree, raw, pageErrs, finish} from "./harness.mjs";
+        tap, confirmNewRound, stageFor, meetLeft,
+        allAgree, raw, pageErrs, finish} from "./harness.mjs";
 
 await boot();
 const CLOCKLESS = FIELDS.filter(k=>k!=="timer"&&k!=="phase");
@@ -23,17 +24,18 @@ section("1 · every single action can be taken back");
     ["+0:30 while paused", ()=>set(["resetT"],["start"],["pause"]), ["adj",30000],        s=>s.timer.remain>480000],
     ["−0:30 while paused", ()=>set(["resetT"],["start"],["pause"]), ["adj",-30000],       s=>s.timer.remain<480000],
     ["Reset clock",        ()=>set(["resetT"],["start"]),           ["resetT"],           s=>s.timer.mode==="idle"],
-    ["Start meeting",      ()=>set(["endMeeting"],["resetT"],["start"]), ["meeting"],     s=>s.banner==="meeting"],
-    ["End meeting",        ()=>set(["meeting"]),                    ["endMeeting"],       s=>s.banner==="none"],
-    ["Phase REPORT",       ()=>set(["phaseStop"]),                  ["phasePre",30,"REPORT"],      s=>s.phase.label==="REPORT"],
-    ["Phase NOMINATIONS",  ()=>set(["phaseStop"]),                  ["phasePre",90,"NOMINATIONS"], s=>s.phase.label==="NOMINATIONS"],
-    ["Phase CORNERS",      ()=>set(["phaseStop"]),                  ["phasePre",30,"CORNERS"],     s=>s.phase.label==="CORNERS"],
-    ["Phase VOTE",         ()=>set(["phaseStop"]),                  ["phasePre",30,"VOTE"],        s=>s.phase.label==="VOTE"],
-    ["Phase SABOTAGE",     ()=>set(["phaseStop"]),                  ["phasePre",120,"SABOTAGE"],   s=>s.phase.label==="SABOTAGE"],
-    ["Phase stop",         ()=>set(["phasePre",90,"NOMINATIONS"]),  ["phaseStop"],        s=>s.phase.mode==="idle"],
-    ["Crewmate ejected",   ()=>set(["meeting"]),                    ["ejectCrew"],        s=>s.banner==="none"],
-    ["Imposter caught",    ()=>set(["meeting"]),                    ["ejectImp"],         s=>s.banner==="none"],
-    ["Sabotage",           ()=>set(["endMeeting"],["phaseStop"]),   ["sab"],              s=>s.sabItems.length===5],
+    // The five phase presets and the stop button are gone with the redesign:
+    // a stage is derived from the meeting deadline, so there is no phasePre or
+    // phaseStop left to take back. What replaces them is the road into a
+    // meeting — call it, start the 3:00, run the clock out — and each of those
+    // three writes has to be undoable on its own.
+    ["Call emergency meeting", ()=>set(["endMeeting"],["resetT"],["start"]), ["doCallMeeting"], s=>s.meet.mode==="gather"],
+    ["Start the 3:00",     ()=>set(["endMeeting"],["doCallMeeting"]),  ["meeting"],       s=>s.meet.mode==="run"],
+    ["Skip to the vote",   ()=>set(["endMeeting"],["doCallMeeting"],["meeting"]), ["callVote"], s=>s.meet.remain===0],
+    ["End meeting",        ()=>set(["endMeeting"],["doCallMeeting"],["meeting"]), ["endMeeting"], s=>s.banner==="none"],
+    ["Crewmate ejected",   ()=>set(["endMeeting"],["doCallMeeting"],["meeting"]), ["ejectCrew"],  s=>s.banner==="none"],
+    ["Imposter caught",    ()=>set(["endMeeting"],["doCallMeeting"],["meeting"]), ["ejectImp"],   s=>s.banner==="none"],
+    ["Sabotage",           ()=>set(["endMeeting"]),                 ["sab"],              s=>s.sabItems.length===5],
     ["Sabotage success",   ()=>set(["sab"]),                        ["sabOk"],            s=>s.sabItems.length===0],
     ["Sabotage again",     ()=>set(["sabOk"]),                      ["sab"],              s=>s.sabItems.length===5],
     ["Sabotage failed",    ()=>set(["sabOk"],["sab"]),              ["sabFail"],          s=>s.sabItems.length===0],
@@ -72,10 +74,10 @@ section("1 · every single action can be taken back");
   const h0 = (await st(A)).hist.length;
   const s0 = await st(A);
   await act(A,"endMeeting"); await settle(500);
-  await act(A,"phaseStop"); await settle(500);
+  await act(A,"callVote"); await settle(500);          // nor is there a vote to call
   const s1 = await st(A), h1 = s1.hist.length;
   check("harmless taps change nothing", eq(pick(s0), pick(s1)), diff(s0,s1));
-  if(h1 > h0) note(`taps that do nothing (End meeting / stop with none running) still use up ${h1-h0} undo slots — the window is only 10 deep, so undo the real mistake first`);
+  if(h1 > h0) note(`taps that do nothing (End meeting with none running) still use up ${h1-h0} undo slots — the window is only 10 deep, so undo the real mistake first`);
 }
 
 /* ================================================================= */
@@ -96,45 +98,54 @@ section("2 · New round, taken back");
 }
 
 /* ================================================================= */
-// The 3:00 hard stop is a clock of its own in the shared document. Undo restores
-// whole snapshots, so if `meet` were ever left out of one, a take-back would
-// strand the room: the TV counting down a meeting that no longer exists, or a
-// meeting reinstated with no memory that it was holding the round clock.
-section("2b · undo puts the 3:00 hard stop back too");
+// The 3:00 is a clock of its own in the shared document, and the stage the room
+// is in is derived from it — so `meet` is the whole meeting. Undo restores whole
+// snapshots, and if `meet` were ever left out of one a take-back would strand
+// the room: the TV counting down a meeting that no longer exists, or a meeting
+// reinstated with no memory that it was holding the round clock.
+section("2b · undo puts the meeting clock back too");
 {
   const A = await mk("/c/cc","x-meet"), W = await mk("/monitor","x-meet");
   await act(A,"start"); await settle(400);
-  await act(A,"meeting"); await settle(500);
-  await act(A,"phasePre",90,"NOMINATIONS"); await settle(600);
+  await act(A,"doCallMeeting"); await settle(500);
+  const gathered = await st(A);
+  check("the gather stopped the round clock and remembers it did",
+    gathered.meet.mode==="gather" && gathered.meet.clock===true && gathered.timer.mode==="pause",
+    JSON.stringify(gathered.meet));
+  await act(A,"meeting"); await settle(600);
   const mid = await st(A);
-  check("a meeting is running with its own hard stop under a phase",
-    mid.meet.mode==="run" && mid.meet.clock===true && mid.phase.label==="NOMINATIONS",
+  // The stage is not a field — it is worked out from this one deadline, so
+  // restoring the deadline is what restores the stage.
+  check("the 3:00 is running, and the stage falls out of its deadline",
+    mid.meet.mode==="run" && mid.meet.clock===true && stageFor(meetLeft(mid))?.label==="REPORT",
     JSON.stringify(mid.meet));
 
   await act(A,"ejectCrew"); await settle(700);
-  check("the ejection cleared the hard stop", (await st(A)).meet.mode==="idle",
+  check("the ejection cleared the meeting clock", (await st(A)).meet.mode==="idle",
     JSON.stringify((await st(A)).meet));
 
   await act(A,"undo"); await settle(800);
   const back = await st(A);
-  check("undo brings the meeting back, hard stop and all", eq(pick(mid), pick(back)), diff(mid,back));
+  check("undo brings the meeting back, clock and all", eq(pick(mid), pick(back)), diff(mid,back));
   check("…including exactly how much of the 3:00 was left",
     back.meet.mode==="run" && back.meet.endsAt===mid.meet.endsAt,
     `${mid.meet.endsAt} → ${back.meet.endsAt}`);
+  check("…so the stage it lands back in is the one it left",
+    stageFor(meetLeft(back))?.label==="REPORT", JSON.stringify(stageFor(meetLeft(back))));
   check("…and that it was the meeting holding the round clock",
     back.meet.clock===true && back.timer.mode==="pause", JSON.stringify(back.meet));
   check("the TV shows the restored meeting as well",
     await softUntil(W,"window.__state().meet.mode==='run'",10000),
     JSON.stringify((await st(W)).meet));
 
-  // step further back: past the phase, then past the meeting itself
+  // step further back: past the 3:00, to the gather, then past the call itself
   await act(A,"undo"); await settle(800);
-  check("undoing the phase leaves the meeting standing",
-    (await st(A)).meet.mode==="run" && (await st(A)).phase.mode==="idle",
+  check("undoing the start of the 3:00 leaves the room still gathering",
+    (await st(A)).meet.mode==="gather" && (await st(A)).banner==="meeting",
     JSON.stringify((await st(A)).meet));
   await act(A,"undo"); await settle(800);
   const gone = await st(A);
-  check("undoing the meeting itself clears the hard stop entirely",
+  check("undoing the call itself clears the meeting entirely",
     gone.meet.mode==="idle" && gone.meet.remain===0 && gone.meet.clock===false,
     JSON.stringify(gone.meet));
   check("…and hands the round clock back the way it was", gone.timer.mode==="run", gone.timer.mode);
@@ -238,23 +249,31 @@ section("5 · sequences nobody planned");
   const A = await mk("/c/cc","x-seq"), G = await mk("/c/ghost","x-seq"), M = await mk("/monitor","x-seq");
   await act(A,"start"); await settle(500);
 
-  await act(A,"sab"); await settle(500);
+  await act(A,"sab"); await settle(1500);
+  const drawn = (await st(A)).sabItems;
+  await act(A,"doCallMeeting"); await settle(400);
   await act(A,"meeting"); await settle(700);
   let s = await st(A);
-  // the meeting's 3:00 hard stop is its own clock; it replaces the sabotage phase
+  // A meeting interrupts a scramble, it does not cancel it: the room is standing
+  // together in the lobby, but the props are still where they were placed.
   check("a meeting called during a sabotage takes over the banner",
-    s.banner==="meeting" && s.meet.mode==="run" && s.phase.mode==="idle",
+    s.banner==="meeting" && s.meet.mode==="run",
     `banner=${s.banner} meet=${s.meet.mode} phase=${s.phase.label}`);
-  check("…and cancels the sabotage outright rather than leaving it half-live",
-    s.sabItems.length===0, "items="+JSON.stringify(s.sabItems));
-  check("…but that sabotage still counts against the two per round", s.sabotagesUsed===1, "used="+s.sabotagesUsed);
+  check("…and holds the scramble rather than wiping it",
+    eq(s.sabItems, drawn) && s.phase.mode==="pause" && s.meet.sab===true,
+    `items=${JSON.stringify(s.sabItems)} phase=${s.phase.mode} sab=${s.meet.sab}`);
+  check("…and that sabotage still counts once against the two per round",
+    s.sabotagesUsed===1, "used="+s.sabotagesUsed);
   const inMeeting = await st(A);
   await act(A,"endMeeting"); await settle(600);
+  check("ending it starts the scramble again with the time it had left",
+    (await st(A)).banner==="sabotage" && (await st(A)).phase.mode==="run",
+    JSON.stringify((await st(A)).phase));
   await act(A,"undo"); await settle(700);
   check("undoing End meeting puts the meeting back exactly as it was",
     eq(pick(inMeeting), pick(await st(A))), diff(inMeeting, await st(A)));
   await act(A,"endMeeting"); await settle(500);
-  await act(A,"phaseStop"); await settle(500);
+  await act(A,"sabOk"); await settle(500);
 
   // SUCCESS / FAILED with no sabotage running must be complete no-ops
   const before = await st(A);
@@ -300,6 +319,7 @@ section("5 · sequences nobody planned");
   check("…on the ghost's phone too", ghostBtns.length===1 && ghostBtns.every(Boolean), JSON.stringify(ghostBtns));
 
   // new round while a meeting is open
+  await act(A,"doCallMeeting"); await settle(400);
   await act(A,"meeting"); await settle(600);
   const r0 = (await st(A)).round;
   await confirmNewRound(A);
@@ -381,7 +401,9 @@ section("7 · soak — four phones, one minute, random taps");
   const MOVES = [
     ["dAdj",1],["dAdj",-1],["thAdj",1],["thAdj",-1],["tgAdj",1],["tgAdj",-1],
     ["start"],["pause"],["adj",30000],["adj",-30000],["resetT"],
-    ["meeting"],["endMeeting"],["phasePre",30,"REPORT"],["phasePre",90,"NOMINATIONS"],["phaseStop"],
+    // doCallMeeting rather than callMeeting: the soak must not leave a
+    // confirmation dialog standing in front of the next 400 taps.
+    ["doCallMeeting"],["meeting"],["callVote"],["endMeeting"],
     ["ejectCrew"],["ejectImp"],["sab"],["sab"],["sab"],["sabOk"],["sabFail"],["undo"],
   ];
   let fired = 0;
@@ -404,7 +426,9 @@ section("7 · soak — four phones, one minute, random taps");
     s.threshold>=1 && s.targetPts>=1 && s.targetPts<=11 &&
     ["none","meeting","sabotage"].includes(s.banner) &&
     ["idle","run","pause"].includes(s.timer.mode) &&
-    ["idle","run"].includes(s.phase.mode) &&
+    // a scramble held by a meeting sits at "pause" until the meeting lets it go
+    ["idle","run","pause"].includes(s.phase.mode) &&
+    ["idle","gather","run","pause"].includes(s.meet.mode) &&
     s.timer.remain>=0 && s.timer.dur===480000,
     JSON.stringify(pick(s)).slice(0,240));
   const h = (await st(A)).hist;

@@ -4,12 +4,46 @@
 import {readFileSync} from "fs";
 import {join} from "path";
 import {HERE, APP, EMU, DEF, SDK_CDN, EMU_HOST, EMU_PORT, PROJECT,
-        section, check, note, eq, gid, settle, boot, newCtx, mk, live,
+        section, check, note, eq, pick, diff, gid, settle, boot, newCtx, mk, live,
         st, conn, act, until, softUntil, html, btnText, btnBy, tap,
         confirmNewRound, confirmPause, modal, CONFIRM_YES, allAgree,
-        raw, pageErrs, finish, BASE, CFG} from "./harness.mjs";
+        callMeeting, startMeeting, MEETPLAN, MEETTOTAL, stageFor, meetLeft,
+        windMeeting, raw, pageErrs, finish, BASE, CFG} from "./harness.mjs";
 
 const b = await boot();
+
+/* ---- reading a meeting off a screen ---------------------------------------
+   Nothing is written when a stage ends, so what a device believes has to be
+   read off the device. The TV names the stage in [data-stlabel]; a phone's
+   strip carries the short name and the stage clock in its chip; the desk and
+   the floor cards spell the stage out in words. */
+const fmt = ms => {const s=Math.max(0,Math.round(ms/1000));
+  return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")};
+const SHORT2LONG = Object.fromEntries(MEETPLAN.map(([,l,s])=>[s,l]));
+// The words the desk is handed for each stage — restated so a silent edit to
+// the script the counsellor reads out is something a test notices.
+const MEETGUIDE = {
+  REPORT:      "Who found the body, and where? Facts only",
+  NOMINATIONS: "Take accusations one at a time",
+  CORNERS:     "Nominees to the corners",
+  VOTE:        "Hands up and count aloud",
+};
+const derived = p => p.evaluate(()=>{
+  const t = el => el ? el.textContent.trim() : null;
+  const lab = document.querySelector("[data-stlabel]");
+  const chip = document.querySelector(".strip .chip.phase");
+  return {tv:    lab ? t(lab).split(/\s+/)[0] : null,
+          chip:  chip ? t(chip).split(/\s+/)[0] : null,
+          words: t(document.querySelector(".guide b")) || t(document.querySelector(".mtstage b")),
+          stclk: t(document.querySelector("[data-stclk]")),
+          mtclk: t(document.querySelector("[data-mtclk]"))};
+});
+// One label per device, whichever way that device says it.
+const labelOf = d => d.tv || SHORT2LONG[d.chip] || d.words || null;
+// Clocks are sampled a moment apart on different devices, so "the same" means
+// the same second or its neighbour — a whole stage apart is what must not happen.
+const toMs = c => {const m=/^(\d+):(\d\d)$/.exec(c||""); return m ? (+m[1]*60+ +m[2])*1000 : NaN};
+const near = (a,b,tol=1500) => Math.abs(toMs(a)-toMs(b))<=tol;
 
 /* ================================================================= */
 section("1 · connect, bootstrap, defaults");
@@ -91,47 +125,79 @@ section("2 · round clock");
 }
 
 /* ================================================================= */
-section("3 · meetings and phase stopwatch");
+// A meeting is no longer driven. Central Command used to tap in every stage of
+// every meeting while also running it; the four stages tile the 3:00 exactly, so
+// each device now derives the stage it is in from the one shared deadline. What
+// is left to test is the road in (gather, then the 3:00), the derivation itself,
+// and the road out.
+//
+// Gone with the redesign, and deliberately not replaced:
+//   · "CC's <PHASE> preset = Ns" ×5 — act.phasePre is deleted. A stage is not
+//     started by hand any more, so there is no preset to check.
+//   · "phase stop clears the stopwatch" / "…but does not end the meeting" —
+//     act.phaseStop is deleted. Nothing stops a stage; the next one starts when
+//     the clock says so. Both checks tested a control that no longer exists.
+section("3 · the gather, and a meeting that runs itself");
 {
   const A = await mk("/c/cc","g-meet"), G = await mk("/c/gm","g-meet");   // A drives, G watches
   await act(A,"start"); await until(A,"window.__state().timer.mode==='run'");
-  await act(A,"meeting");
-  await until(G,"window.__state().banner==='meeting'");
-  let s = await st(G);
-  check("meeting pauses the round clock everywhere", s.timer.mode==="pause");
-  // The 3:00 hard stop is its own clock now, so the sub-phases can run under it
-  // instead of overwriting it.
-  check("meeting starts a 3:00 hard stop of its own",
-    s.meet.mode==="run" && s.meet.remain===180000, JSON.stringify(s.meet));
-  check("…kept clear of the phase stopwatch", s.phase.mode==="idle" && s.phase.label==="",
-    JSON.stringify(s.phase));
-  check("…and it remembers that it was the meeting that stopped the round clock",
-    s.meet.clock===true, JSON.stringify(s.meet));
 
-  const presets = [["phasePre",30,"REPORT"],["phasePre",90,"NOMINATIONS"],["phasePre",30,"CORNERS"],
-                   ["phasePre",30,"VOTE"],["phasePre",120,"SABOTAGE"]];
-  for(const [fn,secs,label] of presets){
-    await act(A,fn,secs,label);
-    await until(G,`window.__state().phase.label===${JSON.stringify(label)}`);
-    const g = await st(G), p = g.phase;
-    check(`CC's ${label} preset = ${secs}s, seen by the GM`, p.remain===secs*1000 && p.mode==="run", p.remain+"ms");
-    check(`…and the 3:00 hard stop keeps running under ${label}`, g.meet.mode==="run",
-      JSON.stringify(g.meet));
+  /* --- step one: the gather. The round stops; the 3:00 does not start. --- */
+  await callMeeting(A);
+  await until(G,"window.__state().meet.mode==='gather'");
+  let s = await st(G);
+  check("calling a meeting stops the round clock everywhere", s.timer.mode==="pause", s.timer.mode);
+  check("…and puts the room on notice without starting the 3:00",
+    s.banner==="meeting" && s.meet.mode==="gather" && s.meet.endsAt===0, JSON.stringify(s.meet));
+  check("…remembering it was the meeting that stopped the round clock",
+    s.meet.clock===true, JSON.stringify(s.meet));
+  check("…and the sabotage clock is left alone", s.phase.mode==="idle" && s.phase.label==="",
+    JSON.stringify(s.phase));
+
+  /* --- step two: Central Command starts the 3:00 once the room is in. --- */
+  await act(A,"meeting");
+  await until(G,"window.__state().meet.mode==='run'");
+  s = await st(G);
+  check("the desk starts the 3:00 from the gather",
+    s.meet.mode==="run" && s.meet.remain===MEETTOTAL, JSON.stringify(s.meet));
+  check("…carrying the gather's memory of the round clock through with it",
+    s.meet.clock===true, JSON.stringify(s.meet));
+  check("…and still keeping the sabotage clock clear",
+    s.phase.mode==="idle" && s.phase.label==="", JSON.stringify(s.phase));
+
+  /* --- the derivation: the stage is a function of the deadline, nothing else --- */
+  for(const [ms, label, short, stclk] of [[165000,"REPORT","REPORT","0:15"],
+                                          [105000,"NOMINATIONS","NOMS","0:45"],
+                                          [ 45000,"CORNERS","CNRS","0:15"],
+                                          [ 15000,"VOTE","VOTE","0:15"]]){
+    await windMeeting(A, gid("g-meet"), ms);
+    await until(G,`document.querySelector(".strip .chip.phase")?.textContent.trim().startsWith(${JSON.stringify(short)})`);
+    const w = stageFor(ms);
+    check(`${fmt(ms)} left on the meeting clock is ${label}`,
+      w && w.label===label && fmt(w.rem)===stclk, JSON.stringify(w));
+    const seen = await derived(G);
+    check(`…and the Game Master's phone, told nothing, has worked out ${short} too`,
+      seen.chip===short && near(seen.stclk, stclk), JSON.stringify(seen));
+    const desk = await html(A);
+    check(`…while the desk is handed the words for ${label}`,
+      desk.includes(MEETGUIDE[label]), (desk.match(/class="guide"><b>[A-Z]+/)||["—"])[0]);
   }
-  await act(A,"phaseStop");
-  await until(G,"window.__state().phase.mode==='idle'");
-  check("phase stop clears the stopwatch", (await st(G)).phase.label==="");
-  check("…but does not end the meeting itself", (await st(G)).meet.mode==="run",
-    JSON.stringify((await st(G)).meet));
+
+  // Past the end there is no stage at all: what is left is the three ways out.
+  await windMeeting(A, gid("g-meet"), -1500);
+  await until(A,"window.__state().meet.endsAt<Date.now()");
+  await settle(500);
+  check("once the 3:00 is spent no stage is derived at all",
+    stageFor(-1500)===null && (await derived(A)).chip===null, JSON.stringify(await derived(A)));
 
   await act(A,"endMeeting");
   await until(G,"window.__state().banner==='none'");
   s = await st(G);
-  check("end meeting clears banner, phase and the hard stop",
+  check("ending the meeting clears the banner, the stage and the meeting clock",
     s.banner==="none" && s.phase.mode==="idle" && s.meet.mode==="idle", JSON.stringify(s.meet));
   // The desk closes meetings but no longer owns the clock, so a meeting has to
   // hand back the clock it took, or nobody at the desk can restart the round.
-  check("end meeting gives back the round clock the meeting stopped", s.timer.mode==="run",
+  check("…and gives back the round clock the meeting stopped", s.timer.mode==="run",
     s.timer.mode);
 }
 
@@ -152,11 +218,15 @@ section("3b · every way out of a meeting hands the round clock back");
     await act(A,"resetT"); await act(A,"start");
     await until(M,"window.__state().timer.mode==='run'");
     await settle(600);                       // let real seconds come off it
-    await act(A,"meeting");
-    await until(M,"window.__state().meet.mode==='run'");
+    await callMeeting(A);
+    await until(M,"window.__state().meet.mode==='gather'");
     check(`${name}: calling the meeting stopped the round clock`,
       (await st(M)).timer.mode==="pause", (await st(M)).timer.mode);
     const held = (await st(M)).timer.remain;
+    await act(A,"meeting");
+    await until(M,"window.__state().meet.mode==='run'");
+    check(`${name}: the gather handed the held clock through to the 3:00`,
+      (await st(M)).meet.clock===true, JSON.stringify((await st(M)).meet));
 
     await act(A,exit);
     await until(M,"window.__state().meet.mode==='idle'");
@@ -165,7 +235,7 @@ section("3b · every way out of a meeting hands the round clock back");
     check(`${name}: the round clock is running again`, s.timer.mode==="run", s.timer.mode);
     check(`${name}: it resumes where the meeting froze it, not from full`,
       Math.abs(left(s)-held)<2500, `${Math.round(held)}ms held → ${Math.round(left(s))}ms`);
-    check(`${name}: and the hard stop is cleared with it`,
+    check(`${name}: and the meeting clock is cleared with it`,
       s.meet.mode==="idle" && s.banner==="none", JSON.stringify(s.meet));
   }
 
@@ -174,7 +244,7 @@ section("3b · every way out of a meeting hands the round clock back");
   // 1. the clock was never running when the meeting was called
   await act(A,"resetT");
   await until(M,"window.__state().timer.mode==='idle'");
-  await act(A,"meeting");
+  await startMeeting(A);
   await until(M,"window.__state().meet.mode==='run'");
   check("a meeting called on a stopped clock records that it took nothing",
     (await st(M)).meet.clock===false, JSON.stringify((await st(M)).meet));
@@ -187,7 +257,7 @@ section("3b · every way out of a meeting hands the round clock back");
   // the sharper version: a clock deliberately paused before the meeting
   await act(A,"resetT"); await act(A,"start"); await settle(500); await act(A,"pause");
   await until(M,"window.__state().timer.mode==='pause'");
-  await act(A,"meeting");
+  await startMeeting(A);
   await until(M,"window.__state().meet.mode==='run'");
   await act(A,"ejectCrew");
   await until(M,"window.__state().meet.mode==='idle'");
@@ -198,7 +268,7 @@ section("3b · every way out of a meeting hands the round clock back");
   // 2. the whole game is paused — nothing may start under a PAUSED screen
   await act(A,"resetT"); await act(A,"start");
   await until(M,"window.__state().timer.mode==='run'");
-  await act(A,"meeting");
+  await startMeeting(A);
   await until(M,"window.__state().meet.mode==='run'");
   await confirmPause(A);
   await until(M,"window.__state().paused.on===true");
@@ -215,7 +285,7 @@ section("3b · every way out of a meeting hands the round clock back");
   await settle(500);
   p = await st(M);
   // Two things have to be true at once here, and they pull against each other.
-  // The meeting was ended, so resuming must not bring a 0:00 hard stop back onto
+  // The meeting was ended, so resuming must not bring a 0:00 meeting clock onto
   // the strip and the TV. But the meeting did take the round clock, and it could
   // not hand it back under the pause, so the resume owes it — see 3c, which
   // works the whole matrix.
@@ -251,7 +321,7 @@ section("3c · a meeting that ends under a pause hands the clock back on resume"
     await act(A,"resetT"); await act(A,"start");
     await until(M,"window.__state().timer.mode==='run'");
     await settle(600);                       // let real seconds come off it
-    await act(A,"meeting");
+    await startMeeting(A);
     await until(M,"window.__state().meet.mode==='run'");
     const held = (await st(M)).timer.remain;
 
@@ -286,7 +356,7 @@ section("3c · a meeting that ends under a pause hands the clock back on resume"
   // hand back, and resume must not invent one.
   await act(A,"resetT");
   await until(M,"window.__state().timer.mode==='idle'");
-  await act(A,"meeting");
+  await startMeeting(A);
   await until(M,"window.__state().meet.mode==='run'");
   await confirmPause(A);
   await until(M,"window.__state().paused.on===true");
@@ -340,18 +410,388 @@ section("3c · a meeting that ends under a pause hands the clock back on resume"
 }
 
 /* ================================================================= */
+// The whole point of deriving the stage: nobody has to drive it, and because
+// every device works it out from the same deadline, nothing can drift. This is
+// the section that would catch the old bug coming back — a stage that only
+// advances on the phone that tapped it.
+section("3d · the stages advance with nobody touching anything");
+{
+  const CC = await mk("/c/cc","g-auto"), TV = await mk("/monitor","g-auto"),
+        FM = await mk("/c/foreman","g-auto");
+  const ALL = [CC,TV,FM], NAMES = ["the desk","the TV","the Foreman"];
+  await act(CC,"start"); await until(TV,"window.__state().timer.mode==='run'");
+  await startMeeting(CC);
+  await until(TV,"window.__state().meet.mode==='run'");
+  await until(FM,"window.__state().meet.mode==='run'");
+
+  // Real time, no help: 0:30 of REPORT has to become NOMINATIONS on its own.
+  const opened = await st(CC);
+  await until(TV,"!!document.querySelector('[data-stlabel]')", 10000);
+  check("the meeting opens in REPORT", labelOf(await derived(TV))==="REPORT",
+    JSON.stringify(await derived(TV)));
+  const t0 = Date.now();
+  const turned = await softUntil(TV,
+    "document.querySelector('[data-stlabel]')?.textContent.includes('NOMINATIONS')", 60000);
+  const waited = Math.round((Date.now()-t0)/1000);
+  const at = meetLeft(await st(TV));
+  check("REPORT becomes NOMINATIONS by itself, with nobody tapping",
+    turned, `waited ${waited}s — ${JSON.stringify(await derived(TV))}`);
+  check("…and it turns where the plan puts the boundary: 0:30 in, 2:30 left",
+    turned && Math.abs(at-150000)<3000 && waited>=20,
+    `turned with ${Math.round(at)}ms left, after waiting ${waited}s`);
+  const after = await st(CC);
+  // If anything had to be written to move the stage on, this is where it shows.
+  check("…and not one write was needed to move it on",
+    after.meet.endsAt===opened.meet.endsAt && after.hist.length===opened.hist.length,
+    `endsAt ${opened.meet.endsAt}→${after.meet.endsAt}, hist ${opened.hist.length}→${after.hist.length}`);
+
+  /* --- every device works the same stage out for itself --- */
+  for(const ms of [165000, 105000, 45000, 15000]){
+    const endsAt = await windMeeting(CC, gid("g-auto"), ms);
+    const want = stageFor(ms);
+    for(const p of ALL) await until(p, `window.__state().meet.endsAt===${endsAt}`, 12000);
+    await settle(500);                        // one render tick on every screen
+    const seen = await Promise.all(ALL.map(derived));
+    const labels = seen.map(labelOf);
+    check(`${fmt(ms)} left: the TV and both phones all say ${want.label}`,
+      labels.every(l=>l===want.label),
+      NAMES.map((n,i)=>n+":"+labels[i]).join(" | "));
+    check(`${fmt(ms)} left: …and all three show the same stage clock`,
+      seen.every(d=>d.stclk && near(d.stclk, seen[0].stclk)),
+      NAMES.map((n,i)=>n+":"+seen[i].stclk).join(" | "));
+    check(`${fmt(ms)} left: …and the same meeting clock above it`,
+      seen.every(d=>d.mtclk && near(d.mtclk, seen[0].mtclk)),
+      NAMES.map((n,i)=>n+":"+seen[i].mtclk).join(" | "));
+  }
+
+  /* --- the two clocks are one clock: they must flip on the same tick --- */
+  // The stage clock is the meeting deadline minus a whole number of seconds, so
+  // there is no instant at which one has ticked and the other has not. Sample
+  // both together, on the phone and on the TV, across several second boundaries.
+  await windMeeting(CC, gid("g-auto"), 105000);           // deep inside NOMINATIONS
+  await settle(400);
+  for(const [p,name] of [[CC,"the desk"],[TV,"the TV"]]){
+    const samples = [];
+    for(let i=0;i<32;i++){
+      samples.push(await p.evaluate(()=>{
+        const t = s => {const e=document.querySelector(s); return e?e.textContent.trim():null};
+        return {mt:t("[data-mtclk]"), st:t("[data-stclk]")};
+      }));
+      await settle(250);
+    }
+    const bad = [];
+    for(let i=1;i<samples.length;i++){
+      const mtMoved = samples[i].mt!==samples[i-1].mt, stMoved = samples[i].st!==samples[i-1].st;
+      if(mtMoved!==stMoved) bad.push(`${samples[i-1].mt}/${samples[i-1].st} → ${samples[i].mt}/${samples[i].st}`);
+    }
+    const ticks = samples.filter((s,i)=>i&&s.mt!==samples[i-1].mt).length;
+    check(`${name}: the meeting clock and the stage clock never tick apart`,
+      bad.length===0 && ticks>=5,
+      bad.length ? bad.slice(0,3).join(" ; ") : `${ticks} second-boundaries crossed, all in step`);
+  }
+}
+
+/* ================================================================= */
+// One way in, for everyone. An EMERGEN-C card can be played anywhere in the
+// building, so any phone can halt the round — and no phone, the desk included,
+// can start the 3:00 without gathering the room first.
+section("3e · one way in, and it asks first");
+{
+  const roles = ["gm","cc","foreman","referee","ghost"];
+  const pages = {};
+  for(const r of roles) pages[r] = await mk("/c/"+r,"g-call");
+  const TV = await mk("/monitor","g-call");
+  await act(pages.gm,"start"); await until(TV,"window.__state().timer.mode==='run'");
+
+  for(const r of roles){
+    // Ask, and look at what the dialog actually says before answering it.
+    await act(pages[r],"callMeeting"); await settle(220);
+    const m = await modal(pages[r]);
+    check(`${r}: calling a meeting asks first`,
+      !!m && /emergency meeting/i.test(m.title) && m.buttons.includes(CONFIRM_YES.callMeeting),
+      JSON.stringify(m));
+    check(`${r}: …and warns that it stops the round everywhere`,
+      !!m && /round clock stops/i.test(m.body), m && m.body);
+    await act(pages[r],"confirmNo"); await settle(200);
+    check(`${r}: …and backing out of the dialog changes nothing`,
+      (await st(TV)).meet.mode==="idle" && (await st(TV)).timer.mode==="run",
+      JSON.stringify((await st(TV)).meet));
+
+    await callMeeting(pages[r]);
+    await until(TV,"window.__state().meet.mode==='gather'");
+    check(`${r}: …and confirming halts the round from that phone`,
+      (await st(TV)).timer.mode==="pause" && (await st(TV)).banner==="meeting",
+      (await st(TV)).timer.mode);
+    await act(pages[r],"endMeeting");
+    await until(TV,"window.__state().meet.mode==='idle'");
+    await until(TV,"window.__state().timer.mode==='run'");
+  }
+
+  /* --- and nobody, anywhere, has a button that skips the gather --- */
+  await act(pages.gm,"desk"); await settle(300);           // the desk takeover open too
+  const idle = await Promise.all(roles.map(r=>html(pages[r])));
+  check("with no meeting open, not one role has a control that starts the 3:00",
+    idle.every(h=>!/act\.meeting\(\)/.test(h)),
+    roles.filter((r,i)=>/act\.meeting\(\)/.test(idle[i])).join(",")||"none");
+  check("…while every one of them can call the gather",
+    idle.every(h=>/act\.callMeeting\(\)/.test(h)),
+    roles.filter((r,i)=>!/act\.callMeeting\(\)/.test(idle[i])).join(",")||"all can");
+
+  await callMeeting(pages.ghost);                          // a ghost calls it, from upstairs
+  for(const r of roles) await until(pages[r],"window.__state().meet.mode==='gather'");
+  const gathering = await Promise.all(roles.map(r=>html(pages[r])));
+  const canStart = roles.filter((r,i)=>/act\.meeting\(\)/.test(gathering[i]));
+  check("once the room is gathering, only the desk can start the 3:00",
+    eq(canStart.sort(), ["cc","gm"]),                      // gm only via the open takeover
+    canStart.join(",")||"nobody");
+  check("…and nobody is offered a second meeting on top of the first",
+    gathering.every(h=>!/act\.callMeeting\(\)/.test(h)),
+    roles.filter((r,i)=>/act\.callMeeting\(\)/.test(gathering[i])).join(",")||"none");
+  check("…and the floor is told what is happening rather than given controls",
+    /Gather in the lobby/.test(gathering[roles.indexOf("foreman")]) &&
+    !/act\.ejectCrew|act\.callVote/.test(gathering[roles.indexOf("foreman")]));
+  // A second call while one is already up must not restart anything.
+  const g0 = await st(TV);
+  await act(pages.referee,"doCallMeeting"); await settle(600);
+  check("a second call landing on top of a live gather is a no-op",
+    eq(pick(g0), pick(await st(TV))), diff(g0, await st(TV)));
+
+  /* --- "Never mind": out of the gather, and the round is handed straight back --- */
+  await act(pages.cc,"endMeeting");
+  await until(TV,"window.__state().meet.mode==='idle'");
+  await settle(400);
+  const back = await st(TV);
+  check("backing out of a gather hands the round clock straight back",
+    back.timer.mode==="run" && back.banner==="none" && back.meet.mode==="idle",
+    `${back.timer.mode} / ${back.banner}`);
+}
+
+/* ================================================================= */
+// Ejections used to be their own section, tappable at any moment. They are now
+// the three ways a meeting ends, and they only exist once the 3:00 is spent.
+section("3f · the end options exist only once the meeting is over");
+{
+  const CC = await mk("/c/cc","g-endopt"), TV = await mk("/monitor","g-endopt");
+  const ENDS = ["Crewmate ejected","IMPOSTER caught","Tie — nobody ejected"];
+  const ends = async p => {const ts = await btnText(p); return ENDS.filter(e=>ts.some(t=>t.startsWith(e)))};
+
+  await act(CC,"resetT"); await act(CC,"start");
+  await until(TV,"window.__state().timer.mode==='run'");
+  check("with no meeting at all there is nothing to close", eq(await ends(CC), []), (await ends(CC)).join(","));
+
+  await callMeeting(CC); await until(CC,"window.__state().meet.mode==='gather'");
+  check("…nor while the room is still gathering", eq(await ends(CC), []), (await ends(CC)).join(","));
+
+  await act(CC,"meeting"); await until(CC,"window.__state().meet.mode==='run'");
+  for(const ms of [165000, 105000, 45000, 15000]){
+    await windMeeting(CC, gid("g-endopt"), ms);
+    await settle(350);
+    check(`…nor with ${fmt(ms)} still on the clock (${stageFor(ms).label})`,
+      eq(await ends(CC), []), (await ends(CC)).join(","));
+  }
+  // The desk can cut it short — but that runs the clock out rather than ending
+  // it, so the same three choices are always what closes a meeting.
+  await act(CC,"callVote");
+  await until(CC,"document.body.innerHTML.includes('Tie — nobody ejected')", 12000);
+  check("'skip ahead to the vote' runs the clock out instead of ending the meeting",
+    (await st(CC)).banner==="meeting" && (await st(CC)).meet.mode==="run",
+    JSON.stringify((await st(CC)).meet));
+  check("…and only then are all three ways out offered", eq(await ends(CC), ENDS), (await ends(CC)).join(","));
+  await until(TV,"document.body.innerHTML.includes('TIME — CALL THE VOTE')", 12000);
+  check("…with the TV telling the room the same thing",
+    /TIME — CALL THE VOTE/.test(await html(TV)));
+  check("…and the stage row is gone, because there is no stage left",
+    (await derived(CC)).chip===null, JSON.stringify(await derived(CC)));
+
+  // callVote is only meaningful once a meeting is actually running.
+  await act(CC,"endMeeting"); await until(CC,"window.__state().meet.mode==='idle'");
+  let z = await st(CC);
+  await act(CC,"callVote"); await settle(500);
+  check("calling the vote with no meeting open does nothing at all",
+    eq(pick(z), pick(await st(CC))), diff(z, await st(CC)));
+  await callMeeting(CC); await until(CC,"window.__state().meet.mode==='gather'");
+  z = await st(CC);
+  await act(CC,"callVote"); await settle(500);
+  check("…and calling it during the gather does nothing either",
+    eq(pick(z), pick(await st(CC))), diff(z, await st(CC)));
+  await act(CC,"endMeeting"); await until(CC,"window.__state().meet.mode==='idle'");
+
+  /* --- and each of the three, taken from the over state, hands the round back --- */
+  for(const [name, exit] of [["Crewmate ejected","ejectCrew"],
+                             ["IMPOSTER caught","ejectImp"],
+                             ["Tie","endMeeting"]]){
+    await act(CC,"resetT"); await act(CC,"start");
+    await until(CC,"window.__state().timer.mode==='run'");
+    await settle(600);                          // let real seconds come off it
+    await startMeeting(CC);
+    await act(CC,"callVote");
+    await until(CC,"document.body.innerHTML.includes('Tie — nobody ejected')", 12000);
+    const held = (await st(CC)).timer.remain;
+    await act(CC, exit);
+    await until(CC,"window.__state().meet.mode==='idle'");
+    await settle(400);
+    const s = await st(CC);
+    check(`${name} closes an expired meeting and puts the round clock back`,
+      s.banner==="none" && s.meet.mode==="idle" && s.timer.mode==="run" &&
+      Math.abs((s.timer.endsAt-Date.now())-held)<2500,
+      `${s.banner}/${s.meet.mode}/${s.timer.mode}, held ${held}ms → ${Math.round(s.timer.endsAt-Date.now())}ms`);
+    check(`${name}: …and the end options are gone with it`,
+      eq(await ends(CC), []), (await ends(CC)).join(","));
+  }
+}
+
+/* ================================================================= */
+// A meeting interrupts a scramble; it does not cancel it. The room is standing
+// together in the lobby so there is nothing to run for — but the props are still
+// where they were placed, and the 2:00 has to come back with the time it had
+// left rather than as a fresh one, or the sabotage is silently spent for nothing.
+section("3g · a meeting holds a live sabotage");
+{
+  const CC = await mk("/c/cc","g-hold"), TV = await mk("/monitor","g-hold"),
+        FM = await mk("/c/foreman","g-hold");
+  const phLeft = s => s.phase.mode==="run" ? s.phase.endsAt-Date.now() : s.phase.remain;
+  const sabBtn = p => p.evaluate(()=>{const b=document.querySelector("button.btn-sab");
+    return b ? {disabled:b.disabled, label:b.textContent.trim()} : null});
+
+  for(const [name, exit] of [["Tie","endMeeting"],
+                             ["Crewmate ejected","ejectCrew"],
+                             ["IMPOSTER caught","ejectImp"]]){
+    await act(CC,"resetT"); await act(CC,"start");
+    // Every writer has to be up to date before it writes: a phone still holding
+    // last round's counters would put them straight back with its next tap.
+    for(const p of [TV,FM,CC]) await until(p,"window.__state().timer.mode==='run'");
+    await act(FM,"sab");
+    await until(TV,"window.__state().banner==='sabotage'");
+    const drawn = (await st(TV)).sabItems, used = (await st(TV)).sabotagesUsed;
+    await settle(2600);                       // let real seconds come off the 2:00
+
+    /* --- the hold --- */
+    await callMeeting(FM);                    // called from the floor, mid-scramble
+    await until(TV,"window.__state().meet.mode==='gather'");
+    let s = await st(TV);
+    check(`${name}: the meeting holds the scramble instead of wiping it`,
+      eq(s.sabItems, drawn) && s.sabItems.length>0, JSON.stringify(s.sabItems));
+    check(`${name}: …with the 2:00 stopped where it stood, not reset`,
+      s.phase.mode==="pause" && s.phase.label==="SABOTAGE" &&
+      s.phase.remain<119000 && s.phase.remain>112000, `${s.phase.mode} ${s.phase.remain}ms`);
+    check(`${name}: …and meet.sab remembers it, the way meet.clock does`,
+      s.meet.sab===true && s.meet.clock===true, JSON.stringify(s.meet));
+    check(`${name}: …without the scramble counting twice`,
+      s.sabotagesUsed===used, `${used} → ${s.sabotagesUsed}`);
+    const heldAt = s.phase.remain;
+
+    // No scramble while the room is together — the button says so and is dead.
+    for(const [p,who] of [[CC,"the desk"],[FM,"the Foreman"]]){
+      const b = await sabBtn(p);
+      check(`${name}: ${who}'s sabotage button is dead during the meeting`,
+        !!b && b.disabled===true && /not during a meeting/.test(b.label), JSON.stringify(b));
+    }
+    check(`${name}: …and the desk is told what it is holding and for how long`,
+      /scramble is holding at/.test(await html(CC)) && /starts again by itself/.test(await html(CC)));
+    const guard = await st(TV);
+    await act(FM,"sab"); await settle(700);
+    check(`${name}: act.sab() during a meeting is a no-op even so`,
+      eq(pick(guard), pick(await st(TV))), diff(guard, await st(TV)));
+
+    await act(CC,"meeting");
+    await until(TV,"window.__state().meet.mode==='run'");
+    s = await st(TV);
+    check(`${name}: the 3:00 carries the hold through with it`,
+      s.meet.sab===true && s.phase.mode==="pause" && eq(s.sabItems, drawn), JSON.stringify(s.meet));
+    await settle(1500);
+    check(`${name}: …and the held 2:00 does not drain while the meeting runs`,
+      (await st(TV)).phase.remain===heldAt, `${heldAt} → ${(await st(TV)).phase.remain}`);
+
+    /* --- and back --- */
+    await windMeeting(CC, gid("g-hold"), -800);
+    await until(CC,"document.body.innerHTML.includes('Tie — nobody ejected')", 12000);
+    await act(CC, exit);
+    await until(TV,"window.__state().meet.mode==='idle'");
+    await settle(500);
+    s = await st(TV);
+    check(`${name}: the scramble comes back rather than being lost`,
+      s.banner==="sabotage" && eq(s.sabItems, drawn), `${s.banner} ${JSON.stringify(s.sabItems)}`);
+    check(`${name}: …restarting at the time it stopped, not at a fresh 2:00`,
+      s.phase.mode==="run" && Math.abs(phLeft(s)-heldAt)<2500,
+      `held ${heldAt}ms → resumed with ${Math.round(phLeft(s))}ms`);
+    check(`${name}: …and the sabotage still counts once, not twice`,
+      s.sabotagesUsed===used, `${used} → ${s.sabotagesUsed}`);
+    check(`${name}: …with the meeting itself properly closed`,
+      s.meet.mode==="idle" && s.meet.sab===false, JSON.stringify(s.meet));
+    check(`${name}: …and the desk can resolve the scramble again`,
+      (await btnText(CC)).some(t=>t.startsWith("SUCCESS")), (await btnText(CC)).join(" | "));
+    await act(CC,"sabOk"); await until(TV,"window.__state().banner==='none'");
+    check(`${name}: …after which the sabotage button is live again`,
+      (await sabBtn(CC))?.disabled===false,
+      JSON.stringify({btn:await sabBtn(CC), used:(await st(CC)).sabotagesUsed,
+                      max:(await st(CC)).sabotageMax, round:(await st(CC)).round}));
+    check(`${name}: the round is clean enough to run the next one`, await confirmNewRound(CC),
+      "round="+(await st(CC)).round);
+  }
+
+  /* --- "Never mind" out of the gather restores it just the same --- */
+  await act(CC,"resetT"); await act(CC,"start");
+  await until(TV,"window.__state().timer.mode==='run'");
+  await act(CC,"sab"); await until(TV,"window.__state().banner==='sabotage'");
+  await settle(2200);
+  await callMeeting(CC); await until(TV,"window.__state().meet.mode==='gather'");
+  const held = (await st(TV)).phase.remain, items = (await st(TV)).sabItems;
+  await act(CC,"endMeeting"); await until(TV,"window.__state().meet.mode==='idle'");
+  await settle(400);
+  let s = await st(TV);
+  check("backing out of the gather puts the scramble back too",
+    s.banner==="sabotage" && eq(s.sabItems, items) && s.phase.mode==="run" &&
+    Math.abs(phLeft(s)-held)<2500,
+    `${s.banner} ${s.phase.mode} held ${held}ms → ${Math.round(phLeft(s))}ms`);
+
+  /* --- and a hold that ends under a pause waits for the resume --- */
+  await callMeeting(CC); await until(TV,"window.__state().meet.mode==='gather'");
+  await act(CC,"meeting"); await until(TV,"window.__state().meet.mode==='run'");
+  const heldP = (await st(TV)).phase.remain;
+  await windMeeting(CC, gid("g-hold"), -800);
+  await until(CC,"document.body.innerHTML.includes('Tie — nobody ejected')", 12000);
+  await confirmPause(CC); await until(TV,"window.__state().paused.on===true");
+  await act(CC,"ejectCrew"); await until(TV,"window.__state().meet.mode==='idle'");
+  await settle(400);
+  s = await st(TV);
+  check("a hold released under a pause does not start the 2:00 behind the word PAUSED",
+    s.phase.mode==="pause" && s.paused.on===true && s.banner==="sabotage",
+    `${s.phase.mode} paused=${s.paused.on} ${s.banner}`);
+  check("…and hands the scramble to the resume instead", s.paused.phase===true,
+    JSON.stringify(s.paused));
+  await act(CC,"resumeGame"); await until(TV,"window.__state().paused.on===false");
+  await settle(400);
+  s = await st(TV);
+  check("…which starts it again at the time it was holding at",
+    s.phase.mode==="run" && Math.abs(phLeft(s)-heldP)<3000,
+    `held ${heldP}ms → resumed with ${Math.round(phLeft(s))}ms`);
+
+  /* --- the regression: a plain meeting still ends with nothing running --- */
+  await act(CC,"sabOk"); await until(TV,"window.__state().banner==='none'");
+  await startMeeting(CC);
+  check("a meeting with no sabotage under it records that it is holding nothing",
+    (await st(TV)).meet.sab===false, JSON.stringify((await st(TV)).meet));
+  await act(CC,"endMeeting"); await until(TV,"window.__state().meet.mode==='idle'");
+  await settle(400);
+  s = await st(TV);
+  check("…and ends with the banner clear, not with a phantom sabotage",
+    s.banner==="none" && s.phase.mode==="idle" && s.sabItems.length===0,
+    `${s.banner} ${s.phase.mode} ${JSON.stringify(s.sabItems)}`);
+}
+
+/* ================================================================= */
 section("4 · ejections");
 {
   const A = await mk("/c/cc","g-eject"), M = await mk("/monitor","g-eject");
-  await act(A,"meeting"); await until(M,"window.__state().banner==='meeting'");
+  await startMeeting(A); await until(M,"window.__state().meet.mode==='run'");
   await act(A,"ejectCrew");
   await until(M,"window.__state().deaths===1");
   let s = await st(M);
   check("crewmate ejected = +1 death", s.deaths===1);
-  check("ejection closes the meeting banner, phase and hard stop",
+  check("ejection closes the meeting banner, stage and meeting clock",
     s.banner==="none" && s.phase.mode==="idle" && s.meet.mode==="idle", JSON.stringify(s.meet));
 
-  await act(A,"meeting"); await until(M,"window.__state().banner==='meeting'");
+  await startMeeting(A); await until(M,"window.__state().meet.mode==='run'");
   await act(A,"ejectImp");
   await until(M,"window.__state().impostersCaught===1");
   s = await st(M);
@@ -759,13 +1199,26 @@ section("9 · monitor (TV) rendering");
   check("overlay repeats the walking rule", /ONE ITEM PER PERSON/.test(h));
 
   await act(A,"sabOk"); await until(M,"!document.querySelector('.overlay.sab')");
-  await act(A,"meeting"); await until(M,"document.querySelector('.overlay.meet')");
+  // The gather is the first thing the room sees, and it deliberately carries no
+  // countdown — a clock here would hurry the wrong thing.
+  await callMeeting(A); await until(M,"document.querySelector('.overlay.meet')");
   h = await html(M);
-  check("meeting overlay appears on the TV", /EMERGENCY MEETING/.test(h));
-  await act(A,"phasePre",90,"NOMINATIONS");
-  await until(M,"window.__state().phase.label==='NOMINATIONS'");
-  await until(M,"document.body.innerHTML.includes('NOMINATIONS')");
-  check("meeting overlay shows the current phase name", (await html(M)).includes("NOMINATIONS"));
+  check("the gather overlay calls the room in", /EMERGENCY MEETING/.test(h) && /EVERYONE TO THE LOBBY/.test(h));
+  check("…with no countdown on it at all",
+    !/data-mtclk/.test(h) && !/data-stclk/.test(h), (h.match(/data-\w*clk/g)||[]).join(","));
+  await act(A,"meeting"); await until(M,"window.__state().meet.mode==='run'");
+  await until(M,"!!document.querySelector('[data-stlabel]')");
+  check("starting the 3:00 puts the meeting clock on the TV",
+    /data-mtclk/.test(await html(M)), (await derived(M)).mtclk);
+  await windMeeting(A, gid("g-mon"), 105000);
+  await until(M,"document.querySelector('[data-stlabel]')?.textContent.includes('NOMINATIONS')");
+  check("the TV names the stage the deadline puts it in, with nobody tapping",
+    labelOf(await derived(M))==="NOMINATIONS", JSON.stringify(await derived(M)));
+  await windMeeting(A, gid("g-mon"), -1000);
+  await until(M,"document.body.innerHTML.includes('TIME — CALL THE VOTE')");
+  check("…and when the 3:00 is spent the TV says so instead of naming a stage",
+    /TIME — CALL THE VOTE/.test(await html(M)) && !/data-stlabel/.test(await html(M)));
+  check("…and 'hard stop' is gone from the TV for good", !/hard stop/i.test(await html(M)));
   await act(A,"endMeeting"); await until(M,"!document.querySelector('.overlay.meet')");
 
   // clock urgency classes — reset first so the arithmetic is from a known 8:00
@@ -906,15 +1359,44 @@ section("11 · role views");
     /Round clock/.test(gm) && /Death threshold/.test(gm) && dial(gmBtns) &&
     /class="sect">Undo</.test(gm) && gmBtns.some(t=>t.startsWith("New round")),
     gmBtns.join(" | "));
+  // "Deaths — N of M" is the desk's own heading; the GM's version of the same
+  // idea reads "Death threshold". ("Death +" is not usable as a marker — the
+  // Undo button quotes the last action, which can itself be "Death +1".)
+  const DESK = /class="sect">Deaths — \d+ of \d+/;
   check("gm: does not carry the desk's in-game controls by default",
-    !/Crewmate ejected/.test(gm) && !/Start meeting/.test(gm) && !/Death \+/.test(gm));
+    !DESK.test(gm) && !gmBtns.some(t=>t.startsWith("Death +")),
+    gmBtns.join(" | "));
   check("gm: offers a break-glass takeover of the desk", /Take over the desk/.test(gm));
+  // The clock is why this phone is picked up, so it is the first thing on it and
+  // Start/Pause is a thumb-sized target rather than one of four in a row.
+  check("gm: the clock leads the screen, ahead of the six setup dials",
+    gm.indexOf("Round clock —") < gm.indexOf("Round length —") &&
+    gm.indexOf("Round clock —") < gm.indexOf("Death threshold"),
+    `clock@${gm.indexOf("Round clock —")} length@${gm.indexOf("Round length —")} thr@${gm.indexOf("Death threshold")}`);
+  check("gm: calling a meeting, pause and undo all sit above the dials",
+    ["Emergency meeting","Pause","Undo","Take over the desk"]
+      .every(x=>gm.indexOf(x)>=0 && gm.indexOf(x)<gm.indexOf("Round length —")),
+    ["Emergency meeting","Pause","Undo","Take over the desk"].map(x=>x+"@"+gm.indexOf(x)).join(" "));
+  check("gm: Start is full width and says what it starts",
+    /btn-ok btn-wide[^>]*>Start the round</.test(gm) &&
+    gmBtns.some(t=>t.startsWith("Reset to 8:00")),
+    gmBtns.filter(t=>/Start|Reset/.test(t)).join(" | "));
 
-  check("cc: owns meetings, phases, ejections, deaths and sabotage",
-    /Start meeting/.test(cc) && /Meeting — 3:00 hard stop/.test(cc) &&
-    ["report","noms","corners","vote"].every(x=>cc.includes(x+"<span>")) &&
-    /Crewmate ejected/.test(cc) && /Death \+/.test(cc) && /Sabotage —/.test(cc),
+  // The desk no longer taps meetings through. It calls one like everyone else,
+  // and once the 3:00 is running it is handed words, not buttons.
+  check("cc: owns the deaths, the ejections behind a meeting, and the sabotage",
+    DESK.test(cc) && ccBtns.some(t=>t.startsWith("Death +")) && /Sabotage —/.test(cc),
     ccBtns.join(" | "));
+  check("cc: reaches a meeting only through the gather, like every other role",
+    ccBtns.some(t=>t.startsWith("Call emergency meeting")) && !/act\.meeting\(\)/.test(cc),
+    ccBtns.join(" | "));
+  check("cc: the row of five stage buttons and its stop button are gone",
+    !/phaserow/.test(cc) && !["report","noms","corners","vote"].some(x=>cc.includes(x+"<span>")) &&
+    !/act\.phasePre|act\.phaseStop/.test(cc),
+    (cc.match(/phaserow|act\.phase\w+/g)||["none"]).join(","));
+  check("cc: no meeting is open, so no ejection control is offered",
+    !/Crewmate ejected/.test(cc) && !/IMPOSTER caught/.test(cc), ccBtns.join(" | "));
+  check("cc: 'hard stop' is gone from the desk too", !/hard stop/i.test(cc));
   // The desk view explains in prose where the clock and Undo went, so absence
   // has to be judged on the controls themselves, not on the words.
   check("cc: no clock, no dials, no New round button, no undo button",
@@ -925,16 +1407,18 @@ section("11 · role views");
   for(const r of ["foreman","referee","ghost"]){
     const h = await html(pages[r]);
     check(`${r}: no clock and no desk controls`,
-      !/Round clock/.test(h) && !/Crewmate ejected/.test(h) && !/Start meeting/.test(h));
+      !/Round clock/.test(h) && !/Crewmate ejected/.test(h));
     check(`${r}: keeps sabotage and pause`, /Sabotage —/.test(h) && /Pause game|Resume game/.test(h));
     check(`${r}: undo now lives with the Game Master`, !/btn-undo/.test(h));
+    // An EMERGEN-C card is not the desk's to play, so every phone in the
+    // building can halt the round — but none of them can run the meeting.
+    check(`${r}: can call an emergency meeting`,
+      (await btnText(pages[r])).some(t=>t.startsWith("Call emergency meeting")),
+      (await btnText(pages[r])).join(" | "));
+    check(`${r}: but cannot start the 3:00 or run a stage by hand`,
+      !/act\.meeting\(\)/.test(h) && !/act\.phasePre|act\.phaseStop|phaserow/.test(h),
+      (h.match(/act\.(meeting|phase\w+)|phaserow/g)||["none"]).join(","));
   }
-  // the phase row is rendered as "<b>1</b> report<span>0:30</span>" — match the
-  // markup, not a prose label, or the check quietly passes on every view
-  const gh = await html(pages.ghost);
-  check("ghost: no longer holds the meeting stopwatch it never attends",
-    !/report<span>/.test(gh) && !/phaserow/.test(gh),
-    (gh.match(/phaserow|report<span>/g)||["none"]).join(","));
 
   for(const r of Object.keys(roles)){
     await act(pages[r],"tab","role");
@@ -945,19 +1429,23 @@ section("11 · role views");
   // every role still writes to the same document
   await act(pages.referee,"sab");
   await until(pages.ghost,"window.__state().banner==='sabotage'");
-  await act(pages.cc,"phasePre",30,"REPORT");
-  await until(pages.gm,"window.__state().phase.label==='REPORT'");
+  await callMeeting(pages.cc);
+  await until(pages.gm,"window.__state().meet.mode==='gather'");
   check("actions from any role reach every other role", (await st(pages.foreman)).sabItems.length===5);
+  await act(pages.cc,"endMeeting");
+  await until(pages.gm,"window.__state().meet.mode==='idle'");
 
-  // the break-glass section must survive the re-render any other phone causes
+  // The break-glass section must survive the re-render any other phone causes.
+  // "Death +" is the marker: an ejection only exists once a meeting is over, but
+  // the desk's death counter is always there and the GM's own view never has it.
   await act(pages.gm,"desk");
-  check("gm: opening the takeover reveals the desk controls", /Crewmate ejected/.test(await html(pages.gm)));
+  check("gm: opening the takeover reveals the desk controls", DESK.test(await html(pages.gm)));
   await act(pages.cc,"dAdj",1);
   await until(pages.gm,"window.__state().deaths===1");
   check("gm: the takeover stays open when another phone acts",
-    /Crewmate ejected/.test(await html(pages.gm)));
+    DESK.test(await html(pages.gm)));
   await act(pages.gm,"desk");
-  check("gm: it closes again", !/Crewmate ejected/.test(await html(pages.gm)));
+  check("gm: it closes again", !DESK.test(await html(pages.gm)));
 
   const bogus = await mk("/c/nobody","g-roles");
   check("an unknown role falls back to the home screen", /Footprints Companion/.test(await html(bogus)));

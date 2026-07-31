@@ -5,8 +5,9 @@
 // After every single step all six devices must agree.
 //   EMU=1 node test/test_fullgame.mjs
 import {EMU, APP, DEF, FIELDS, section, check, note, eq, pick, diff, gid, settle,
-        boot, mk, live, st, conn, act, until, softUntil, html, tap,
-        confirmNewRound, allAgree, raw, pageErrs, finish} from "./harness.mjs";
+        boot, mk, live, st, conn, act, until, softUntil, html, tap, btnText,
+        confirmNewRound, callMeeting, MEETTOTAL, stageFor,
+        windMeeting, allAgree, raw, pageErrs, finish} from "./harness.mjs";
 
 await boot();
 
@@ -102,16 +103,38 @@ section("round 1 — by the book");
   const afterOk = await st(TV);
   check("SUCCESS bought the crew a minute", remaining(afterOk) > 480, remaining(afterOk)+"s");
 
-  await beat("someone calls an emergency meeting", CC, p=>act(p,"meeting"),
-    s=>s.banner==="meeting" && s.timer.mode==="pause");
-  await beat("CC runs the 0:30 report phase aloud", CC, p=>act(p,"phasePre",30,"REPORT"),
-    s=>s.phase.label==="REPORT");
-  await beat("CC runs 1:30 of nominations", CC, p=>act(p,"phasePre",90,"NOMINATIONS"),
-    s=>s.phase.label==="NOMINATIONS");
-  await beat("CC runs 0:30 in the corners", CC, p=>act(p,"phasePre",30,"CORNERS"),
-    s=>s.phase.label==="CORNERS");
-  await beat("CC runs the 0:30 vote", CC, p=>act(p,"phasePre",30,"VOTE"),
-    s=>s.phase.label==="VOTE");
+  // The Foreman finds a body upstairs and plays the EMERGEN-C card there — the
+  // desk no longer has to be the one who calls it, and the 3:00 does not start
+  // until the room has actually walked in.
+  await beat("the Foreman calls an emergency meeting from upstairs", FM, p=>callMeeting(p),
+    s=>s.banner==="meeting" && s.meet.mode==="gather" && s.timer.mode==="pause");
+  const lobby = await html(TV);
+  check("the TV sends the room to the lobby, with no clock to hurry them",
+    /EVERYONE TO THE LOBBY/.test(lobby) && !/data-mtclk/.test(lobby),
+    (lobby.match(/<h2>[^<]*<\/h2>|data-mtclk/g)||["(no overlay)"]).join(","));
+  await beat("CC starts the 3:00 once everyone is in", CC, p=>act(p,"meeting"),
+    s=>s.meet.mode==="run" && s.meet.remain===MEETTOTAL && s.meet.clock===true);
+
+  // Nobody taps a stage. Every device works out the same one from the same
+  // deadline — so walking the meeting forward is walking the deadline forward.
+  for(const [ms, label] of [[165000,"REPORT"],[105000,"NOMINATIONS"],[45000,"CORNERS"],[15000,"VOTE"]]){
+    const endsAt = await windMeeting(CC, gid(GAME), ms);
+    for(const p of ALL) await until(p, `window.__state().meet.endsAt===${endsAt}`, 12000);
+    await settle(500);
+    const seen = await Promise.all(ALL.map(p=>p.evaluate(()=>{
+      const e = document.querySelector("[data-stlabel]") || document.querySelector(".strip .chip.phase");
+      return e ? e.textContent.trim().split(/\s+/)[0] : null})));
+    const want = stageFor(ms);
+    check(`  the room reaches ${label} with nobody tapping — all seven agree`,
+      seen.every(x=>x===want.label||x===want.short),
+      NAMES.map((n,i)=>n+":"+seen[i]).join(" | "));
+  }
+  await beat("CC skips the last of the vote and calls it", CC, p=>act(p,"callVote"),
+    s=>s.banner==="meeting" && s.meet.mode==="run" && s.meet.remain===0);
+  const ccBtns = await btnText(CC);
+  check("only now is CC offered the three ways a meeting can end",
+    ["Crewmate ejected","IMPOSTER caught","Tie"].every(e=>ccBtns.some(t=>t.startsWith(e))),
+    ccBtns.join(" | "));
   await beat("the vote ejects a crewmate — reveal on the spot", CC, p=>act(p,"ejectCrew"),
     s=>s.deaths===3 && s.banner==="none");
 
@@ -238,12 +261,22 @@ section("round 2 — reset and replay");
   await beat("−0:30 to put it back", GM, p=>act(p,"adj",-30000));
   await beat("three quick deaths", CC, async p=>{
     for(let i=0;i<3;i++){await act(p,"dAdj",1); await settle(300)}}, s=>s.deaths===3);
-  // The button that started a bare 2:00 scramble is gone from the desk — a
-  // sabotage now always comes in through the draw. The action itself still exists
-  // and still has to work, so this drives it directly rather than by tap.
-  await beat("a bare 2:00 sabotage stopwatch, started by the action alone", CC,
-    p=>act(p,"phasePre",120,"SABOTAGE"), s=>s.phase.label==="SABOTAGE");
-  await beat("CC stops it", CC, p=>act(p,"phaseStop"), s=>s.phase.mode==="idle");
+  // A meeting called mid-scramble holds it rather than wiping it: the props stay
+  // drawn, the 2:00 stops where it is, and the counter does not tick twice.
+  await beat("the Referee starts a scramble", RF, p=>act(p,"sab"),
+    s=>s.banner==="sabotage" && s.phase.mode==="run");
+  await settle(1600);
+  const scramble = await st(TV);
+  await beat("…and the Ghost calls a meeting straight over the top of it", GH,
+    p=>callMeeting(p),
+    s=>s.banner==="meeting" && s.meet.sab===true && s.phase.mode==="pause" &&
+       eq(s.sabItems, scramble.sabItems) && s.sabotagesUsed===scramble.sabotagesUsed);
+  const heldAt = (await st(TV)).phase.remain;
+  await beat("CC backs out — never mind, back to the round", CC, p=>act(p,"endMeeting"),
+    s=>s.banner==="sabotage" && s.phase.mode==="run" &&
+       Math.abs((s.phase.endsAt-Date.now())-heldAt) < 3000);
+  await beat("…and the crew get it in the end", CC, p=>act(p,"sabOk"),
+    s=>s.banner==="none" && s.sabItems.length===0);
   await beat("target bumped to 9 points", GM, p=>act(p,"tgAdj",1), s=>s.targetPts===9);
 }
 
@@ -260,7 +293,7 @@ section("round 3 — everyone is tired and tapping at once");
     act(CC,"dAdj",1),
     act(FM,"sab"),
     act(GM,"adj",30000),
-    act(CC,"phasePre",30,"REPORT"),
+    act(CC,"doCallMeeting"),
   ]);
   const agree = await allAgree(ALL, 20000);
   check("four phones acting in the same second still converge", agree.ok, agree.detail);
@@ -268,6 +301,8 @@ section("round 3 — everyone is tired and tapping at once");
   check("the state is coherent, not a mash-up",
     ["none","meeting","sabotage"].includes(s.banner) &&
     (s.banner!=="sabotage" || s.sabItems.length>0) &&
+    ["idle","gather","run","pause"].includes(s.meet.mode) &&
+    ["idle","run","pause"].includes(s.phase.mode) &&
     ["idle","run","pause"].includes(s.timer.mode) && s.deaths>=0,
     JSON.stringify(pick(s)).slice(0,220));
   note(`four-at-once landed on: deaths=${s.deaths} banner=${s.banner} props=${(s.sabItems||[]).length} phase=${s.phase.label||"—"}`);

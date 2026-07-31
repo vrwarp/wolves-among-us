@@ -6,6 +6,7 @@
 import {EMU, DEF, FIELDS, BASE, CFG, APP, EMU_HOST, EMU_PORT, section, check, note,
         eq, pick, diff, gid, settle, boot, newCtx, mk, live, st, conn, act,
         until, softUntil, html, btnText, tap, confirmNewRound, allAgree, raw,
+        startMeeting, stageFor, windMeeting,
         modal, CONFIRM_YES, pageErrs, finish} from "./harness.mjs";
 
 await boot();
@@ -37,8 +38,11 @@ section("1 · refresh in every game state");
     ["clock running",                  async A => {await act(A,"start")}],
     ["clock paused mid-round",         async A => {await act(A,"start"); await settle(600); await act(A,"pause")}],
     ["clock adjusted twice",           async A => {await act(A,"start"); await act(A,"adj",30000); await act(A,"adj",-30000)}],
-    ["meeting running",                async A => {await act(A,"start"); await act(A,"meeting")}],
-    ["meeting + nominations phase",    async A => {await act(A,"meeting"); await act(A,"phasePre",90,"NOMINATIONS")}],
+    ["gathering for a meeting",        async A => {await act(A,"start"); await act(A,"doCallMeeting")}],
+    ["meeting running",                async A => {await act(A,"start"); await startMeeting(A)}],
+    ["meeting run out, vote not called", async A => {await startMeeting(A); await act(A,"callVote")}],
+    ["a sabotage held by a meeting",   async A => {await act(A,"start"); await act(A,"sab");
+                                                   await settle(1200); await startMeeting(A)}],
     ["sabotage running",               async A => {await act(A,"start"); await act(A,"sab")}],
     ["both sabotages spent",           async A => {await act(A,"sab"); await act(A,"sabOk"); await act(A,"sab"); await act(A,"sabFail")}],
     ["deaths past the threshold",      async A => {for(let i=0;i<7;i++) await act(A,"dAdj",1)}],
@@ -68,38 +72,47 @@ section("1 · refresh in every game state");
 
 /* ================================================================= */
 // A phone that reloads mid-meeting has to come back into the SAME meeting. The
-// hard stop is an absolute deadline in the shared document, so it must keep
-// counting down rather than restarting at 3:00 — and it has to remember that it
-// was the meeting that stopped the round clock, or ending it afterwards leaves
-// the round stranded with the clock off.
-section("1b · the 3:00 hard stop survives a refresh");
+// 3:00 is an absolute deadline in the shared document, so it must keep counting
+// down rather than restarting — and because the stage is derived from that one
+// deadline, a phone that comes back must land in the stage the room is actually
+// in, with nothing having been written to tell it. It also has to remember that
+// it was the meeting that stopped the round clock, or ending it afterwards
+// leaves the round stranded with the clock off.
+section("1b · the meeting, and the stage it is in, survive a refresh");
 {
   const A = await mk("/c/cc","r-meet"), TV = await mk("/monitor","r-meet");
   const mrem = s => s.meet.mode==="run" ? s.meet.endsAt-Date.now() : s.meet.remain;
 
   await act(A,"start"); await until(TV,"window.__state().timer.mode==='run'");
-  await act(A,"meeting"); await until(TV,"window.__state().meet.mode==='run'");
-  await act(A,"phasePre",90,"NOMINATIONS");
-  await until(TV,"window.__state().phase.label==='NOMINATIONS'");
-  await settle(2500);                        // let real seconds come off the hard stop
+  await startMeeting(A); await until(TV,"window.__state().meet.mode==='run'");
+  // Put the room well inside NOMINATIONS, so a phone that came back at a fresh
+  // 3:00 would be showing REPORT and the difference is unmistakable.
+  const wound = await windMeeting(A, gid("r-meet"), 105000);
+  await until(TV,`window.__state().meet.endsAt===${wound}`, 12000);
+  await settle(2500);                        // let real seconds come off it
 
   const before = await st(A), r0 = mrem(before);
-  check("the hard stop is already counting down before the refresh",
+  check("the meeting clock is already counting down before the refresh",
     before.meet.mode==="run" && r0 < 179000, Math.round(r0)+"ms left");
+  check("…and the room is in NOMINATIONS, two stages in",
+    stageFor(r0)?.label==="NOMINATIONS", JSON.stringify(stageFor(r0)));
 
   await reload(A);
   const after = await st(A);
   check("the refreshed phone is still in the meeting",
     after.meet.mode==="run" && after.banner==="meeting", JSON.stringify(after.meet));
-  check("the hard stop did not restart at 3:00",
+  check("the meeting clock did not restart at 3:00",
     Math.abs(mrem(after)-r0) < 2500 && mrem(after) < 179000,
     `${Math.round(r0)}ms → ${Math.round(mrem(after))}ms`);
   check("…because its deadline is the same absolute moment",
     after.meet.endsAt===before.meet.endsAt, `${before.meet.endsAt} → ${after.meet.endsAt}`);
   check("the refreshed phone still knows the meeting took the round clock",
     after.meet.clock===true && after.timer.mode==="pause", JSON.stringify(after.meet));
-  check("the sub-phase under it survives too",
-    after.phase.label==="NOMINATIONS" && after.phase.mode==="run", JSON.stringify(after.phase));
+  // Nothing was written when REPORT ended, so the only way this phone can know
+  // it is in NOMINATIONS is by working it out from the deadline it just read.
+  const chip = await A.evaluate("document.querySelector('.strip .chip.phase')?.textContent.trim()");
+  check("…and it works out the stage the room is in for itself, told nothing",
+    /^NOMS\b/.test(chip||""), chip);
   const shown = await A.evaluate("document.querySelector('[data-mtclk]')?.textContent");
   check("the desk sees the meeting clock ticking, not a fresh 3:00",
     !!shown && shown!=="3:00", shown);
@@ -109,8 +122,11 @@ section("1b · the 3:00 hard stop survives a refresh");
   check("the TV refreshed mid-meeting comes straight back to the meeting overlay",
     !!(await TV.evaluate("!!document.querySelector('.overlay.meet')")) &&
     /EMERGENCY MEETING/.test(await html(TV)));
-  check("…showing the same hard stop, not a restarted one",
-    Math.abs(mrem(await st(TV))-r0) < 4000, Math.round(mrem(await st(TV)))+"ms");
+  check("…showing the same meeting clock, not a restarted one",
+    Math.abs(mrem(await st(TV))-r0) < 6000, Math.round(mrem(await st(TV)))+"ms");
+  check("…and naming the same stage the desk is in",
+    /NOMINATIONS/.test(await TV.evaluate("document.querySelector('[data-stlabel]')?.textContent||''")),
+    await TV.evaluate("document.querySelector('[data-stlabel]')?.textContent||'(none)'"));
 
   // and the thing that actually matters at 8pm: it still ends properly
   await act(A,"endMeeting");
@@ -118,6 +134,56 @@ section("1b · the 3:00 hard stop survives a refresh");
   await settle(500);
   check("ending it after a refresh still hands the round clock back",
     (await st(A)).timer.mode==="run", (await st(A)).timer.mode);
+}
+
+/* ================================================================= */
+// A scramble held by a meeting is the state most likely to be lost by a reload:
+// the props live in one field, the stopped 2:00 in another, and the fact that
+// the meeting is holding them in a third. Lose any one and the sabotage is
+// silently spent for nothing.
+section("1b2 · a sabotage held by a meeting survives a refresh");
+{
+  const A = await mk("/c/cc","r-hold"), TV = await mk("/monitor","r-hold");
+  await act(A,"start"); await until(TV,"window.__state().timer.mode==='run'");
+  await act(A,"sab"); await until(TV,"window.__state().banner==='sabotage'");
+  await settle(2200);
+  await act(A,"doCallMeeting"); await until(TV,"window.__state().meet.mode==='gather'");
+  const held = await st(A);
+  check("the scramble is being held by the gather",
+    held.meet.sab===true && held.phase.mode==="pause" && held.sabItems.length===5,
+    JSON.stringify({sab:held.meet.sab, phase:held.phase.mode, items:held.sabItems.length}));
+
+  await reload(A);
+  let after = await st(A);
+  check("reload · the props are still drawn",
+    eq(after.sabItems, held.sabItems), JSON.stringify(after.sabItems));
+  check("reload · the 2:00 is still stopped at the time it stopped",
+    after.phase.mode==="pause" && after.phase.remain===held.phase.remain,
+    `${held.phase.remain} → ${after.phase.remain}`);
+  check("reload · and the meeting still knows it is holding one",
+    after.meet.sab===true, JSON.stringify(after.meet));
+  check("reload · the desk still says so on screen",
+    /scramble is holding at/.test(await html(A)));
+  check("reload · and its sabotage button is still dead",
+    await A.evaluate(()=>{const b=document.querySelector("button.btn-sab");return !!b&&b.disabled}),
+    await A.evaluate(()=>{const b=document.querySelector("button.btn-sab");return b?b.textContent.trim():"(no button)"}));
+
+  // start the 3:00, reload again mid-meeting, then let it out
+  await act(A,"meeting"); await until(TV,"window.__state().meet.mode==='run'");
+  await reload(A);
+  after = await st(A);
+  check("reload mid-meeting · the hold rode through the start of the 3:00",
+    after.meet.sab===true && after.phase.mode==="pause" && eq(after.sabItems, held.sabItems),
+    JSON.stringify(after.meet));
+  const stopped = after.phase.remain;
+  await act(A,"ejectImp"); await until(TV,"window.__state().meet.mode==='idle'");
+  await settle(500);
+  after = await st(A);
+  check("…and the scramble comes back at the time it stopped, after all that",
+    after.banner==="sabotage" && after.phase.mode==="run" &&
+    Math.abs((after.phase.endsAt-Date.now())-stopped) < 3000,
+    `${stopped}ms held → ${Math.round(after.phase.endsAt-Date.now())}ms`);
+  check("…having counted as exactly one sabotage", after.sabotagesUsed===1, "used="+after.sabotagesUsed);
 }
 
 /* ================================================================= */

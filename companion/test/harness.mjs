@@ -27,9 +27,15 @@ export const DEF = {round:1,targetPts:8,deaths:0,threshold:6,impostersCaught:0,s
   // the props this sabotage wants, drawn fresh each time rather than a preset index
   sabItems:[],banner:"none",hist:[],
   paused:{on:false,clock:false,phase:false,meet:false},
-  // the 3:00 meeting hard stop is its own clock, kept apart from `phase` so the
-  // sub-phases (report / nominations / corners / vote) can run underneath it
-  meet:{mode:"idle",endsAt:0,remain:0,clock:false},
+  // The 3:00 meeting clock, and the only thing a meeting is: the four stages
+  // (report / nominations / corners / vote) are derived from this one deadline
+  // rather than stored, so nothing writes when a stage ends. `phase` is the
+  // sabotage's 2:00 and nothing else now.
+  // NOTE: no `sab` key here — that is what a fresh game is really seeded with.
+  // MIDLE in index.html does carry `sab:false`, so the shape drifts the first
+  // time a meeting or a New round writes it; see the failing undo comparison in
+  // test_chaos section 2.
+  meet:{mode:"idle",endsAt:0,remain:0,clock:false,sab:false},
   timer:{mode:"idle",endsAt:0,remain:480000,dur:480000},
   phase:{mode:"idle",endsAt:0,remain:0,label:""}};
 // The fields an undo snapshot restores — everything except the history itself.
@@ -144,7 +150,8 @@ export const tap = async (p, startsWith) => {
 // The destructive actions open a confirmation dialog: act.<x>() only asks, and
 // act.confirmYes() does the work. These are the dialog's confirm labels, so a
 // click-driven test can find the right button (CONFIRMS in index.html).
-export const CONFIRM_YES = {pauseGame:"Pause the game", newRound:"Start the new round", forget:"Disconnect"};
+export const CONFIRM_YES = {pauseGame:"Pause the game", newRound:"Start the new round", forget:"Disconnect",
+  callMeeting:"Call the meeting"};
 // Ask and answer in one go, by script. Deliberately not click-driven: most
 // callers only want the round moved on as setup, and several drive it from a
 // desk phone, where the button itself no longer lives — New round belongs to
@@ -155,6 +162,32 @@ export const confirmAct = async (p, fn) => {
   await act(p, "confirmYes");
 };
 export const confirmPause = p => confirmAct(p, "pauseGame");
+/* ---------------- meetings ----------------
+   There is exactly one way into a meeting now, and it is two steps: any role
+   calls it (which asks first, stops the round clock and gathers the room), then
+   Central Command starts the 3:00. act.meeting() straight from idle still works
+   as an action, but no button anywhere reaches it — so a test that wants a
+   meeting running should walk the same road the room does. */
+export const callMeeting = p => confirmAct(p, "callMeeting");
+// Gather → running 3:00, verified. Both writes can land mid-repaint on a busy
+// emulator, so each step is confirmed before the next is attempted.
+export const startMeeting = async (caller, desk=caller, tries=3) => {
+  for(let i=0;i<tries;i++){
+    if((await st(caller)).meet.mode==="idle"){
+      await act(caller,"confirmNo");            // drop a dialog an earlier try left open
+      await callMeeting(caller);
+      for(let w=0; w<30 && (await st(caller)).meet.mode!=="gather"; w++) await settle(150);
+    }
+    if((await st(desk)).meet.mode==="gather"){
+      await act(desk,"meeting");
+      for(let w=0; w<30; w++){
+        if((await st(desk)).meet.mode==="run") return true;
+        await settle(150);
+      }
+    }
+  }
+  return (await st(desk)).meet.mode==="run";
+};
 // New round, verified. Snapshots re-render the view constantly, so a call can
 // land mid-repaint and be dropped — check the round actually moved and retry.
 export const confirmNewRound = async (p, tries=3) => {
@@ -195,6 +228,63 @@ export const raw = async gameId => {
   const r = await fetch(`http://${EMU_HOST}:${EMU_PORT}/v1/projects/${PROJECT}/databases/(default)/documents/games/${gameId}`,
     {headers:{Authorization:"Bearer owner"}});
   return r.ok ? r.json() : null;
+};
+// The other direction: write a field of the shared document from outside every
+// browser, the way an eighth device would. A meeting is three real minutes long
+// and nothing writes when a stage ends, so the only way to test the later stages
+// without sitting through them is to move the one deadline they are all derived
+// from. Emulator: the REST API. Mock: its own /db/set, same merge semantics.
+const fsVal = v =>
+  v===null||v===undefined         ? {nullValue:null} :
+  typeof v==="boolean"            ? {booleanValue:v} :
+  typeof v==="number"             ? (Number.isInteger(v)?{integerValue:String(v)}:{doubleValue:v}) :
+  typeof v==="string"             ? {stringValue:v} :
+  Array.isArray(v)                ? {arrayValue:{values:v.map(fsVal)}} :
+  {mapValue:{fields:Object.fromEntries(Object.entries(v).map(([k,x])=>[k,fsVal(x)]))}};
+export const rawPatch = async (gameId, fields) => {
+  if(EMU){
+    const mask = Object.keys(fields).map(k=>"updateMask.fieldPaths="+k).join("&");
+    const r = await fetch(`http://${EMU_HOST}:${EMU_PORT}/v1/projects/${PROJECT}/databases/(default)/documents/games/${gameId}?${mask}`,
+      {method:"PATCH", headers:{Authorization:"Bearer owner","content-type":"application/json"},
+       body:JSON.stringify({fields:Object.fromEntries(Object.entries(fields).map(([k,v])=>[k,fsVal(v)]))})});
+    if(!r.ok) throw new Error(`rawPatch ${r.status}: ${(await r.text()).slice(0,200)}`);
+    return;
+  }
+  const r = await fetch(`${BASE}/db/set`,{method:"POST",headers:{"content-type":"application/json"},
+    body:JSON.stringify({path:"games/"+gameId, data:fields, merge:true})});
+  if(!r.ok) throw new Error("rawPatch mock "+r.status);
+};
+
+/* ---------------- meeting stages ---------------- */
+// The plan the app tiles the 3:00 with, restated here on purpose: if someone
+// changes the stage lengths, the tests that describe the meeting should be what
+// goes red, not a hundred derived assertions.
+export const MEETPLAN  = [[30000,"REPORT","REPORT"],[90000,"NOMINATIONS","NOMS"],
+                          [30000,"CORNERS","CNRS"],[30000,"VOTE","VOTE"]];
+export const MEETTOTAL = MEETPLAN.reduce((n,p)=>n+p[0],0);       // 3:00
+// Which stage a meeting with `rem` ms left is in — worked out independently of
+// the app, so the two derivations have to agree rather than share a bug.
+export const stageFor = rem => {
+  if(rem<=0) return null;
+  let acc=0;
+  for(let i=0;i<MEETPLAN.length;i++){
+    acc += MEETPLAN[i][0];
+    const floor = MEETTOTAL-acc;                 // meeting clock when this stage is done
+    if(rem>floor) return {i, label:MEETPLAN[i][1], short:MEETPLAN[i][2], rem:rem-floor};
+  }
+  return null;
+};
+export const meetLeft = s => s.meet.mode==="run" ? s.meet.endsAt-Date.now() : s.meet.remain;
+// Put a running meeting `msLeft` from its end without waiting for it. The
+// deadline is absolute and shared, so moving it is exactly what the passage of
+// time would have done — every device re-derives its stage from the new value.
+export const windMeeting = async (p, gameId, msLeft) => {
+  const off = await p.evaluate("window.__offset()");
+  const s   = await st(p);
+  const endsAt = Date.now() + off + msLeft;
+  await rawPatch(gameId, {meet:{...s.meet, mode:"run", endsAt, remain:msLeft}});
+  await until(p, `window.__state().meet.endsAt===${endsAt}`, 12000);
+  return endsAt;
 };
 
 /* ---------------- finish ---------------- */
