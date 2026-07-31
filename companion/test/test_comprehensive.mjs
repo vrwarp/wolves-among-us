@@ -223,12 +223,14 @@ section("7 · new round needs a confirming second tap");
     labels0.filter(t=>t.startsWith("New round")).length===1 && labels0.some(t=>t.startsWith("↩")),
     labels0.filter(t=>/New round|↩/.test(t)).join(" / "));
 
-  const btn = await btnBy(A,"New round");
-  await btn.click();
+  // The armed label is re-rendered rather than written onto the node, so the
+  // button must be re-queried between taps — an element handle goes stale.
+  await tap(A,"New round");
   await settle(300);
   check("first tap only arms — nothing changes", (await st(A)).round===1 && (await st(A)).deaths===1);
-  check("first tap relabels the button", /Tap again to confirm/.test(await btn.textContent()));
-  await btn.click();
+  check("first tap relabels the button",
+    (await btnText(A)).some(t=>t.startsWith("Tap again to confirm")), (await btnText(A)).join(" | "));
+  await tap(A,"Tap again");
   await until(M,"window.__state().round===2");
   const s = await st(M);
   check("second tap starts round 2", s.round===2);

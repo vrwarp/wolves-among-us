@@ -19,11 +19,21 @@ const run=file=>new Promise(res=>{
     {stdio:"inherit",env:{...process.env,...(mode==="emu"?{EMU:"1"}:{})}});
   t.on("exit",c=>res(c||0));
 });
+// Each suite leaves dozens of game documents behind. Across seven files the
+// emulator slows enough that a first connect can miss the app's budget and a
+// suite fails for reasons that have nothing to do with the app. Wipe between
+// files — every suite uses its own run-scoped game ids anyway.
+const wipe=async()=>{
+  if(mode!=="emu")return;
+  const url="http://127.0.0.1:8080/emulator/v1/projects/demo-footprints/databases/(default)/documents";
+  await fetch(url,{method:"DELETE"}).catch(()=>{});
+  await new Promise(r=>setTimeout(r,1500));
+};
 (async()=>{
   const bad=[];
   try{
     await waitPort();
-    for(const f of files) if(await run(f)) bad.push(f);
+    for(const f of files){ await wipe(); if(await run(f)) bad.push(f) }
   }catch(e){console.error(String(e));bad.push("harness")}
   server.kill();
   if(files.length>1){

@@ -85,14 +85,41 @@ history entry.
 its last known numbers, accepts taps, and flushes them when wifi returns.
 Verified across four wifi drops and a long blackout with six queued taps.
 
+**7. Pause reads your screen too.** Like Undo, *Pause game* from a phone that
+has not caught up acts on what that phone last saw. Two phones pausing at once
+converge fine; the risk is pausing from a stale screen.
+→ *Watch the TV, not your own phone.*
+
+## Sound
+
+Synthesised in the page — no audio files, nothing to download, works offline.
+
+| cue | where | when |
+|---|---|---|
+| countdown beep | every device | each of the last ten seconds |
+| end-of-round tone | every device | at 0:00 |
+| minute chime | **TV only** | every whole minute |
+| sabotage alert | every device | when a set is picked |
+| meeting chime | every device | when a meeting starts |
+| pause / resume | every device | either way |
+
+Every device works the countdown out from the same absolute deadline, so they
+beep together without anything being broadcast.
+
+**Browsers refuse to play audio until the screen is touched.** Every view has a
+sound control that reads *tap for sound* in orange until it is unlocked, then
+*sound on*; tapping it again mutes. **Tap the TV once after you open it** or it
+stays silent all night. It is also the mute if a phone needs to be quiet.
+
 ## The 60-second briefing card
 
 > **Check your dot before we start. It must be GREEN.**
 > Green = live. Grey = talking to nobody, refresh once.
 > Red = offline, it'll catch up — **don't refresh**.
+> **Tap the TV screen once so it can make sound.**
 > One phone owns *Death +*. Everyone else watches the TV.
 > Undo: tap once, watch the TV, then tap again.
-> *New round* needs two taps, and paper is always the backup.
+> *New round* and *Pause game* need two taps. Paper is always the backup.
 
 ## The live deployment
 
@@ -122,10 +149,11 @@ post the link anywhere students can reach it, and delete the project afterwards.
 | `test_comprehensive.mjs` | clock, meetings, phases, ejections, sabotage, counters, new round, undo depth, TV overlays, **all 32 groups + all 80 sudoku answers**, role views, share links, security rules, shipped-data integrity | 156 |
 | `test_refresh.mjs` | reload in 13 different game states, five devices reloading at once, reload mid-write, mid-sabotage, two tabs, wifi-down reload, a slow first connect, link-joined reload, wiped storage, an accidental demo-mode tap | 96 |
 | `test_chaos.mjs` | **every action performed then undone and compared field by field**, fat-finger repeats, panic undo, four phones acting in the same instant, unplanned sequences, wifi flapping, and a 60-second four-phone random-tap soak (~750 taps) | 107 |
+| `test_features.mjs` | the sound cues (who hears what and when, and what stays silent) and the game-wide pause from all four roles — freeze, exact resume, undo, refresh, two phones at once — plus a section driven by **real clicks** rather than scripted calls | 96 |
 | `test_endurance.mjs` | a phone whose own clock is 4 minutes wrong, the TV counting down in real time, six devices agreeing on the time left, everything still synced after idling between rounds | 26 |
 | `test_fullgame.mjs` | a scripted three-round night on six devices — TV, two CC phones, Foreman, Referee, Ghost — with mistakes, corrections, a phone reload and a wifi drop; **all six must agree after every step** | 67 |
 
-**463 checks**, all passing against the real emulator.
+**559 checks**, all passing against the real emulator.
 
 ## One more thing worth knowing
 

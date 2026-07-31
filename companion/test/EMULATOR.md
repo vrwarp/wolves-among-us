@@ -25,6 +25,7 @@ night** — it has the counsellor briefing card.
 | `test_comprehensive.mjs` | clock, meetings, phase presets, ejections, sabotage, counters and clamps, two-tap New round, undo depth, TV overlays, **all 32 groups and all 80 sudoku answers checked against `appdata.json`**, role views, share links + QR, Firestore security rules, shipped-data integrity |
 | `test_refresh.mjs` | reload in 13 different game states, five devices reloading at once, reload mid-write, mid-sabotage, two tabs on one phone, reload with wifi down, reload with the database unreachable, link-joined reload, wiped storage |
 | `test_chaos.mjs` | **every action performed then undone and compared field by field**, fat-finger repeats, panic-tapping undo, four phones acting in the same instant, sequences nobody planned, wifi flapping, and a 60-second four-phone random-tap soak |
+| `test_features.mjs` | sound cues (countdown, minute chime, sabotage, meeting, pause) and the game-wide pause any role can call — including a section that drives **real clicks**, which is how the audio-unlock tap regression was caught |
 | `test_endurance.mjs` | a phone whose own clock is 4 minutes wrong, the TV counting down in real time, six devices agreeing on the time left, and everything still synced after sitting idle between rounds (`IDLE_MIN=10` to lengthen) |
 | `test_fullgame.mjs` | a scripted three-round night on six devices — TV, two CC phones, Foreman, Referee, Ghost — with mistakes, corrections, a phone reload and a wifi drop. All six must agree after every single step |
 

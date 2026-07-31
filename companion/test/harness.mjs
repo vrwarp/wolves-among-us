@@ -22,11 +22,12 @@ export const APP = JSON.parse(readFileSync(join(HERE,"..","appdata.json"),"utf8"
 // The app's own documented starting state.
 export const DEF = {round:1,targetPts:8,deaths:0,threshold:6,impostersCaught:0,sabotagesUsed:0,
   sabotageSet:0,banner:"none",hist:[],
+  paused:{on:false,clock:false,phase:false},
   timer:{mode:"idle",endsAt:0,remain:480000,dur:480000},
   phase:{mode:"idle",endsAt:0,remain:0,label:""}};
 // The fields an undo snapshot restores — everything except the history itself.
 export const FIELDS = ["round","targetPts","deaths","threshold","impostersCaught",
-  "sabotagesUsed","sabotageSet","banner","timer","phase"];
+  "sabotagesUsed","sabotageSet","banner","paused","timer","phase"];
 
 /* ---------------- reporting ---------------- */
 let pass=0, failed=0, sec="";
@@ -52,7 +53,9 @@ export const settle = ms => new Promise(r=>setTimeout(r,ms));
 
 let browser=null; const contexts=[];
 export const boot = async () => {
-  browser = await chromium.launch({args:["--no-sandbox"],
+  browser = await chromium.launch({
+    // let AudioContext start without a gesture so the sound paths run for real
+    args:["--no-sandbox","--autoplay-policy=no-user-gesture-required","--mute-audio"],
     ...(process.env.CHROME_EXECUTABLE?{executablePath:process.env.CHROME_EXECUTABLE}:{})});
   return browser;
 };
@@ -95,6 +98,10 @@ export const live = async (p, ms=40000) => {
 };
 
 export const st     = p => p.evaluate("window.__state()");
+export const snd    = p => p.evaluate("window.__sound()");
+export const sndReset = p => p.evaluate("window.__soundReset()");
+// Fresh sound logs on a set of devices, so a check only sees what it caused.
+export const clearSounds = ps => Promise.all(ps.map(sndReset));
 export const conn   = p => p.evaluate("window.__conn()");
 export const act    = (p,f,...a) => p.evaluate(`window.act.${f}(${a.map(x=>JSON.stringify(x)).join(",")})`);
 export const until  = (p,expr,ms=15000) => p.waitForFunction(expr,null,{timeout:ms});
