@@ -243,29 +243,30 @@ section("6 · refresh from a share link, and losing the config");
 /* ================================================================= */
 section("6b · a slow first connect (crowded church wifi)");
 if(EMU){
-  // The app races fbBackend against an 8-second timer. If the very first
-  // connect is slower than that, it gives up and falls back to demo mode —
-  // permanently. Six devices connecting at once on weak wifi can hit this.
+  // The app races fbBackend against a timer (25s since a real cold-start deploy
+  // blew the old 8s). If the first connect is slower than that it gives up and
+  // falls back to demo mode — permanently. This holds every request past that
+  // budget to prove the give-up is still visible rather than silent.
   const ctx = await newCtx();
   let slow = true;
   await ctx.route("**/*", async route => {
-    if(slow && route.request().url().includes(`${EMU_HOST}:${EMU_PORT}`)) await settle(10000);
+    if(slow && route.request().url().includes(`${EMU_HOST}:${EMU_PORT}`)) await settle(32000);
     route.continue().catch(()=>{});
   });
   const S = await mk("/c/cc","r-slow",{ctx, connect:false});
   await S.evaluate(c => localStorage.setItem("fpCfg",c),
     JSON.stringify({cfg:CFG, gameId:gid("r-slow")}));
   await S.reload({waitUntil:"domcontentloaded"});
-  await settle(14000);                      // well past the app's 8s give-up
+  await settle(30000);                      // past the app's give-up
 
   const dot = await conn(S);
   check("a slow first connect does not crash the app", pageErrs.length===0, pageErrs.slice(0,2).join(" | "));
   check("it never shows a green dot while it is not actually connected", dot!=="live", "dot="+dot);
-  note(`a first connect slower than 8s ends on dot="${dot}"`);
+  note(`a first connect slower than the give-up ends on dot="${dot}"`);
 
   slow = false;                              // wifi recovers
   const heals = await softUntil(S,"window.__conn()==='live'",25000);
-  if(!heals) note("HAZARD: the 8-second give-up is permanent — a phone that connects slowly stays in demo mode until someone refreshes it. Check every dot is GREEN before the first round.");
+  if(!heals) note("the give-up is permanent — a phone that connects too slowly stays in demo mode until someone refreshes it. Check every dot is GREEN before the first round.");
   check("either it heals, or a refresh fixes it", heals || await (async()=>{
     await S.reload({waitUntil:"domcontentloaded"});
     return live(S).then(()=>true,()=>false);

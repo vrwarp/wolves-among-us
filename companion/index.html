@@ -582,7 +582,11 @@ window.addEventListener("hashchange",()=>{uiTab=null;render()});
     try{
       backend=await Promise.race([
         fbBackend(j.cfg,j.gameId||"footprints"),
-        new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),8000))
+        // 8s was not enough: the very first client connection to a freshly
+        // created Firestore database blew it on the real deploy, and giving up
+        // drops the phone into demo mode for good. Six phones connecting at
+        // once on church wifi is the same cold-start situation.
+        new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),25000))
       ]);
     }catch(e){conn="off";backend=demoBackend();render()}
   }
