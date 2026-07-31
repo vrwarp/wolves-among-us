@@ -3,10 +3,10 @@
 // reloads, wifi hiccups). Every game state is reloaded and compared field by
 // field against what was on screen before.
 //   EMU=1 node test/test_refresh.mjs
-import {EMU, DEF, FIELDS, BASE, CFG, EMU_HOST, EMU_PORT, section, check, note,
+import {EMU, DEF, FIELDS, BASE, CFG, APP, EMU_HOST, EMU_PORT, section, check, note,
         eq, pick, diff, gid, settle, boot, newCtx, mk, live, st, conn, act,
         until, softUntil, html, btnText, tap, confirmNewRound, allAgree, raw,
-        pageErrs, finish} from "./harness.mjs";
+        modal, CONFIRM_YES, pageErrs, finish} from "./harness.mjs";
 
 await boot();
 const reload = async p => {
@@ -425,6 +425,257 @@ section("6c · a scanned QR keeps working after switching roles");
     check(`${label}: a reload after switching rejoins the game`, back, "conn="+await conn(P));
     check(`${label}: …with the real numbers, not a fresh game`, (await st(P)).deaths===3,
       "deaths="+(await st(P)).deaths);
+  }
+}
+
+/* ================================================================= */
+section("6d · Disconnect remembers the config for a one-tap reconnect");
+{
+  // Disconnect sits one mis-tap away on the home screen, and finding the
+  // Firebase console on a phone mid-game is a bad five minutes. The live config
+  // still goes — the device really is disconnected and nothing syncs — but the
+  // last good one is kept aside, used for nothing except pre-filling the form.
+  const A = await mk("/c/cc","r-memo"), B = await mk("/monitor","r-memo");
+  await act(A,"dAdj",4);
+  await until(B,"window.__state().deaths===4");
+  await A.evaluate("location.hash='#/'"); await settle(500);
+
+  // driven through the dialog, as a thumb would. The confirm button lives in
+  // the modal, and the home screen's own "Disconnect this device" comes first
+  // in the DOM, so the click has to be scoped to the dialog.
+  await tap(A,"Disconnect this device"); await settle(400);
+  const dq = await modal(A);
+  check("Disconnect still asks first", !!dq && dq.buttons.includes(CONFIRM_YES.forget), JSON.stringify(dq));
+  await A.click(`.modal button:text-is("${CONFIRM_YES.forget}")`).catch(()=>{});   // reloads under us
+  await A.waitForFunction("!!document.getElementById('cfgtxt')",null,{timeout:20000});
+
+  const kept = await A.evaluate(()=>({live:localStorage.getItem("fpCfg"),
+                                      memo:localStorage.getItem("fpLastCfg")}));
+  check("Disconnect drops the live config", !kept.live, kept.live);
+  check("…so the device really is disconnected", await conn(A)!=="live", await conn(A));
+  check("…but the last good config is remembered for the form",
+    !!kept.memo && JSON.parse(kept.memo).gameId===gid("r-memo"), String(kept.memo).slice(0,140));
+  check("…and the game keeps running for everyone else", (await st(B)).deaths===4, "B deaths="+(await st(B)).deaths);
+
+  const form = await A.evaluate(()=>({
+    cfg: document.getElementById("cfgtxt").value,
+    gid: document.getElementById("gid").value,
+    clearable: [...document.querySelectorAll("button")].some(b=>b.textContent.trim()==="clear it")}));
+  check("the connect form comes back pre-filled with the last config",
+    /const firebaseConfig\s*=\s*\{/.test(form.cfg) && form.cfg.includes(CFG.projectId), form.cfg.slice(0,90));
+  check("…and with the game id it was in, not a fresh random one", form.gid===gid("r-memo"), form.gid);
+  check("…and offers a way to clear the memo", form.clearable);
+
+  // the whole point of the change: one tap on Connect, nothing typed
+  await A.click('button:text-is("Connect")').catch(()=>{});
+  await settle(1500);
+  check("one tap on Connect, nothing typed, reconnects the device",
+    await softUntil(A,"window.__conn()==='live'",30000), "conn="+await conn(A));
+  check("…to the same game id",
+    await A.evaluate("JSON.parse(localStorage.getItem('fpCfg')||'{}').gameId")===gid("r-memo"));
+  check("…and the same room, not a fresh game", (await st(A)).deaths===4, "deaths="+(await st(A)).deaths);
+  await act(A,"dAdj",1);
+  check("…with writes that reach the other phone again",
+    await softUntil(B,"window.__state().deaths===5",12000), "B deaths="+(await st(B)).deaths);
+
+  // "clear it", for a phone that should not keep the memo at all
+  await act(A,"forget"); await settle(300);
+  await act(A,"confirmYes").catch(()=>{});
+  await A.waitForFunction("!!document.getElementById('cfgtxt')",null,{timeout:20000});
+  await A.click('button:text-is("clear it")');
+  await settle(500);
+  const cleared = await A.evaluate(()=>({
+    memo: localStorage.getItem("fpLastCfg"),
+    cfg:  document.getElementById("cfgtxt").value,
+    gid:  document.getElementById("gid").value,
+    filled: /Filled in from/.test(document.getElementById("app").innerHTML)}));
+  check("“clear it” drops the remembered config", !cleared.memo, cleared.memo);
+  check("…and the form goes back to empty", cleared.cfg==="" && !cleared.filled, cleared.cfg.slice(0,60));
+  check("…with a fresh random game id", /^footprints-[a-z0-9]+$/.test(cleared.gid) && cleared.gid!==gid("r-memo"),
+    cleared.gid);
+
+  // and nothing leaks onto a device that never connected in the first place
+  const V = await (await newCtx()).newPage();
+  V.on("pageerror", e=>pageErrs.push("never-connected: "+e));
+  await V.goto(`${BASE}/#/`, {waitUntil:"domcontentloaded"});
+  await V.waitForFunction("!!document.getElementById('cfgtxt')",null,{timeout:15000});
+  const v = await V.evaluate(()=>({
+    cfg: document.getElementById("cfgtxt").value,
+    gid: document.getElementById("gid").value,
+    memo: localStorage.getItem("fpLastCfg"),
+    filled: /Filled in from/.test(document.getElementById("app").innerHTML)}));
+  check("a device that has never connected shows an empty box", v.cfg==="" && !v.filled, v.cfg.slice(0,60));
+  check("…and a random game id, with nothing remembered",
+    /^footprints-[a-z0-9]+$/.test(v.gid) && !v.memo, v.gid+" memo="+v.memo);
+
+  // The game id is not the device's own secret: a share link carries {cfg,gameId}
+  // in ?cfg=, so whoever sends the QR chooses it, and the pre-filled box reflects
+  // it straight into value="…". This caught a real one: esc() escaped & and < but
+  // not the quote that closes the attribute, so a hostile link plus one Disconnect
+  // ran script on the app's own origin. Only reachable once the pre-fill landed —
+  // the field used to hold a fresh random string. esc() now escapes quotes too.
+  const EVIL = 'g" onmouseover="window.__xss=1" x="';
+  const token = Buffer.from(JSON.stringify({cfg:CFG, gameId:EVIL})).toString("base64")
+    .replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+  const X = await (await newCtx()).newPage();
+  X.on("pageerror", e=>pageErrs.push("hostile-link: "+e));
+  await X.goto(`${BASE}/#/?cfg=${token}`, {waitUntil:"domcontentloaded"});
+  await settle(800);
+  await act(X,"forget"); await settle(200);
+  await act(X,"confirmYes").catch(()=>{});                 // reloads under us
+  await X.waitForFunction("!!document.getElementById('gid')",null,{timeout:20000});
+  const probe = await X.evaluate(()=>{
+    const el = document.getElementById("gid");
+    el.dispatchEvent(new MouseEvent("mouseover",{bubbles:true}));
+    return {value:el.value, injected:el.getAttribute("onmouseover"), ran:!!window.__xss};
+  });
+  check("a hostile game id from a share link cannot break out of the pre-filled input",
+    probe.injected===null && !probe.ran && probe.value===EVIL,
+    `injected=${probe.injected} ran=${probe.ran} value=${JSON.stringify(probe.value)}`);
+}
+
+/* ================================================================= */
+section("6e · the escaping never reaches anyone's eyes");
+{
+  // esc() escapes " and ' as well as & < >, because a share link's game id
+  // lands inside value="…" (6d). Every one of its call sites feeds innerHTML,
+  // where the parser turns the entity straight back into the character — in a
+  // text node, in an attribute and inside <textarea> alike — so nobody should
+  // ever see one. The day a site moves into a raw-text context (<script>,
+  // <style>) or onto .textContent, a counsellor reads a literal &#39; off a
+  // phone at the front of a dark room and there is no fixing it mid-game.
+  const ENT = /&(?:amp|lt|gt|quot|apos|#0*39|#x0*27);/i;
+  // Everything a person can actually read: the text, the attributes that
+  // surface as tooltips and placeholders, and the boxes they are about to edit.
+  const readable = p => p.evaluate(()=>{
+    const root = document.getElementById("app"), bits = [root.textContent||""];
+    root.querySelectorAll("[title],[aria-label],[placeholder]").forEach(e=>
+      ["title","aria-label","placeholder"].forEach(a=>{if(e.hasAttribute(a))bits.push(e.getAttribute(a))}));
+    root.querySelectorAll("input,textarea").forEach(e=>bits.push(e.value));
+    return bits.join("\n");
+  });
+  const noEntity = async (p, where) => {
+    const t = await readable(p), m = t.match(ENT);
+    return check(`nothing shows a raw entity — ${where}`, !m,
+      m ? `saw ${m[0]} in “${t.slice(Math.max(0,m.index-45), m.index+45).replace(/\s+/g," ")}”` : undefined);
+  };
+  // A goto that only changes the hash is a same-document navigation: the app
+  // re-renders on hashchange but never re-boots, so ?demo=live / ?tab= / ?grp=
+  // would silently never be read. Reload to make each one a real load.
+  const open = async (p, hash) => {
+    await p.goto(`${BASE}/#${hash}`, {waitUntil:"domcontentloaded"});
+    await p.reload({waitUntil:"domcontentloaded"});
+    await p.waitForFunction("document.getElementById('app').children.length>0",null,{timeout:15000});
+    if(/demo=live/.test(hash))
+      await p.waitForFunction("window.__state && window.__state().round===2",null,{timeout:15000});
+    await settle(200);
+  };
+
+  // (a) The config box is nearly all quotes, and it is the one place the
+  // escaping could be read literally. A <textarea> is escapable raw text: the
+  // parser decodes on the way in, so .value must hold the real characters —
+  // and Connect parses that value straight back into what gets stored.
+  const T = await mk("/c/cc","r-esc");
+  await act(T,"forget"); await settle(200);
+  await act(T,"confirmYes").catch(()=>{});                       // reloads under us
+  await T.waitForFunction("!!document.getElementById('cfgtxt')",null,{timeout:20000});
+  const WANT = "const firebaseConfig = "+JSON.stringify(CFG,null,2)+";";
+  const box = await T.evaluate(()=>{const e=document.getElementById("cfgtxt");
+    return {value:e.value, shown:e.textContent}});
+  check("the config box holds the real characters, byte for byte",
+    box.value===WANT, JSON.stringify(box.value).slice(0,180));
+  check("…with real quotes in it, and no entity for the counsellor to see",
+    box.value.includes('"') && !ENT.test(box.value), JSON.stringify(box.value).slice(0,180));
+  check("…and reads the same through .textContent, which is what a copy takes",
+    box.shown===WANT, JSON.stringify(box.shown).slice(0,180));
+  await T.click('button:text-is("Connect")').catch(()=>{});
+  const back = await softUntil(T,"window.__conn()==='live'",30000);
+  const stored = await T.evaluate("localStorage.getItem('fpCfg')");
+  check("…so one tap on Connect stores the config identical to what was remembered",
+    back && JSON.stringify(JSON.parse(stored||"{}").cfg)===JSON.stringify(CFG),
+    `conn=${await conn(T)} stored=${String(stored).slice(0,180)}`);
+
+  // (b) The game id is chosen by whoever sends the QR, and the home screen
+  // prints it back inside curly quotes. Every character esc() touches at once.
+  // No connection is waited on — the id is deliberately absurd and the home
+  // screen paints before the backend is reached anyway.
+  const NASTY = gid(`a&b<c>d"e'f`);
+  const H = await (await newCtx()).newPage();
+  H.on("pageerror", e=>pageErrs.push("nasty-id: "+e));
+  await H.goto(`${BASE}/#/`, {waitUntil:"domcontentloaded"});
+  await H.evaluate(c=>localStorage.setItem("fpCfg",c), JSON.stringify({cfg:CFG, gameId:NASTY}));
+  await open(H,"/");
+  const sub = await H.evaluate(()=>{const e=document.querySelector(".sub");
+    return {text:e.textContent, tags:e.querySelectorAll("*").length}});
+  check("the home screen prints an odd game id exactly as it is",
+    sub.text===`Game “${NASTY}” · every device with the link shares this state` && sub.tags===0,
+    JSON.stringify(sub.text));
+  await noEntity(H,"home screen, connected");
+  await H.close().catch(()=>{});
+
+  // (c) Every view, with something on every screen: a phase chip running, a
+  // banner up, deaths on the board and an action in the history for Undo to
+  // name. Demo-seeded, so this costs no emulator time.
+  const D = await (await newCtx()).newPage();
+  D.on("pageerror", e=>pageErrs.push("entity-sweep: "+e));
+  for(const [hash,where] of [
+    ["/","home screen, not connected"],
+    ["/c/gm?demo=live&banner=meeting","Game Master, meeting running"],
+    ["/c/cc?demo=live&banner=sabotage","Central Command, sabotage up"],
+    ["/c/foreman?demo=live&banner=sabotage&tab=answers&grp=7","Foreman, answers"],
+    ["/c/referee?demo=live&tab=role","Roaming Referee, role crib"],
+    ["/c/ghost?demo=live&banner=meeting","Ghost Guide, controls"],
+    ["/monitor?demo=live&banner=meeting","TV monitor, meeting overlay"],
+    ["/monitor?demo=live&banner=sabotage","TV monitor, sabotage"],
+  ]) { await open(D,hash); await noEntity(D,where) }
+
+  await open(D,"/c/gm?demo=live&banner=sabotage");
+  // the Undo label carries a literal &nbsp; in the template. Decoded, as it
+  // should be — so flatten it to an ordinary space before matching.
+  const gmTxt = (await D.evaluate(()=>document.getElementById("app").innerText)).replace(/\u00a0/g," ");
+  check("the Undo button names the last action in plain words",
+    /Undo — Sabotage — set 2/.test(gmTxt), gmTxt.split("\n").find(l=>/Undo/.test(l)));
+  check("…and the phase chip is the short word, not an entity", /\bSAB\b/.test(gmTxt),
+    gmTxt.slice(0,90).replace(/\n/g," "));
+
+  // (d) A share link picks the number on the answers pad, unchecked — the one
+  // esc() input on that screen a stranger controls. It has to come back out as
+  // the characters that went in, with no markup and no handler.
+  const PAYLOAD = `5" onmouseover="window.__pad=1" <b>x</b>&'`;
+  await open(D,"/c/foreman?tab=answers&grp="+encodeURIComponent(PAYLOAD));
+  const pad = await D.evaluate(()=>{
+    const r=document.querySelector(".padread");
+    if(!r)return {text:"(no pad on screen)"};
+    r.dispatchEvent(new MouseEvent("mouseover",{bubbles:true}));
+    return {text:r.textContent, tags:r.querySelectorAll("*").length, inj:r.getAttribute("onmouseover"),
+            ran:!!window.__pad, miss:(document.getElementById("ansres")||{}).textContent||""};
+  });
+  check("the answers pad prints a link-chosen number exactly as it is",
+    pad.text===PAYLOAD && pad.tags===0 && pad.inj===null && !pad.ran,
+    `text=${JSON.stringify(pad.text)} tags=${pad.tags} inj=${pad.inj} ran=${pad.ran}`);
+  check("…and the “no such group” line says it back the same way",
+    pad.miss===`No group ${PAYLOAD} — highest is 32.`, JSON.stringify(pad.miss));
+
+  // (e) The gospel line is the one esc() input that is a real sentence, read
+  // aloud off a phone. Today's six phrases carry no apostrophe, so this is a
+  // fidelity check — but (d) proved the very same card decodes ' and " in a
+  // text node, so the day a phrase gains one it will still read right.
+  await open(D,"/c/foreman?tab=answers&grp=7");
+  const gos = await D.evaluate(()=>(document.querySelector(".gospel")||{}).textContent||"(no gospel line)");
+  const want = APP.gospel["7"].toUpperCase()+" "+APP.gospelPhrase[APP.gospel["7"]];
+  check("the gospel line reads exactly as the data file writes it", gos===want,
+    JSON.stringify(gos)+" want "+JSON.stringify(want));
+
+  // (f) The dialogs — title, body and the button a thumb is about to hit.
+  await open(D,"/c/gm?demo=live");
+  for(const [fn,where] of [["pauseGame","Pause"],["newRound","New round"],["forget","Disconnect"]]){
+    await act(D,fn); await settle(200);
+    const m = await modal(D);
+    check(`the ${where} dialog reads as written`,
+      !!m && !!m.title && !!m.body && !ENT.test(m.title+" "+m.body+" "+m.buttons.join(" ")),
+      JSON.stringify(m));
+    await noEntity(D,`${where} dialog`);
+    await act(D,"confirmNo"); await settle(120);
   }
 }
 
