@@ -13,6 +13,8 @@ body{overflow-x:hidden;background:var(--bg);color:var(--fg);font:16px/1.45 -appl
 button{font:inherit;border:1.5px solid var(--line);background:var(--card);color:var(--fg);
 border-radius:10px;padding:12px 14px;cursor:pointer;font-weight:600}
 button:active{transform:scale(.97)}
+button:disabled{opacity:.4;cursor:default}
+button:disabled:active{transform:none}
 .btn-acc{background:var(--acc);border-color:var(--acc);color:#fff}
 .btn-ok{background:var(--ok);border-color:var(--ok);color:#fff}
 .btn-bad{background:var(--bad);border-color:var(--bad);color:#fff}
@@ -21,6 +23,7 @@ button:active{transform:scale(.97)}
 .wrap{max-width:760px;margin:0 auto;padding:14px 14px 90px}
 h1{font-size:22px;margin:14px 0 4px}
 .sub{color:var(--mut);font-size:13px;margin-bottom:14px}
+.sect b{color:var(--acc);font-weight:inherit}
 .sect{margin:20px 0 8px;font-size:11.5px;font-weight:800;letter-spacing:.1em;color:#4a453f;text-transform:uppercase;
 border-bottom:1px solid var(--line);padding-bottom:5px}
 .row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
@@ -48,7 +51,7 @@ letter-spacing:.07em;text-transform:uppercase;padding:4px 8px;border-radius:20px
 .conn.demo{color:#5d5952;background:#ececea;box-shadow:inset 0 0 0 1.5px #c9c4bc}
 .conn.off{color:var(--bad);background:#fbecea;box-shadow:inset 0 0 0 1.5px #f0c4bd}
 .conn.only-dot{padding:5px;background:none}
-.chip{font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px}
+.chip{font-size:10.5px;font-weight:800;padding:3px 7px;border-radius:20px;white-space:nowrap;letter-spacing:.02em}
 .chip.meeting{background:#eaf1f9;color:var(--blue)} .chip.sabotage{background:#fbecea;color:var(--bad)}
 .chip.paused{background:#2f2c29;color:#fff}
 /* pause + sound */
@@ -86,6 +89,7 @@ font-size:27px;font-weight:800;padding:5px;margin:4px 0 7px;min-height:46px}
 .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .pk{font-size:21px;font-weight:700;padding:9px 0;border-radius:10px}
 .pk-mut{font-size:14px;color:var(--mut)}
+.pk-go{font-size:15px;background:var(--acc);border-color:var(--acc);color:#fff;font-weight:800}
 /* monitor */
 .mon{background:#0f0f13;color:#f2f0ec;position:fixed;inset:0;overflow:hidden;display:flex;flex-direction:column;
 align-items:center;justify-content:center;gap:2.5vh;padding:3vh 3vw;text-align:center}
@@ -123,7 +127,8 @@ gap:2vh;padding:3vw;text-align:center;z-index:9}
 /* five view chips never fit one 375px row — two columns keeps every label whole */
 .viewpick{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;width:100%}
 .viewpick button{padding:11px 6px;font-size:14px;border-radius:10px}
-.viewpick button:last-child{grid-column:1/-1}
+.viewpick button:nth-child(odd):last-child{grid-column:1/-1}
+.disclose{width:100%;text-align:left;color:var(--mut);font-weight:700}
 textarea{width:100%;min-height:110px;font:12.5px ui-monospace,Menlo,monospace;border:1.5px solid var(--line);
 border-radius:10px;padding:10px;background:var(--card);color:var(--fg)}
 input[type=text]{font:inherit;border:1.5px solid var(--line);border-radius:10px;padding:10px;background:var(--card);width:100%}
@@ -133,13 +138,53 @@ input[type=text]{font:inherit;border:1.5px solid var(--line);border-radius:10px;
 border:1px dashed var(--line);border-radius:8px;padding:8px;max-height:46px;overflow:auto;
 -webkit-overflow-scrolling:touch}
 .banner-off{background:#fbecea;color:var(--bad);font-size:13px;padding:8px 12px;border-radius:8px;margin:8px 0;display:none}
-.arm{outline:3px solid var(--bad)}
+/* confirmation dialog */
+.modal{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;
+padding:20px;background:rgba(22,20,18,.55)}
+.modal .box{background:var(--card);border-radius:16px;padding:20px 20px 16px;width:100%;max-width:400px;
+box-shadow:0 20px 60px rgba(0,0,0,.35);animation:pop .13s ease-out}
+@keyframes pop{from{transform:scale(.96);opacity:.4}}
+.modal h2{margin:0 0 8px;font-size:20px;line-height:1.25}
+.modal p{margin:0 0 18px;font-size:14.5px;line-height:1.5;color:var(--mut)}
+.modal .row{margin:0}
+.modal .row button{padding:15px 12px;font-size:16px}
 .on-chip{background:var(--fg);border-color:var(--fg);color:#fff}
 .btn-undo{background:#fff7ed;border-color:#f0c9a8;color:#8a4b12;font-weight:700}
 .btn-step{padding:18px 14px;font-size:18px}
+.sabcard{background:#96190c;color:#fff;border-radius:14px;padding:13px 15px;margin:12px 0 4px;
+box-shadow:0 6px 18px rgba(150,25,12,.28);animation:sabpulse 1.6s infinite}
+@keyframes sabpulse{50%{background:#7d1409}}
+.sabhead{display:flex;align-items:center;justify-content:space-between;gap:10px;
+font-size:12px;font-weight:800;letter-spacing:.11em}
+.sabclk{font-size:26px;font-weight:800;letter-spacing:0}
+.sabcard.over{animation:sabpulse .7s infinite}
+.sabover{background:#fff;color:#96190c;font-weight:800;font-size:13px;
+text-align:center;border-radius:8px;padding:6px;margin:8px 0 2px}
+.sabitems{list-style:none;margin:9px 0 8px;padding:0}
+.sabitems li{display:flex;justify-content:space-between;gap:12px;padding:4px 0;font-size:15.5px;
+border-bottom:1px solid rgba(255,255,255,.16)}
+.sabitems li:last-child{border-bottom:0}
+.sabitems span{color:#ffc9b8}
+.sabfoot{font-size:11.5px;letter-spacing:.06em;color:#ffc9b8;text-transform:uppercase;font-weight:700}
+.gospel{font-size:17px;line-height:1.45}
+.gospel b{font-size:22px;font-weight:800}
 .btn-wide{width:100%;padding:16px;font-size:18px}
 .phaserow{gap:5px}
-.phaserow button{padding:9px 3px;font-size:12.5px;min-width:0;color:var(--mut);letter-spacing:-.01em}
+.phaserow button{padding:8px 4px;font-size:12.5px;min-width:0;color:var(--mut);letter-spacing:-.01em;
+display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.15}
+.phaserow button b{font-size:13px;color:var(--fg)}
+.phaserow button span{font-size:10.5px;opacity:.75}
+.phaserow button.on-chip b,.phaserow button.on-chip span{color:#fff}
+.chip.phase{background:#eef1f4;color:#4a453f}
+.twoclock{display:flex;gap:8px;margin:9px 0 4px}
+.twoclock>div{flex:1;background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:7px 8px;text-align:center}
+.twoclock>div.bad{border-color:var(--bad);background:#fbecea}
+.twoclock span{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--mut);font-weight:800}
+.twoclock b{font-size:27px;font-weight:800;line-height:1.15;display:block}
+.twoclock>div.bad b{color:var(--bad)}
+.twoclock b.dim{color:#c9c4bc}
+.overdue{background:#c0392b;color:#fff;font-weight:800;font-size:13.5px;text-align:center;
+border-radius:9px;padding:9px;margin:8px 0;animation:sabpulse .8s infinite}
 .linkish{background:none;border:0;padding:0;font:inherit;font-weight:700;color:var(--acc);
 text-decoration:underline;cursor:pointer}
 .kv{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line);font-size:14.5px}
@@ -157,31 +202,30 @@ text-transform:uppercase;color:#4a453f;margin-bottom:3px}
 const DATA=/*__DATA__*/{};
 /* ---------------- state ---------------- */
 const DEF={round:1,targetPts:8,deaths:0,threshold:6,impostersCaught:0,sabotagesUsed:0,
+  imposters:3, sabotageMax:2,          // set by the Game Master, carried across rounds
   sabotageSet:0,banner:"none",hist:[],
   // A game-wide stop any role can call. `clock`/`phase` remember what was
   // running so resuming restores exactly that and nothing else.
-  paused:{on:false,clock:false,phase:false},
+  paused:{on:false,clock:false,phase:false,meet:false},
+  // the 3:00 meeting hard stop, kept apart from `phase` so the sub-phases
+  // (report / nominations / corners / vote) can run without hiding it
+  meet:{mode:"idle",endsAt:0,remain:0,clock:false},
   timer:{mode:"idle",endsAt:0,remain:480000,dur:480000},
   phase:{mode:"idle",endsAt:0,remain:0,label:""}};
 let S=JSON.parse(JSON.stringify(DEF));
-let offset=0, conn="demo", backend=null, uiTab=null, uiMode="grp", uiNum="", uiShare="/monitor", shareUrl="";
+let offset=0, conn="demo", backend=null, uiTab=null, uiMode="grp", uiNum="", uiShare="/monitor", shareUrl="", uiDesk=false;
 const now=()=>Date.now()+offset;
 const remOf=t=>t.mode==="run"?Math.max(0,t.endsAt-now()):t.remain;
 const fmt=ms=>{const s=Math.max(0,Math.round(ms/1000));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")};
 const merge=(a,b)=>{for(const k in b){if(b[k]&&typeof b[k]==="object"&&!Array.isArray(b[k])){a[k]=a[k]||{};merge(a[k],b[k])}else a[k]=b[k]}return a};
 const store=(()=>{try{const t=localStorage;t.setItem("_t","1");t.removeItem("_t");return t}catch(e){const m={};return{getItem:k=>m[k]??null,setItem:(k,v)=>m[k]=v,removeItem:k=>delete m[k]}}})();
-/* ---------------- two-tap confirms ----------------
-   Destructive taps arm for 3s and need a second tap. The label is always
-   derived from the arm (never written imperatively), so a re-render caused by
-   another phone cannot leave a live arm behind a normal-looking button. */
-const armAt={};
-const isArmed=k=>!!armAt[k]&&Date.now()-armAt[k]<3000;
-function confirmTap(key,fn){
-  if(isArmed(key)){armAt[key]=0;fn();return true}
-  armAt[key]=Date.now();
-  setTimeout(()=>{if(armAt[key]&&Date.now()-armAt[key]>=3000){armAt[key]=0;render()}},3050);
-  render(); return false;
-}
+/* ---------------- confirmations ----------------
+   A real dialog, not a two-tap arm: the arm was an invented pattern nobody
+   recognises, and it could be left live behind a normal-looking button. The
+   open dialog lives in module state, so a re-render caused by another phone
+   redraws it rather than dismissing it. */
+let uiModal=null;
+function askConfirm(key){uiModal=key;render()}
 /* ---------------- sound ----------------
    Synthesised, so it stays a single file and works with no network. Browsers
    block audio until a gesture: any tap unlocks it, and the TV — which nobody
@@ -213,6 +257,15 @@ const SND={
   sabotage(){   this.play("sabotage",t=>{for(let i=0;i<5;i++){
                   blip(t+i*.36,340,.32,{type:"sawtooth",vol:.36});
                   blip(t+i*.36+.17,246,.32,{type:"sawtooth",vol:.36})}})},
+  // Insistent by repetition, not by harshness — a roomful of people are
+  // talking and the desk just needs to be heard, not to startle anyone.
+  meetExpired(){this.play("meetExpired",t=>{
+                  blip(t,784,.5,{vol:.2});
+                  blip(t+.02,1176,.62,{vol:.13});
+                  blip(t+.34,1046,.75,{vol:.19})})},
+  sabExpired(){ this.play("sabExpired",t=>{
+                  blip(t,300,.42,{type:"sawtooth",vol:.4,to:150});
+                  blip(t+.46,300,.42,{type:"sawtooth",vol:.4,to:150})})},
   paused(){     this.play("paused", t=>{blip(t,740,.34,{vol:.3,to:330});blip(t+.26,494,.5,{vol:.28,to:240})})},
   resumed(){    this.play("resumed",t=>{blip(t,440,.22,{vol:.28});blip(t+.16,659,.34,{vol:.28})})},
 };
@@ -312,30 +365,48 @@ const cfgB64=j=>btoa(JSON.stringify(j)).replace(/\+/g,"-").replace(/\//g,"_").re
 /* ---------------- actions ---------------- */
 const P=o=>backend&&backend.patch(o);
 const T=()=>({...S.timer}), H=()=>({...S.phase});
-const FIELDS=["round","targetPts","deaths","threshold","impostersCaught","sabotagesUsed","sabotageSet","banner","paused","timer","phase"];
+const FIELDS=["round","targetPts","deaths","threshold","imposters","sabotageMax","impostersCaught","sabotagesUsed","sabotageSet","banner","paused","timer","phase","meet"];
 const snap=()=>{const o={};FIELDS.forEach(k=>o[k]=JSON.parse(JSON.stringify(S[k])));return o};
 const doAct=(label,changes)=>{
   const hist=[...(S.hist||[]).slice(-9),{label,s:snap()}];
   P({...changes,hist});
 };
+const MEETPHASES=["REPORT","NOMINATIONS","CORNERS","VOTE"];
 const IDLE={mode:"idle",endsAt:0,remain:0,label:""};
+const MIDLE={mode:"idle",endsAt:0,remain:0,clock:false};
+// Ending a meeting — however it ends — puts the round clock back the way the
+// meeting found it. Central Command closes meetings but no longer owns the
+// clock, so leaving it stopped meant nobody at the desk could restart it.
+const afterMeeting=extra=>{
+  const o={banner:"none",phase:IDLE,meet:MIDLE,...(extra||{})};
+  if(S.meet.clock&&!PAUSED()){
+    const t=T();
+    if(t.mode==="pause"){t.endsAt=now()+t.remain;t.mode="run";o.timer=t}
+  }
+  return o;
+};
 const PAUSED=()=>!!(S.paused&&S.paused.on);
 window.act={
   // Any role can stop the whole game — both clocks freeze, every device
-  // chimes, and the TV says so. Needs a second tap to confirm.
-  pauseGame(){return confirmTap("pauseGame",()=>{
+  // chimes, and the TV says so. Asks first.
+  pauseGame(){askConfirm("pauseGame")},
+  doPauseGame(){
     if(PAUSED())return;
     const t=T(), ph=H(), wasT=t.mode==="run", wasP=ph.mode==="run";
     if(wasT){t.remain=remOf(t);t.mode="pause"}
     if(wasP){ph.remain=remOf(ph);ph.mode="pause"}
-    doAct("Game paused",{timer:t,phase:ph,paused:{on:true,clock:wasT,phase:wasP}});
-  })},
+    const mt={...S.meet}, wasM=mt.mode==="run";
+    if(wasM){mt.remain=remOf(mt);mt.mode="pause"}
+    doAct("Game paused",{timer:t,phase:ph,meet:mt,paused:{on:true,clock:wasT,phase:wasP,meet:wasM}});
+  },
   resumeGame(){
     if(!PAUSED())return;
     const t=T(), ph=H(), p=S.paused;
     if(p.clock){t.endsAt=now()+t.remain;t.mode="run"}
     if(p.phase){ph.endsAt=now()+ph.remain;ph.mode="run"}
-    doAct("Game resumed",{timer:t,phase:ph,paused:{on:false,clock:false,phase:false}});
+    const mt={...S.meet};
+    if(p.meet){mt.endsAt=now()+mt.remain;mt.mode="run"}
+    doAct("Game resumed",{timer:t,phase:ph,meet:mt,paused:{on:false,clock:false,phase:false,meet:false}});
   },
   start(){if(PAUSED())return act.resumeGame();
     const t=T();if(t.mode!=="run"){const lbl=t.mode==="pause"?"Resume clock":"Start clock";t.endsAt=now()+t.remain;t.mode="run";doAct(lbl,{timer:t})}},
@@ -343,14 +414,32 @@ window.act={
   adj(ms){const t=T();if(t.mode==="run")t.endsAt=Math.max(now(),t.endsAt+ms);else t.remain=Math.max(0,t.remain+ms);
     doAct((ms>0?"+":"−")+fmt(Math.abs(ms))+" clock",{timer:t})},
   resetT(){doAct("Reset clock",{timer:{mode:"idle",endsAt:0,remain:S.timer.dur,dur:S.timer.dur}})},
-  meeting(){const t=T();if(t.mode==="run"){t.remain=remOf(t);t.mode="pause"}
+  // How long a round runs. If the clock has not started, the change shows at
+  // once; if it has, it applies from the next Reset or New round — bending a
+  // round already in progress is what the clock's own ±0:30 is for.
+  durAdj(ms){
+    const dur=Math.min(1200000,Math.max(60000,S.timer.dur+ms));
+    if(dur===S.timer.dur)return;
+    const t=T(); t.dur=dur;
+    if(t.mode==="idle")t.remain=dur;
+    doAct("Round length "+fmt(dur),{timer:t});
+  },
+  meeting(){const t=T(), wasRunning=t.mode==="run";
+    if(wasRunning){t.remain=remOf(t);t.mode="pause"}
     doAct("Meeting started",{timer:t,banner:"meeting",sabotageSet:0,   // a meeting cancels any live sabotage outright
-      phase:{mode:"run",endsAt:now()+180000,remain:180000,label:"MEETING"}})},
-  endMeeting(){doAct("Meeting ended",{banner:"none",phase:IDLE})},
-  phasePre(sec,label){doAct("Phase "+label.toLowerCase(),{phase:{mode:"run",endsAt:now()+sec*1000,remain:sec*1000,label}})},
+      meet:{mode:"run",endsAt:now()+180000,remain:180000,clock:wasRunning},phase:IDLE})},
+  endMeeting(){doAct("Meeting ended",afterMeeting())},
+  phasePre(sec,label){
+    const o={phase:{mode:"run",endsAt:now()+sec*1000,remain:sec*1000,label}};
+    if(MEETPHASES.includes(label)&&S.meet.mode==="idle"){
+      const t=T(), wasRunning=t.mode==="run";
+      o.banner="meeting"; o.meet={mode:"run",endsAt:now()+180000,remain:180000,clock:wasRunning};
+      if(wasRunning){t.remain=remOf(t);t.mode="pause";o.timer=t}
+    }
+    doAct("Phase "+label.toLowerCase(),o)},
   phaseStop(){doAct("Phase stopped",{phase:IDLE})},
-  ejectCrew(){doAct("Crewmate ejected (+1 death)",{deaths:S.deaths+1,banner:"none",phase:IDLE})},
-  ejectImp(){doAct("Imposter caught",{impostersCaught:S.impostersCaught+1,banner:"none",phase:IDLE})},
+  ejectCrew(){doAct("Crewmate ejected (+1 death)",afterMeeting({deaths:S.deaths+1}))},
+  ejectImp(){doAct("Imposter caught",afterMeeting({impostersCaught:S.impostersCaught+1}))},
   sab(n){doAct("Sabotage — set "+n,{banner:"sabotage",sabotageSet:n,sabotagesUsed:S.sabotagesUsed+1,
     phase:{mode:"run",endsAt:now()+120000,remain:120000,label:"SABOTAGE"}})},
   sabOk(){if(S.banner!=="sabotage")return;                          // no sabotage running = nothing to resolve
@@ -362,21 +451,34 @@ window.act={
   dAdj(n){doAct("Death "+(n>0?"+1":"−1"),{deaths:Math.max(0,S.deaths+n)})},
   thAdj(n){doAct("Threshold "+(n>0?"+1":"−1"),{threshold:Math.max(1,S.threshold+n)})},
   tgAdj(n){doAct("Target "+(n>0?"+1":"−1"),{targetPts:Math.min(11,Math.max(1,S.targetPts+n))})},
-  newRound(){return confirmTap("newRound",()=>{
+  impAdj(n){doAct("Imposters "+(n>0?"+1":"−1"),{imposters:Math.min(6,Math.max(1,S.imposters+n))})},
+  sabMaxAdj(n){doAct("Sabotages "+(n>0?"+1":"−1"),{sabotageMax:Math.min(5,Math.max(0,S.sabotageMax+n))})},
+  newRound(){askConfirm("newRound")},
+  doNewRound(){
     doAct("New round",{round:S.round+1,deaths:0,impostersCaught:0,sabotagesUsed:0,sabotageSet:0,banner:"none",
-      paused:{on:false,clock:false,phase:false},
-      timer:{mode:"idle",endsAt:0,remain:S.timer.dur,dur:S.timer.dur},phase:IDLE});
-  })},
+      paused:{on:false,clock:false,phase:false,meet:false},
+      timer:{mode:"idle",endsAt:0,remain:S.timer.dur,dur:S.timer.dur},phase:IDLE,meet:MIDLE});
+  },
+  // the dialog's two buttons
+  confirmYes(){const k=uiModal; uiModal=null; if(k&&CONFIRMS[k])CONFIRMS[k].run(); render()},
+  confirmNo(){uiModal=null;render()},
   mute(){muted=!muted;store.setItem("fpMute",muted?"1":"0");if(!muted)SND.resumed();render()},
   undo(){const h=[...(S.hist||[])];const last=h.pop();if(!last)return;
     P({...last.s,hist:h})},
   tab(t){uiTab=t;render()},
+  desk(){uiDesk=!uiDesk;render()},
   padMode(m){uiMode=m;uiNum="";render()},
   pad(d){const max=uiMode==="grp"?32:80;let n=uiNum+d;
     if(n.length>2||(+n>max&&+d>0&&+n>9))n=String(d);
     if(+n>max)n="";
-    uiNum=n.replace(/^0+/,"")||(d==="0"?"":n);render();revealAnswer()},
-  padBack(){uiNum=uiNum.slice(0,-1);render()},
+    uiNum=n.replace(/^0+/,"")||(d==="0"?"":n);render()},
+  // The one thing that scrolls, and only because you asked it to.
+  padGo(){
+    const el=document.getElementById("ansres"); if(!el)return;
+    const strip=document.querySelector(".strip");
+    const off=(strip?strip.getBoundingClientRect().height:0)+6;
+    scrollTo({top:scrollY+el.getBoundingClientRect().top-off,behavior:"smooth"});
+  },
   padClr(){uiNum="";render()},
   go(h){location.hash=hashFor(h)},
   shareView(v){uiShare=v;render()},
@@ -400,28 +502,62 @@ window.act={
     catch(e){alert("Couldn't read that config. Paste the whole firebaseConfig = { ... } block from the Firebase console.")}
   },
   demo(){store.removeItem("fpCfg");store.setItem("fpDemo","1");cfgToken="";location.hash="#/";location.reload()},
+  forget(){askConfirm("forget")},
   // must drop the token from the URL too, or the reload would just read it back in
-  forget(){store.removeItem("fpCfg");store.removeItem("fpDemo");cfgToken="";location.hash="#/";location.reload()},
+  doForget(){store.removeItem("fpCfg");store.removeItem("fpDemo");cfgToken="";location.hash="#/";location.reload()},
 };
+/* Every confirmation in the app. Each says what will actually happen to the
+   room, not what the button is called. */
+const CONFIRMS={
+  pauseGame:{title:"Pause the game?",
+    body:"Every clock stops on every device, all the phones chime, and the TV shows PAUSED until someone resumes.",
+    yes:"Pause the game", run:()=>act.doPauseGame()},
+  newRound:{title:()=>`Start round ${S.round+1}?`,
+    body:"This clears the deaths, the imposters caught and the sabotages, and puts the clock back to full. It changes every screen in the room. It can be undone.",
+    yes:"Start the new round", danger:true, run:()=>act.doNewRound()},
+  forget:{title:"Disconnect this device?",
+    body:"This phone leaves the game and goes back to the connect screen. The game itself keeps running for everyone else — scan the QR again to rejoin.",
+    yes:"Disconnect", danger:true, run:()=>act.doForget()},
+};
+function modalHTML(){
+  const c=CONFIRMS[uiModal]; if(!c)return "";
+  const title=typeof c.title==="function"?c.title():c.title;
+  return `<div class="modal" role="dialog" aria-modal="true" aria-label="${esc(title)}" onclick="if(event.target===this)act.confirmNo()">
+    <div class="box">
+      <h2>${esc(title)}</h2>
+      <p>${esc(c.body)}</p>
+      <div class="row">
+        <button class="btn-ghost" onclick="act.confirmNo()">Cancel</button>
+        <button class="${c.danger?"btn-bad":"btn-acc"}" onclick="act.confirmYes()">${esc(c.yes)}</button>
+      </div>
+    </div></div>`;
+}
+addEventListener("keydown",e=>{if(uiModal&&e.key==="Escape")act.confirmNo()});
 /* ---------------- views ---------------- */
 const app=document.getElementById("app");
 const esc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;");
 function route(){const h=location.hash||"#/";const [path,q]=h.slice(1).split("?");return{path:path||"/",q:new URLSearchParams(q||"")}}
-const ROLES={cc:"Central Command",foreman:"Foreman",referee:"Roaming Referee",ghost:"Ghost Guide"};
+const ROLES={gm:"Game Master",cc:"Central Command",foreman:"Foreman",referee:"Roaming Referee",ghost:"Ghost Guide"};
 const CRIB={
- cc:["Run the clock and every meeting — 3:00 hard stop, always.","Reveal every ejection on the spot. Crewmate: +1 death. Imposter: free.","You are one end of the red-ball run. Bowl empty? Send them to fetch.","Lost card: reissue once — student states total, you write and initial it.","Never say roles during the round except the ejection reveal."],
- foreman:["Verify instantly, stamp, then make them reset the station.","Cups: all 15, they reset. Apples: 3 standing, count 3 aloud. Plane: past the far line, unlimited tries.","You do not stop kills. Standing next to you is not protection.","An imposter can tap YOU to start a Sabotage."],
- referee:["Upstairs is yours. Central Command covers downstairs.","Max group size is TWO — split every pack of 3+.","A student who runs: warn once, then cross out a stamp box.","You don't need to keep moving — but a kill in front of you counts.","An imposter can tap YOU to start a Sabotage."],
- ghost:["Ghosts stay here the whole round — no meetings.","Origami: one sheet at a time, match the kit picture. GREEN 2 · BLUE 3.","Red balls hand over at the DOORWAY. Living students never enter.","After each meeting, get the result from CC and tell your ghosts.","You hold the phase timer: meeting phases and the 2:00 Sabotage."]};
+ gm:["You are outside the game. Students never come to you — you run the night, not a station.","Yours: the round clock, the death threshold, the point target, New round, and Undo.","You are the only Undo. A floor counsellor who mis-taps calls it to you — undo puts the whole game back one step, so do it once and watch the TV.","Set the threshold low for round 1. Raising it later is easy; lowering it after the imposters give up is not.","If Central Command's phone drops out, open 'Take over the desk' and run meetings from here."],
+ cc:["The lobby desk, and you do not leave it. You are in the game — students come to you.","Run every meeting aloud: report, nominations, corners, vote. 3:00 hard stop, always.","Reveal every ejection on the spot. Crewmate: +1 death. Imposter: free.","You are one end of the red-ball run. Bowl empty? Send them to fetch.","Sabotage props come back to you — you call SUCCESS or FAILED.","The clock and New round are the Game Master's. Never say roles except the ejection reveal."],
+ foreman:["Verify instantly, mark the card, then make them reset the station.","Cups: all 15, they reset. Apples: 3 standing, count 3 aloud. Plane: past the far line, unlimited tries.","You do not stop kills. Standing next to you is not protection.","An imposter can tap YOU to start a Sabotage."],
+ referee:["Upstairs is yours. Central Command covers downstairs.","A student who runs: warn once, then cross out a mark box.","You don't need to keep moving — but a kill in front of you counts.","An imposter can tap YOU to start a Sabotage."],
+ ghost:["Ghosts stay here the whole round — no meetings.","Origami: one sheet at a time, match the kit picture. GREEN 2 · BLUE 3.","Red balls hand over at the DOORWAY. Living students never enter.","After each meeting, get the result from CC and tell your ghosts.","You are not in meetings — Central Command runs those from the lobby."]};
 function stripHTML(){
-  const rT=remOf(S.timer), ph=S.phase.mode==="run";
+  const rT=remOf(S.timer), ph=S.phase.mode==="run", meeting=S.meet.mode!=="idle";
+  // 375px will not hold five cells and two clock pills, and the pills are what
+  // matters during a meeting. Target and round are reference numbers — they come
+  // back the moment the meeting is over.
   return `<div class="strip">
     <div class="clk mono" data-clk>${fmt(rT)}</div>
     <div class="cell">deaths<br><b>${S.deaths} / ${S.threshold}</b></div>
-    <div class="cell">target<br><b>${S.targetPts} pts</b></div>
-    <div class="cell">round<br><b>${S.round}</b></div>
+    ${meeting?"":`<div class="cell">target<br><b>${S.targetPts} pts</b></div>
+    <div class="cell">round<br><b>${S.round}</b></div>`}
     ${PAUSED()?`<span class="chip paused">PAUSED</span>`:
-      ph?`<span class="chip ${S.banner==="sabotage"?"sabotage":"meeting"}">${esc(S.phase.label)} <span class="mono" data-phclk>${fmt(remOf(S.phase))}</span></span>`:
+      meeting?`<span class="chip meeting">MTG <span class="mono" data-mtclk>${fmt(remOf(S.meet))}</span></span>${
+        ph?`<span class="chip phase">${esc(PHCHIP[S.phase.label]||S.phase.label)} <span class="mono" data-phclk>${fmt(remOf(S.phase))}</span></span>`:""}`:
+      ph?`<span class="chip ${S.banner==="sabotage"?"sabotage":"meeting"}">${esc(PHCHIP[S.phase.label]||S.phase.label)} <span class="mono" data-phclk>${fmt(remOf(S.phase))}</span></span>`:
       S.banner!=="none"?`<span class="chip ${S.banner}">${S.banner.toUpperCase()}</span>`:""}
     ${connHTML(true)}</div>`;
 }
@@ -431,6 +567,7 @@ function soundBtn(cls){
   return `<button class="${cls||"soundbtn"} snd-${s}" onclick="act.mute()" title="${SOUNDWORD[s]}">${
     s==="off"?"🔇":"🔊"}<span>${SOUNDWORD[s]}</span></button>`;
 }
+const PHCHIP={REPORT:"REPORT",NOMINATIONS:"NOMS",CORNERS:"CNRS",VOTE:"VOTE",SABOTAGE:"SAB"};
 const CONNWORD={live:"live",demo:"no sync",off:"offline"};
 // In the strip, a healthy connection is just the green dot — the row is only
 // 375px wide and the game numbers earn that space. The word appears the moment
@@ -454,9 +591,23 @@ function undoHTML(){
     <div class="small">Reverts that action everywhere. Press again to step further back (${(S.hist||[]).length} in history).</div>`
     :`<div class="small" style="padding:4px 0">Nothing to undo yet.</div>`}`;
 }
+function sabCard(){
+  if(S.banner!=="sabotage")return "";
+  // The counsellors' card keeps the doors — they placed the props and may need
+  // to verify. The TV overlay does not: the students have to find them.
+  const items=(DATA.sets[S.sabotageSet]||[]).map(p=>
+    `<li><b>${p}</b><span>door ${DATA.props[p]}</span></li>`).join("");
+  const over=remOf(S.phase)<=0;
+  return `<div class="sabcard${over?" over":""}">
+    <div class="sabhead"><span>SABOTAGE · set ${S.sabotageSet}</span>
+      <span class="mono sabclk" data-phclk>${fmt(remOf(S.phase))}</span></div>
+    ${over?`<div class="sabover">Time is up — Central Command must call it</div>`:""}
+    <ul class="sabitems">${items}</ul>
+    <div class="sabfoot">one item per person · five people · walk</div>
+  </div>`;
+}
 function controlsHTML(role){
   const t=S.timer;
-  const armed=isArmed("newRound");
   // Every role gets this. Two taps, because stopping the whole game mid-round
   // is not something to do by accident.
   const pauseSection=PAUSED()
@@ -464,8 +615,7 @@ function controlsHTML(role){
        <div class="row"><button class="btn-ok btn-wide" onclick="act.resumeGame()">Resume game</button></div>
        <div class="small">Both clocks are frozen on every device and the TV says PAUSED.</div>`
     : `<div class="sect">Pause</div>
-       <div class="row"><button class="btn-pause btn-wide${isArmed("pauseGame")?" arm":""}" onclick="act.pauseGame()">${
-         isArmed("pauseGame")?"Tap again to confirm":"Pause game — stops every clock"}</button></div>
+       <div class="row"><button class="btn-pause btn-wide" onclick="act.pauseGame()">Pause game — stops every clock</button></div>
        <div class="small">Any role can call this. It freezes the round clock and the phase clock everywhere, and chimes on every device.</div>`;
   const sabSection=S.banner==="sabotage"
     ?(role==="cc"?`<div class="row">
@@ -473,48 +623,45 @@ function controlsHTML(role){
         <button class="btn-bad" onclick="act.sabFail()">FAILED&nbsp; +2 deaths · −1:30</button>
       </div>`:`<div class="small">Sabotage running — Central Command resolves it at the desk.</div>`)
     :`<div class="row">
-        <button ${S.sabotagesUsed>=2?"disabled":""} onclick="act.sab(1)">Set 1</button>
-        <button ${S.sabotagesUsed>=2?"disabled":""} onclick="act.sab(2)">Set 2</button>
-        <button ${S.sabotagesUsed>=2?"disabled":""} onclick="act.sab(3)">Set 3</button>
+        <button ${S.sabotagesUsed>=S.sabotageMax?"disabled":""} onclick="act.sab(1)">Set 1</button>
+        <button ${S.sabotagesUsed>=S.sabotageMax?"disabled":""} onclick="act.sab(2)">Set 2</button>
+        <button ${S.sabotagesUsed>=S.sabotageMax?"disabled":""} onclick="act.sab(3)">Set 3</button>
       </div>
       <div class="small">${role==="cc"?"Picking a set flashes the TV, lists the five props and starts the 2:00 scramble.":"Tapped by an imposter? Wait ~5 seconds, start dimming, and pick a set — the TV and Central Command take it from there."}</div>`;
   // Secondary next to Start/End meeting, and compact — six buttons at full size
   // pushed the ejection controls off a phone screen.
-  const phaseSection=`<div class="row phaserow">
-      <button class="btn-ghost" onclick="act.phasePre(30,'REPORT')">0:30 report</button>
-      <button class="btn-ghost" onclick="act.phasePre(90,'NOMINATIONS')">1:30 noms</button>
-      <button class="btn-ghost" onclick="act.phasePre(30,'CORNERS')">0:30 corners</button>
-      <button class="btn-ghost" onclick="act.phasePre(30,'VOTE')">0:30 vote</button>
-      <button class="btn-ghost" onclick="act.phasePre(120,'SABOTAGE')">2:00 sab</button>
+  // The four phases of a meeting, in playbook order. Tapping one names it on
+  // the TV and starts its countdown; the 3:00 hard stop keeps running above it.
+  const PHASES=[[30,"REPORT","report"],[90,"NOMINATIONS","noms"],[30,"CORNERS","corners"],[30,"VOTE","vote"]];
+  const phaseSection=`<div class="row phaserow">${PHASES.map(([sec,label,short],i)=>
+      `<button class="btn-ghost${S.phase.label===label&&S.phase.mode==="run"?" on-chip":""}" onclick="act.phasePre(${sec},'${label}')"><b>${i+1}</b> ${short}<span>${fmt(sec*1000)}</span></button>`).join("")}
       <button class="btn-ghost" onclick="act.phaseStop()">stop</button>
-    </div>`;
+    </div>
+    <div class="small">Tap each one as you call it. The 3:00 hard stop keeps counting above it.</div>`;
   if(role==="foreman"||role==="referee")
-    return `<div class="sect">Sabotage — ${S.sabotagesUsed}/2 this round</div>${sabSection}
+    return `${sabCard()}<div class="sect">Sabotage — ${S.sabotagesUsed}/${S.sabotageMax} this round</div>${sabSection}
       ${pauseSection}
-      ${undoHTML()}
-      <div class="small" style="margin-top:14px">Everything else runs from Central Command. Your job is the floor — this phone is mostly the <b>Answers</b> tab.</div>`;
+      <div class="small" style="margin-top:14px">The desk runs the meetings; the Game Master runs the clock. Your job is the floor — this phone is mostly the <b>Answers</b> tab. Made a mistake? Call it to the Game Master, who can undo it.</div>`;
   if(role==="ghost")
-    return `<div class="sect">Phase stopwatch — yours</div>${phaseSection}
-      <div class="sect">Sabotage — ${S.sabotagesUsed}/2 this round</div>${sabSection}
+    return `${sabCard()}<div class="sect">Sabotage — ${S.sabotagesUsed}/${S.sabotageMax} this round</div>${sabSection}
       ${pauseSection}
-      ${undoHTML()}`;
-  // Ordered by how often it is touched on the night, so the busy controls are
-  // above the fold on a phone and the destructive one is last.
-  return `
-  <div class="sect">Round clock — ${fmt(t.dur)}</div>
-  <div class="row">
-    ${t.mode==="run"?`<button class="btn-acc" onclick="act.pause()">Pause</button>`
-      :`<button class="btn-ok" onclick="act.start()">${t.mode==="pause"?"Resume":"Start"}</button>`}
-    <button onclick="act.adj(-30000)">−0:30</button>
-    <button onclick="act.adj(30000)">+0:30</button>
-    <button class="btn-ghost" onclick="act.resetT()">Reset</button>
-  </div>
+      <div class="small" style="margin-top:14px">Your room, your origami, your red balls. Meetings happen without you — Central Command runs those. Made a mistake? Call it to the Game Master, who can undo it.</div>`;
+
+  /* --- everything a counsellor does inside the fiction, at the lobby desk --- */
+  const deskControls=`
   <div class="sect">Deaths — ${S.deaths} of ${S.threshold}</div>
   <div class="row">
     <button class="btn-step" onclick="act.dAdj(-1)">Death −</button>
     <button class="btn-step btn-bad" onclick="act.dAdj(1)">Death +</button>
   </div>
   <div class="sect">Meeting — 3:00 hard stop</div>
+  ${S.meet.mode!=="idle"?`<div class="twoclock">
+      <div${remOf(S.meet)<=0?' class="bad"':''}><span>hard stop</span><b class="mono" data-mtclk>${fmt(remOf(S.meet))}</b></div>
+      <div><span>${S.phase.mode==="run"?esc((PHCHIP[S.phase.label]||S.phase.label).toLowerCase()):"no phase"}</span>${
+        S.phase.mode==="run"?`<b class="mono" data-phclk>${fmt(remOf(S.phase))}</b>`:`<b class="mono dim">—</b>`}</div>
+    </div>`:""}
+  ${S.banner==="meeting"&&S.meet.mode!=="idle"&&remOf(S.meet)<=0
+    ?`<div class="overdue">3:00 is up — call the vote and eject now</div>`:""}
   <div class="row">
     <button class="btn-blue" onclick="act.meeting()">Start meeting</button>
     <button onclick="act.endMeeting()">End meeting</button>
@@ -525,16 +672,67 @@ function controlsHTML(role){
     <button class="btn-bad" onclick="act.ejectCrew()">Crewmate ejected&nbsp; +1 death</button>
     <button class="btn-ok" onclick="act.ejectImp()">IMPOSTER caught&nbsp; no tick</button>
   </div>
-  <div class="sect">Sabotage — ${S.sabotagesUsed}/2 this round</div>
-  ${sabSection}
-  ${pauseSection}
+  <div class="sect">Sabotage — ${S.sabotagesUsed}/${S.sabotageMax} this round</div>
+  ${sabSection}`;
+
+  /* --- everything the facilitator does from outside the fiction --- */
+  const gmControls=`
+  <div class="sect">Round clock — ${fmt(t.dur)}</div>
+  <div class="row">
+    ${t.mode==="run"?`<button class="btn-acc" onclick="act.pause()">Pause</button>`
+      :`<button class="btn-ok" onclick="act.start()">${t.mode==="pause"?"Resume":"Start"}</button>`}
+    <button onclick="act.adj(-30000)">−0:30</button>
+    <button onclick="act.adj(30000)">+0:30</button>
+    <button class="btn-ghost" onclick="act.resetT()">Reset</button>
+  </div>
+  <div class="sect">Round length — <b>${fmt(t.dur)}</b></div>
+  <div class="row">
+    <button ${t.dur<=60000?"disabled":""} onclick="act.durAdj(-30000)">−0:30</button>
+    <button ${t.dur>=1200000?"disabled":""} onclick="act.durAdj(30000)">+0:30</button>
+  </div>
+  <div class="small">${t.mode==="idle"
+    ?"The clock has not started, so this applies straight away."
+    :"Applies from the next Reset or New round. To bend the round you are in, use the clock's ±0:30 above."}</div>
+  <div class="sect">Death threshold — imposters win at <b>${S.threshold}</b></div>
+  <div class="row">
+    <button ${S.threshold<=1?"disabled":""} onclick="act.thAdj(-1)">−1 death</button>
+    <button onclick="act.thAdj(1)">+1 death</button>
+  </div>
+  <div class="small">Reach ${S.threshold} and the TV calls IMPOSTERS WIN. Lower is harder on the crew. Set round 1 low — raising it later works, lowering it after they give up does not.</div>
+  <div class="sect">Point target — <b>${S.targetPts}</b> per crewmate</div>
+  <div class="row">
+    <button ${S.targetPts<=1?"disabled":""} onclick="act.tgAdj(-1)">−1 point</button>
+    <button ${S.targetPts>=11?"disabled":""} onclick="act.tgAdj(1)">+1 point</button>
+  </div>
+  <div class="small">What every crewmate, living and dead, must reach. Higher means more time at the stations.</div>
+  <div class="sect">Imposters — <b>${S.imposters}</b> in the game</div>
+  <div class="row">
+    <button ${S.imposters<=1?"disabled":""} onclick="act.impAdj(-1)">−1 imposter</button>
+    <button ${S.imposters>=6?"disabled":""} onclick="act.impAdj(1)">+1 imposter</button>
+  </div>
+  <div class="small">Only counts the "caught ${S.impostersCaught} / ${S.imposters}" line on the TV — you still tap each one privately before the round.</div>
+  <div class="sect">Sabotages — <b>${S.sabotageMax}</b> per round</div>
+  <div class="row">
+    <button ${S.sabotageMax<=0?"disabled":""} onclick="act.sabMaxAdj(-1)">−1 sabotage</button>
+    <button ${S.sabotageMax>=5?"disabled":""} onclick="act.sabMaxAdj(1)">+1 sabotage</button>
+  </div>
+  <div class="small">The Set buttons go dead on every phone once this many have fired. Resets each round.</div>
   ${undoHTML()}
-  <div class="sect">Round settings</div>
-  <div class="row"><button onclick="act.thAdj(-1)">Thresh −</button><button onclick="act.thAdj(1)">Thresh +</button>
-  <button onclick="act.tgAdj(-1)">Target −</button><button onclick="act.tgAdj(1)">Target +</button></div>
   <div class="sect">Round ${S.round}</div>
-  <div class="row"><button class="btn-ghost${armed?" arm":""}" onclick="act.newRound()">${
-    armed?"Tap again to confirm":"New round — resets deaths &amp; clock"}</button></div>`;
+  <div class="row"><button class="btn-ghost" onclick="act.newRound()">New round — resets deaths &amp; clock</button></div>`;
+
+  if(role==="gm")
+    return `${sabCard()}${gmControls}
+      ${pauseSection}
+      <div class="sect">If the desk goes down</div>
+      <div class="row"><button class="btn-ghost disclose" onclick="act.desk()">${uiDesk?"▾":"▸"}&nbsp; Take over the desk — meetings, ejections, deaths</button></div>
+      ${uiDesk?`<div class="small">You are now holding Central Command's controls as well. Only one of you should use these at a time — the death count is one number and the later tap wins.</div>${deskControls}`
+              :`<div class="small">Central Command owns these. Open this only if their phone drops out.</div>`}`;
+
+  // cc — in the fiction, at the desk. Ordered by how often it is touched.
+  return `${sabCard()}${deskControls}
+  ${pauseSection}
+  <div class="small" style="margin-top:14px">The clock, the death threshold, New round and Undo live with the <b>Game Master</b> — call anything that needs fixing over to them.</div>`;
 }
 function groupHTML(g){
   const codes=DATA.doors.map(d=>`<div class="cd"><span>${d}</span><b>${DATA.code[d][g]}</b></div>`).join("");
@@ -543,7 +741,7 @@ function groupHTML(g){
   <div class="small">door row = group number</div>
   <div class="sect">Door codes</div><div class="codes">${codes}</div>
   ${vt?`<div class="sect">Bible pages</div>${vt.map(([r,p])=>`<div class="kv"><span>${r}</span><b>${p}</b></div>`).join("")}`:""}
-  <div class="sect">Gospel word</div><div style="font-size:22px;font-weight:800">${DATA.gospel[g].toUpperCase()}</div>
+  <div class="sect">Gospel &amp; theme</div><div class="gospel"><b>${DATA.gospel[g].toUpperCase()}</b> ${esc(DATA.gospelPhrase[DATA.gospel[g]]||"")}</div>
   ${ball?`<div class="sect">Red ball</div><div style="font-weight:700">${ball}</div>`:""}
   </div>`;
 }
@@ -555,27 +753,15 @@ function sudHTML(n){
   <table class="sud">${rows}</table>
   <div class="small"><span style="color:var(--acc);font-weight:700">orange</span> = printed givens — if the slip's givens don't match, it's a different puzzle number</div></div>`;
 }
-// A phone screen cannot hold the keypad and a full answer card at once, so after
-// a digit lands, bring the answer up to the top of the view. Nothing to do if it
-// is already on screen — never yank the page out from under a reading thumb.
-function revealAnswer(){
-  const el=document.getElementById("ansres");
-  if(!el)return;
-  const r=el.getBoundingClientRect();
-  if(r.top>=56 && r.bottom<=innerHeight)return;
-  const strip=document.querySelector(".strip");
-  const off=(strip?strip.getBoundingClientRect().height:0)+6;
-  scrollTo({top:scrollY+r.top-off,behavior:"smooth"});
-}
 function answersHTML(){
   const max=uiMode==="grp"?32:80, n=+uiNum;
   const ok=n>=1&&n<=max&&uiNum!=="";
   let result="";
   if(ok)result=uiMode==="grp"?groupHTML(n):sudHTML(n);
   else if(uiNum!=="")result=`<div class="card" id="ansres"><div class="small">No ${uiMode==="grp"?"group":"sudoku"} ${esc(uiNum)} — highest is ${max}.</div></div>`;
-  const keys=["1","2","3","4","5","6","7","8","9","C","0","⌫"].map(k=>{
+  const keys=["1","2","3","4","5","6","7","8","9","C","0","GO"].map(k=>{
     if(k==="C")return `<button class="pk pk-mut" onclick="act.padClr()">clear</button>`;
-    if(k==="⌫")return `<button class="pk pk-mut" onclick="act.padBack()">⌫</button>`;
+    if(k==="GO")return `<button class="pk pk-go" onclick="act.padGo()">find</button>`;
     return `<button class="pk" onclick="act.pad('${k}')">${k}</button>`}).join("");
   return `
   <div class="tabs" style="margin-top:4px">
@@ -623,12 +809,16 @@ function monitorView(){
   else if(PAUSED())overlay=`<div class="overlay paused"><h2>PAUSED</h2><div class="pclk mono" data-clk>${fmt(rT)}</div>
       <div class="items">Stop where you are — every clock is frozen.</div></div>`;
   else if(S.banner==="sabotage"){
-    const items=(DATA.sets[S.sabotageSet]||[]).map(p=>`${p} <span>· door ${DATA.props[p]}</span>`).join("<br>");
+    const items=(DATA.sets[S.sabotageSet]||[]).map(p=>`${p}`).join("<br>");
     overlay=`<div class="overlay sab"><h2>SABOTAGE</h2><div class="pclk mono" data-phclk>${fmt(ph)}</div>
       <div class="items">${items}</div><div class="items" style="font-size:2vw;color:#ffc9b8">ONE ITEM PER PERSON · FIVE PEOPLE · WALK</div></div>`;}
-  else if(S.banner==="meeting")
-    overlay=`<div class="overlay meet"><h2>EMERGENCY MEETING</h2><div class="pclk mono" data-phclk>${fmt(ph)}</div>
-      <div class="items" style="font-size:2.6vw">${esc(S.phase.label||"")}</div></div>`;
+  else if(S.banner==="meeting"){
+    const mt=remOf(S.meet), over=S.meet.mode!=="idle"&&mt<=0;
+    overlay=`<div class="overlay meet${over?" over":""}"><h2>EMERGENCY MEETING</h2>
+      <div class="pclk mono" data-mtclk>${fmt(mt)}</div>
+      <div class="items" style="font-size:1.9vw;color:#bcd4ef">${over?"TIME — CALL THE VOTE":"hard stop"}</div>
+      ${S.phase.mode==="run"?`<div class="items" style="font-size:3vw">${esc(S.phase.label)}
+        <span class="mono" data-phclk>${fmt(remOf(S.phase))}</span></div>`:""}</div>`;}
   app.innerHTML=`<div class="mon ${cls}">
     <div class="mlab">Round ${S.round} · Among Us: Footprints</div>
     <div class="mclk mono" data-clk>${fmt(rT)}</div>
@@ -636,8 +826,8 @@ function monitorView(){
     <div class="mstats">
       <div>DEATHS<b>${S.deaths} / ${S.threshold}</b></div>
       <div>TARGET<b>${S.targetPts} pts</b></div>
-      <div>IMPOSTERS CAUGHT<b>${S.impostersCaught} / 3</b></div>
-      <div>SABOTAGES<b>${S.sabotagesUsed} / 2</b></div>
+      <div>IMPOSTERS CAUGHT<b>${S.impostersCaught} / ${S.imposters}</b></div>
+      <div>SABOTAGES<b>${S.sabotagesUsed} / ${S.sabotageMax}</b></div>
     </div>
     ${overlay}
     <div class="mbtns">${soundBtn("")}<button onclick="act.wake()">stay awake</button>
@@ -647,15 +837,16 @@ function monitorView(){
 function homeView(){
   const has=!!readCfg();
   const links=[["#/monitor","TV Monitor","big clock, death count, sabotage callouts — read-only"],
-    ["#/c/cc","Central Command","all controls + answers"],
-    ["#/c/foreman","Foreman","controls, answers, role crib"],
-    ["#/c/referee","Roaming Referee","controls, answers, role crib"],
-    ["#/c/ghost","Ghost Guide","controls, answers, role crib"]];
+    ["#/c/gm","Game Master","outside the game: clock, thresholds, new round, undo"],
+    ["#/c/cc","Central Command","in the game, at the desk: meetings, ejections, deaths, sabotage"],
+    ["#/c/foreman","Foreman","sabotage, answers, role crib"],
+    ["#/c/referee","Roaming Referee","sabotage, answers, role crib"],
+    ["#/c/ghost","Ghost Guide","sabotage, answers, role crib"]];
   let share="";
   if(has){
     const j=readCfg(); const b=cfgB64(j);
     const base=location.origin+location.pathname;
-    const VIEWS=[["/monitor","TV Monitor"],["/c/cc","Central Cmd"],["/c/foreman","Foreman"],["/c/referee","Referee"],["/c/ghost","Ghost Guide"]];
+    const VIEWS=[["/monitor","TV Monitor"],["/c/gm","Game Master"],["/c/cc","Central Cmd"],["/c/foreman","Foreman"],["/c/referee","Referee"],["/c/ghost","Ghost Guide"]];
     shareUrl=`${base}#${uiShare}?cfg=${b}`;
     const name=(VIEWS.find(v=>v[0]===uiShare)||VIEWS[0])[1];
     share=`<div class="sect">Share to other devices</div>
@@ -708,9 +899,25 @@ function render(){
   if(path==="/monitor")monitorView();
   else if(path.startsWith("/c/")){const r=path.split("/")[2];ROLES[r]?counselorView(r):homeView()}
   else homeView();
+  if(uiModal)app.insertAdjacentHTML("beforeend",modalHTML());
 }
 // Clock-driven sound. Every device computes this from the shared absolute
 // deadline, so nothing has to be broadcast and they all fire together.
+// A clock ran out and nobody has called it. Keep nagging until it is resolved —
+// a silent expiry is how a sabotage gets forgotten and how a 3:00 meeting turns
+// into a 6:00 one. The playbook is blunt about it: if students learn the timer
+// stretches when the argument gets good, the night's pacing collapses.
+let sabAlarmAt=0, meetAlarmAt=0;
+function overdueAlarms(){
+  if(PAUSED()){sabAlarmAt=meetAlarmAt=0;return}
+  const t=Date.now();
+  if(S.banner==="sabotage" && remOf(S.phase)<=0){
+    if(t-sabAlarmAt>=3000){sabAlarmAt=t;SND.sabExpired()}
+  }else sabAlarmAt=0;
+  if(S.banner==="meeting" && S.meet.mode!=="idle" && remOf(S.meet)<=0){
+    if(t-meetAlarmAt>=3000){meetAlarmAt=t;SND.meetExpired()}
+  }else meetAlarmAt=0;
+}
 let lastSec=null;
 function clockSounds(isMonitor){
   const running=S.timer.mode==="run"&&!PAUSED();
@@ -726,8 +933,10 @@ function clockSounds(isMonitor){
 setInterval(()=>{
   document.querySelectorAll("[data-clk]").forEach(e=>{const v=fmt(remOf(S.timer));if(e.textContent!==v)e.textContent=v});
   document.querySelectorAll("[data-phclk]").forEach(e=>{const v=fmt(remOf(S.phase));if(e.textContent!==v)e.textContent=v});
+  document.querySelectorAll("[data-mtclk]").forEach(e=>{const v=fmt(remOf(S.meet));if(e.textContent!==v)e.textContent=v});
   const {path}=route();
   clockSounds(path==="/monitor");
+  overdueAlarms();
   if(path==="/monitor"&&(S.deaths>=S.threshold||(S.timer.mode==="run"&&remOf(S.timer)===0)!==!!document.querySelector(".overlay.crew")))render();
 },250);
 window.__state=()=>JSON.parse(JSON.stringify(S));window.__conn=()=>conn;window.__offset=()=>offset;
