@@ -170,13 +170,19 @@ border-bottom:1px solid rgba(255,255,255,.16)}
 .gospel{font-size:17px;line-height:1.45}
 .gospel b{font-size:22px;font-weight:800}
 .btn-wide{width:100%;padding:16px;font-size:18px}
-.phaserow{gap:5px}
-.phaserow button{padding:8px 4px;font-size:12.5px;min-width:0;color:var(--mut);letter-spacing:-.01em;
-display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.15}
-.phaserow button b{font-size:13px;color:var(--fg)}
-.phaserow button span{font-size:10.5px;opacity:.75}
-.phaserow button.on-chip b,.phaserow button.on-chip span{color:#fff}
-.chip.phase{background:#eef1f4;color:#4a453f}
+.meetcard{background:#1d4e89;color:#fff;border-radius:14px;padding:13px 15px;margin:12px 0 4px;
+box-shadow:0 6px 18px rgba(29,78,137,.26)}
+.meetcard.over{background:#c0392b;animation:sabpulse .9s infinite}
+.mtstage{margin-top:9px}
+.mtstage b{display:block;font-size:19px;font-weight:800;letter-spacing:.01em}
+.mtstage span{display:block;font-size:13.5px;opacity:.88;margin-top:2px;line-height:1.4}
+/* What the desk reads off the phone instead of a row of buttons it had to tap. */
+.guide{background:#eaf1f9;border:1.5px solid #c3d7ee;border-radius:12px;padding:11px 13px;margin:9px 0 4px}
+.guide b{display:block;font-size:17px;font-weight:800;color:var(--blue);letter-spacing:.04em}
+.guide span{display:block;font-size:14px;margin-top:3px;line-height:1.42}
+.gather{background:#eaf1f9;border:1.5px solid #c3d7ee;border-radius:12px;padding:11px 13px;margin:9px 0}
+.gather b{display:block;font-size:17px;font-weight:800;color:var(--blue)}
+.gather span{display:block;font-size:14px;margin-top:3px;line-height:1.42}
 .twoclock{display:flex;gap:8px;margin:9px 0 4px}
 .twoclock>div{flex:1;background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:7px 8px;text-align:center}
 .twoclock>div.bad{border-color:var(--bad);background:#fbecea}
@@ -212,7 +218,7 @@ const DEF={round:1,targetPts:8,deaths:0,threshold:6,impostersCaught:0,sabotagesU
   // A game-wide stop any role can call. `clock`/`phase` remember what was
   // running so resuming restores exactly that and nothing else.
   paused:{on:false,clock:false,phase:false,meet:false},
-  // the 3:00 meeting hard stop, kept apart from `phase` so the sub-phases
+  // the 3:00 meeting clock, kept apart from `phase` so the derived stages
   // (report / nominations / corners / vote) can run without hiding it
   meet:{mode:"idle",endsAt:0,remain:0,clock:false},
   timer:{mode:"idle",endsAt:0,remain:480000,dur:480000},
@@ -390,7 +396,34 @@ const NUM=["no","one","two","three","four","five","six"];
 // mid-sync can see the field before the array arrives. Neither should throw on
 // the TV in front of the room.
 const SABITEMS=()=>Array.isArray(S.sabItems)?S.sabItems.filter(p=>PROPS.includes(p)):[];
-const MEETPHASES=["REPORT","NOMINATIONS","CORNERS","VOTE"];
+// A meeting runs itself. The four stages tile the 3:00 exactly, so the stage a
+// meeting is in can be worked out from the one shared deadline instead of being
+// tapped in by hand — every device derives the same stage from the same endsAt,
+// nothing has to drive it, and nothing can drift out of step. It also means the
+// stage clock is that deadline minus a whole number of seconds, so it changes
+// on the very same tick as the meeting clock above it.
+const MEETPLAN=[
+  [ 30000,"REPORT",     "REPORT", "Who found the body, and where? Facts only — no theories yet."],
+  [ 90000,"NOMINATIONS","NOMS",   "Take accusations one at a time. Cut off the speeches; keep names coming."],
+  [ 30000,"CORNERS",    "CNRS",   "Nominees to the corners. Everyone else stays where they are."],
+  [ 30000,"VOTE",       "VOTE",   "Hands up and count aloud. Whatever the room decides, it is decided."],
+];
+const MEETTOTAL=MEETPLAN.reduce((n,p)=>n+p[0],0);       // 3:00
+// null while gathering, and again once the vote is over and it wants resolving.
+function meetStage(){
+  if(!S.meet||S.meet.mode==="idle"||S.meet.mode==="gather")return null;
+  const rem=remOf(S.meet);
+  if(rem<=0)return null;
+  let acc=0;
+  for(let i=0;i<MEETPLAN.length;i++){
+    acc+=MEETPLAN[i][0];
+    const endsAtRem=MEETTOTAL-acc;                       // what the meeting clock reads when this stage is done
+    if(rem>endsAtRem)return {i,label:MEETPLAN[i][1],short:MEETPLAN[i][2],guide:MEETPLAN[i][3],rem:rem-endsAtRem};
+  }
+  return null;
+}
+const meetOver=()=>!!S.meet && S.meet.mode!=="idle" && S.meet.mode!=="gather" && remOf(S.meet)<=0;
+const GATHERING=()=>!!S.meet && S.meet.mode==="gather";
 const IDLE={mode:"idle",endsAt:0,remain:0,label:""};
 const MIDLE={mode:"idle",endsAt:0,remain:0,clock:false};
 // Ending a meeting — however it ends — puts the round clock back the way the
@@ -453,20 +486,29 @@ window.act={
     if(t.mode==="idle")t.remain=dur;
     doAct("Round length "+fmt(dur),{timer:t});
   },
-  meeting(){const t=T(), wasRunning=t.mode==="run";
+  // Any role can call one — an EMERGEN-C card can be played anywhere in the
+  // building. It stops the round clock and puts the room on notice, but the
+  // 3:00 does not start until everyone has actually walked to the lobby;
+  // otherwise the report stage is spent watching students arrive.
+  callMeeting(){askConfirm("callMeeting")},
+  doCallMeeting(){
+    if(S.meet && S.meet.mode!=="idle")return;                       // one at a time
+    const t=T(), wasRunning=t.mode==="run";
     if(wasRunning){t.remain=remOf(t);t.mode="pause"}
-    doAct("Meeting started",{timer:t,banner:"meeting",sabItems:[],   // a meeting cancels any live sabotage outright
-      meet:{mode:"run",endsAt:now()+180000,remain:180000,clock:wasRunning},phase:IDLE})},
-  endMeeting(){doAct("Meeting ended",afterMeeting())},
-  phasePre(sec,label){
-    const o={phase:{mode:"run",endsAt:now()+sec*1000,remain:sec*1000,label}};
-    if(MEETPHASES.includes(label)&&S.meet.mode==="idle"){
-      const t=T(), wasRunning=t.mode==="run";
-      o.banner="meeting"; o.meet={mode:"run",endsAt:now()+180000,remain:180000,clock:wasRunning};
-      if(wasRunning){t.remain=remOf(t);t.mode="pause";o.timer=t}
-    }
-    doAct("Phase "+label.toLowerCase(),o)},
-  phaseStop(){doAct("Phase stopped",{phase:IDLE})},
+    doAct("Emergency meeting called",{timer:t,banner:"meeting",sabItems:[],  // cancels any live sabotage outright
+      meet:{mode:"gather",endsAt:0,remain:MEETTOTAL,clock:wasRunning},phase:IDLE})},
+  // Central Command starts the clock once the room is together. Straight from
+  // idle it still works — that is the desk calling and starting in one go.
+  meeting(){const t=T(), wasRunning=t.mode==="run", gathering=GATHERING();
+    if(wasRunning){t.remain=remOf(t);t.mode="pause"}
+    doAct("Meeting started",{timer:t,banner:"meeting",sabItems:[],
+      meet:{mode:"run",endsAt:now()+MEETTOTAL,remain:MEETTOTAL,
+            clock:gathering?!!S.meet.clock:wasRunning},phase:IDLE})},
+  endMeeting(){doAct("Meeting ended — tie",afterMeeting())},
+  // The desk can cut a meeting short: run the clock out rather than end it, so
+  // the same three end-of-meeting choices are what closes it either way.
+  callVote(){if(!S.meet||S.meet.mode==="idle"||S.meet.mode==="gather")return;
+    doAct("Vote called early",{meet:{...S.meet,mode:"run",endsAt:now(),remain:0}})},
   ejectCrew(){doAct("Crewmate ejected (+1 death)",afterMeeting({deaths:S.deaths+1}))},
   ejectImp(){doAct("Imposter caught",afterMeeting({impostersCaught:S.impostersCaught+1}))},
   // The paper could only carry three printed sets, so the same three came round
@@ -555,6 +597,9 @@ const CONFIRMS={
   newRound:{title:()=>`Start round ${S.round+1}?`,
     body:"This clears the deaths, the imposters caught and the sabotages, and puts the clock back to full. It changes every screen in the room. It can be undone.",
     yes:"Start the new round", danger:true, run:()=>act.doNewRound()},
+  callMeeting:{title:"Call an emergency meeting?",
+    body:"The round clock stops everywhere and the TV calls everyone to the lobby. Central Command starts the 3:00 once the room is together.",
+    yes:"Call the meeting", run:()=>act.doCallMeeting()},
   forget:{title:"Disconnect this device?",
     body:"This phone leaves the game and goes back to the connect screen. The game itself keeps running for everyone else — scan the QR again to rejoin.",
     yes:"Disconnect", danger:true, run:()=>act.doForget()},
@@ -583,7 +628,7 @@ function route(){const h=location.hash||"#/";const [path,q]=h.slice(1).split("?"
 const ROLES={gm:"Game Master",cc:"Central Command",foreman:"Foreman",referee:"Roaming Referee",ghost:"Ghost Guide"};
 const CRIB={
  gm:["You are outside the game. Students never come to you — you run the night, not a station.","Yours: the round clock, the death threshold, the point target, New round, and Undo.","You are the only Undo. A floor counsellor who mis-taps calls it to you — undo puts the whole game back one step, so do it once and watch the TV.","Set the threshold low for round 1. Raising it later is easy; lowering it after the imposters give up is not.","If Central Command's phone drops out, open 'Take over the desk' and run meetings from here."],
- cc:["The lobby desk, and you do not leave it. You are in the game — students come to you.","Run every meeting aloud: report, nominations, corners, vote. 3:00 hard stop, always.","Reveal every ejection on the spot. Crewmate: +1 death. Imposter: free.","You are one end of the red-ball run. Bowl empty? Send them to fetch.","Sabotage props come back to you — you call SUCCESS or FAILED.","The clock and New round are the Game Master's. Never say roles except the ejection reveal."],
+ cc:["The lobby desk, and you do not leave it. You are in the game — students come to you.","Run every meeting aloud. The app moves you stage to stage — report, noms, corners, vote — and tells you what to say. Just read it out.","Reveal every ejection on the spot. Crewmate: +1 death. Imposter: free.","You are one end of the red-ball run. Bowl empty? Send them to fetch.","Sabotage props come back to you — you call SUCCESS or FAILED.","The clock and New round are the Game Master's. Never say roles except the ejection reveal."],
  foreman:["Verify instantly, mark the card, then make them reset the station.","Cups: all 15, they reset. Apples: 3 standing, count 3 aloud. Plane: past the far line, unlimited tries.","You do not stop kills. Standing next to you is not protection.","An imposter can tap YOU to start a Sabotage."],
  referee:["Upstairs is yours. Central Command covers downstairs.","A student who runs: warn once, then cross out a mark box.","You don't need to keep moving — but a kill in front of you counts.","An imposter can tap YOU to start a Sabotage."],
  ghost:["Ghosts stay here the whole round — no meetings.","Origami: one sheet at a time, match the kit picture. GREEN 2 · BLUE 3.","Red balls hand over at the DOORWAY. Living students never enter.","After each meeting, get the result from CC and tell your ghosts.","You are not in meetings — Central Command runs those from the lobby."]};
@@ -598,8 +643,9 @@ function stripHTML(){
     ${meeting?"":`<div class="cell">target<br><b>${S.targetPts} pts</b></div>
     <div class="cell">round<br><b>${S.round}</b></div>`}
     ${PAUSED()?`<span class="chip paused">PAUSED</span>`:
+      GATHERING()?`<span class="chip meeting">GATHERING</span>`:
       meeting?`<span class="chip meeting">MTG <span class="mono" data-mtclk>${fmt(remOf(S.meet))}</span></span>${
-        ph?`<span class="chip phase">${esc(PHCHIP[S.phase.label]||S.phase.label)} <span class="mono" data-phclk>${fmt(remOf(S.phase))}</span></span>`:""}`:
+        (()=>{const s=meetStage();return s?`<span class="chip phase">${esc(s.short)} <span class="mono" data-stclk>${fmt(s.rem)}</span></span>`:""})()}`:
       ph?`<span class="chip ${S.banner==="sabotage"?"sabotage":"meeting"}">${esc(PHCHIP[S.phase.label]||S.phase.label)} <span class="mono" data-phclk>${fmt(remOf(S.phase))}</span></span>`:
       S.banner!=="none"?`<span class="chip ${S.banner}">${S.banner.toUpperCase()}</span>`:""}
     ${connHTML(true)}</div>`;
@@ -610,7 +656,7 @@ function soundBtn(cls){
   return `<button class="${cls||"soundbtn"} snd-${s}" onclick="act.mute()" title="${SOUNDWORD[s]}">${
     s==="off"?"🔇":"🔊"}<span>${SOUNDWORD[s]}</span></button>`;
 }
-const PHCHIP={REPORT:"REPORT",NOMINATIONS:"NOMS",CORNERS:"CNRS",VOTE:"VOTE",SABOTAGE:"SAB"};
+const PHCHIP={SABOTAGE:"SAB"};   // meeting stages are derived and carry their own short name
 const CONNWORD={live:"live",demo:"no sync",off:"offline"};
 // In the strip, a healthy connection is just the green dot — the row is only
 // 375px wide and the game numbers earn that space. The word appears the moment
@@ -633,6 +679,23 @@ function undoHTML(){
   ${last?`<div class="row"><button class="btn-undo" onclick="act.undo()">↩&nbsp; Undo — ${esc(last.label)}</button></div>
     <div class="small">Reverts that action everywhere. Press again to step further back (${(S.hist||[]).length} in history).</div>`
     :`<div class="small" style="padding:4px 0">Nothing to undo yet.</div>`}`;
+}
+// What a meeting looks like on a phone that is not the desk. Read-only: the
+// floor roles can call a meeting but they do not run it, and now that any of
+// them can call one they need to see that it landed and what is happening.
+function meetCard(){
+  if(S.banner!=="meeting"||!S.meet||S.meet.mode==="idle")return "";
+  const st=meetStage();
+  const body=GATHERING()
+    ? `<div class="mtstage"><b>Gather in the lobby</b><span>The round clock is stopped. Central Command starts the 3:00 when everyone is in.</span></div>`
+    : meetOver()
+      ? `<div class="mtstage"><b>Vote is up</b><span>Central Command is calling it now.</span></div>`
+      : st ? `<div class="mtstage"><b>${esc(st.label)}</b><span>${esc(st.guide)}</span></div>` : "";
+  return `<div class="meetcard${meetOver()?" over":""}">
+    <div class="sabhead"><span>EMERGENCY MEETING</span>${GATHERING()?`<span class="mono">—</span>`
+      :`<span class="mono sabclk" data-mtclk>${fmt(remOf(S.meet))}</span>`}</div>
+    ${body}
+  </div>`;
 }
 function sabCard(){
   if(S.banner!=="sabotage")return "";
@@ -677,22 +740,52 @@ function controlsHTML(role){
         : role==="cc"
           ? "Draws a fresh set of props, flashes the TV and starts the 2:00 scramble. Different every time — nothing to keep track of."
           : "Tapped by an imposter? Wait ~5 seconds, start dimming, then tap this — the TV and Central Command take it from there."}</div>`;
-  // Secondary next to Start/End meeting, and compact — six buttons at full size
-  // pushed the ejection controls off a phone screen.
-  // The four phases of a meeting, in playbook order. Tapping one names it on
-  // the TV and starts its countdown; the 3:00 hard stop keeps running above it.
-  const PHASES=[[30,"REPORT","report"],[90,"NOMINATIONS","noms"],[30,"CORNERS","corners"],[30,"VOTE","vote"]];
-  const phaseSection=`<div class="row phaserow">${PHASES.map(([sec,label,short],i)=>
-      `<button class="btn-ghost${S.phase.label===label&&S.phase.mode==="run"?" on-chip":""}" onclick="act.phasePre(${sec},'${label}')"><b>${i+1}</b> ${short}<span>${fmt(sec*1000)}</span></button>`).join("")}
-      <button class="btn-ghost" onclick="act.phaseStop()">stop</button>
-    </div>
-    <div class="small">Tap each one as you call it. The 3:00 hard stop keeps counting above it.</div>`;
+  // Any role, from anywhere in the building — an EMERGEN-C card is not the
+  // desk's to play. Hidden once a meeting is already up.
+  const callSection=(S.meet&&S.meet.mode!=="idle")?"":`<div class="sect">Emergency meeting</div>
+    <div class="row"><button class="btn-blue btn-wide" onclick="act.callMeeting()">Call emergency meeting</button></div>
+    <div class="small">Stops the round clock everywhere and calls the room to the lobby. Central Command starts the 3:00 once everyone is in.</div>`;
+  // The desk's view of a meeting. It runs itself — the stages advance on their
+  // own — so what the desk needs is not buttons but to be told what to say next
+  // and how long is left to say it.
+  const st=meetStage();
+  const meetingSection=GATHERING()
+    ? `<div class="gather">
+         <b>Gathering</b>
+         <span>Round clock stopped. Wait for the room, then start the 3:00.</span>
+       </div>
+       <div class="row"><button class="btn-blue btn-wide" onclick="act.meeting()">Start the meeting — 3:00</button></div>
+       <div class="row"><button class="btn-ghost" onclick="act.endMeeting()">Never mind — back to the round</button></div>`
+    : meetOver()
+      ? `<div class="twoclock">
+           <div class="bad"><span>meeting</span><b class="mono" data-mtclk>${fmt(remOf(S.meet))}</b></div>
+           <div><span>vote</span><b class="mono">done</b></div>
+         </div>
+         <div class="overdue">Time — take the vote and call it now</div>
+         <div class="sect">How did it end?</div>
+         <div class="row">
+           <button class="btn-bad" onclick="act.ejectCrew()">Crewmate ejected&nbsp; +1 death</button>
+           <button class="btn-ok" onclick="act.ejectImp()">IMPOSTER caught&nbsp; no tick</button>
+         </div>
+         <div class="row"><button class="btn-ghost btn-wide" onclick="act.endMeeting()">Tie — nobody ejected</button></div>`
+      : st
+        ? `<div class="twoclock">
+             <div><span>meeting</span><b class="mono" data-mtclk>${fmt(remOf(S.meet))}</b></div>
+             <div><span>${esc(st.label.toLowerCase())}</span><b class="mono" data-stclk>${fmt(st.rem)}</b></div>
+           </div>
+           <div class="guide"><b>${esc(st.label)}</b><span>${esc(st.guide)}</span></div>
+           <div class="small">The stages move on by themselves — ${MEETPLAN.map(p=>p[2].toLowerCase()).join(" → ")}. Just call each one aloud as it comes up.</div>
+           <div class="row"><button class="btn-ghost" onclick="act.callVote()">Skip ahead to the vote</button></div>`
+        : `<div class="row"><button class="btn-blue" onclick="act.meeting()">Start meeting — 3:00</button></div>
+           <div class="small">Only if you are calling it from the desk yourself. Otherwise use <b>Call emergency meeting</b> above, which stops the clock and gathers the room first.</div>`;
   if(role==="foreman"||role==="referee")
-    return `${sabCard()}<div class="sect">Sabotage — ${S.sabotagesUsed}/${S.sabotageMax} this round</div>${sabSection}
+    return `${sabCard()}${meetCard()}<div class="sect">Sabotage — ${S.sabotagesUsed}/${S.sabotageMax} this round</div>${sabSection}
+      ${callSection}
       ${pauseSection}
       <div class="small" style="margin-top:14px">The desk runs the meetings; the Game Master runs the clock. Your job is the floor — this phone is mostly the <b>Answers</b> tab. Made a mistake? Call it to the Game Master, who can undo it.</div>`;
   if(role==="ghost")
-    return `${sabCard()}<div class="sect">Sabotage — ${S.sabotagesUsed}/${S.sabotageMax} this round</div>${sabSection}
+    return `${sabCard()}${meetCard()}<div class="sect">Sabotage — ${S.sabotagesUsed}/${S.sabotageMax} this round</div>${sabSection}
+      ${callSection}
       ${pauseSection}
       <div class="small" style="margin-top:14px">Your room, your origami, your red balls. Meetings happen without you — Central Command runs those. Made a mistake? Call it to the Game Master, who can undo it.</div>`;
 
@@ -703,24 +796,9 @@ function controlsHTML(role){
     <button class="btn-step" onclick="act.dAdj(-1)">Death −</button>
     <button class="btn-step btn-bad" onclick="act.dAdj(1)">Death +</button>
   </div>
-  <div class="sect">Meeting — 3:00 hard stop</div>
-  ${S.meet.mode!=="idle"?`<div class="twoclock">
-      <div${remOf(S.meet)<=0?' class="bad"':''}><span>hard stop</span><b class="mono" data-mtclk>${fmt(remOf(S.meet))}</b></div>
-      <div><span>${S.phase.mode==="run"?esc((PHCHIP[S.phase.label]||S.phase.label).toLowerCase()):"no phase"}</span>${
-        S.phase.mode==="run"?`<b class="mono" data-phclk>${fmt(remOf(S.phase))}</b>`:`<b class="mono dim">—</b>`}</div>
-    </div>`:""}
-  ${S.banner==="meeting"&&S.meet.mode!=="idle"&&remOf(S.meet)<=0
-    ?`<div class="overdue">3:00 is up — call the vote and eject now</div>`:""}
-  <div class="row">
-    <button class="btn-blue" onclick="act.meeting()">Start meeting</button>
-    <button onclick="act.endMeeting()">End meeting</button>
-  </div>
-  ${phaseSection}
-  <div class="sect">Ejection — reveal on the spot</div>
-  <div class="row">
-    <button class="btn-bad" onclick="act.ejectCrew()">Crewmate ejected&nbsp; +1 death</button>
-    <button class="btn-ok" onclick="act.ejectImp()">IMPOSTER caught&nbsp; no tick</button>
-  </div>
+  ${callSection}
+  <div class="sect">Meeting</div>
+  ${meetingSection}
   <div class="sect">Sabotage — ${S.sabotagesUsed}/${S.sabotageMax} this round</div>
   ${sabSection}`;
 
@@ -777,7 +855,8 @@ function controlsHTML(role){
   <div class="row"><button class="btn-ghost" onclick="act.newRound()">New round — resets deaths &amp; clock</button></div>`;
 
   if(role==="gm")
-    return `${sabCard()}${gmControls}
+    return `${sabCard()}${meetCard()}${gmControls}
+      ${callSection}
       ${pauseSection}
       <div class="sect">If the desk goes down</div>
       <div class="row"><button class="btn-ghost disclose" onclick="act.desk()">${uiDesk?"▾":"▸"}&nbsp; Take over the desk — meetings, ejections, deaths</button></div>
@@ -869,12 +948,18 @@ function monitorView(){
     overlay=`<div class="overlay sab"><h2>SABOTAGE</h2><div class="pclk mono" data-phclk>${fmt(ph)}</div>
       <div class="items">${items}</div><div class="items" style="font-size:2vw;color:#ffc9b8">ONE ITEM PER PERSON · ${(NUM[list.length]||list.length+"").toUpperCase()} PEOPLE · WALK</div></div>`;}
   else if(S.banner==="meeting"){
-    const mt=remOf(S.meet), over=S.meet.mode!=="idle"&&mt<=0;
-    overlay=`<div class="overlay meet${over?" over":""}"><h2>EMERGENCY MEETING</h2>
-      <div class="pclk mono" data-mtclk>${fmt(mt)}</div>
-      <div class="items" style="font-size:1.9vw;color:#bcd4ef">${over?"TIME — CALL THE VOTE":"hard stop"}</div>
-      ${S.phase.mode==="run"?`<div class="items" style="font-size:3vw">${esc(S.phase.label)}
-        <span class="mono" data-phclk>${fmt(remOf(S.phase))}</span></div>`:""}</div>`;}
+    const mt=remOf(S.meet), over=meetOver(), st=meetStage();
+    overlay=GATHERING()
+      // No clock while they walk — a countdown here would be the wrong thing to
+      // hurry, and the room needs to read one instruction from across the lobby.
+      ? `<div class="overlay meet"><h2>EMERGENCY MEETING</h2>
+          <div class="items" style="font-size:4.4vw">EVERYONE TO THE LOBBY</div>
+          <div class="items" style="font-size:1.9vw;color:#bcd4ef">the round clock is stopped</div></div>`
+      : `<div class="overlay meet${over?" over":""}"><h2>EMERGENCY MEETING</h2>
+          <div class="pclk mono" data-mtclk>${fmt(mt)}</div>
+          ${over?`<div class="items" style="font-size:2.4vw">TIME — CALL THE VOTE</div>`
+                :`<div class="items" style="font-size:3.4vw" data-stlabel>${esc(st?st.label:"")}
+                    <span class="mono" data-stclk>${fmt(st?st.rem:0)}</span></div>`}</div>`;}
   app.innerHTML=`<div class="mon ${cls}">
     <div class="mlab">Round ${S.round} · Among Us: Footprints</div>
     <div class="mclk mono" data-clk>${fmt(rT)}</div>
@@ -988,10 +1073,27 @@ function clockSounds(isMonitor){
   }
   lastSec=secs;
 }
+// Nothing is written when a meeting stage ends — the stage is derived, so the
+// screen has to notice for itself and repaint the guidance, the label and, at
+// the end, the three buttons that close the meeting. This is what makes the
+// stages advance on their own instead of being tapped in.
+let lastStageKey=null;
+function stageWatch(){
+  const s=meetStage();
+  const key=(S.meet?S.meet.mode:"idle")+"/"+(s?s.i:"-");
+  if(key===lastStageKey)return;
+  const first=lastStageKey===null;
+  lastStageKey=key;
+  if(!first)render();
+}
 setInterval(()=>{
+  const s=meetStage();
   document.querySelectorAll("[data-clk]").forEach(e=>{const v=fmt(remOf(S.timer));if(e.textContent!==v)e.textContent=v});
   document.querySelectorAll("[data-phclk]").forEach(e=>{const v=fmt(remOf(S.phase));if(e.textContent!==v)e.textContent=v});
   document.querySelectorAll("[data-mtclk]").forEach(e=>{const v=fmt(remOf(S.meet));if(e.textContent!==v)e.textContent=v});
+  // Derived from the same deadline as the meeting clock, so both flip together.
+  if(s)document.querySelectorAll("[data-stclk]").forEach(e=>{const v=fmt(s.rem);if(e.textContent!==v)e.textContent=v});
+  stageWatch();
   const {path}=route();
   clockSounds(path==="/monitor");
   overdueAlarms();
@@ -1023,7 +1125,12 @@ window.addEventListener("hashchange",()=>{uiTab=null;render()});
     merge(S,{round:2,deaths:3,threshold:6,targetPts:8,impostersCaught:1,sabotagesUsed:1,
       timer:{mode:"run",endsAt:Date.now()+323000,remain:323000,dur:480000}});
     if(q.get("banner")==="sabotage")merge(S,{banner:"sabotage",sabItems:["FUSE","BATTERY","KEYCARD","O2 TANK","REACTOR ROD"],phase:{mode:"run",endsAt:Date.now()+87000,remain:87000,label:"SABOTAGE"}});
-    if(q.get("banner")==="meeting")merge(S,{banner:"meeting",phase:{mode:"run",endsAt:Date.now()+150000,remain:150000,label:"NOMINATIONS"}});
+    if(q.get("banner")==="meeting")merge(S,{banner:"meeting",phase:IDLE,
+      meet:{mode:"run",endsAt:Date.now()+140000,remain:140000,clock:true}});   // lands in NOMINATIONS
+    if(q.get("banner")==="gather")merge(S,{banner:"meeting",phase:IDLE,
+      meet:{mode:"gather",endsAt:0,remain:180000,clock:true}});
+    if(q.get("banner")==="meetover")merge(S,{banner:"meeting",phase:IDLE,
+      meet:{mode:"run",endsAt:Date.now()-2000,remain:0,clock:true}});
     if(q.get("win")==="imp")merge(S,{deaths:6});
     S.hist=[{label:"Sabotage — 5 props",s:(()=>{const o=JSON.parse(JSON.stringify(S));delete o.hist;delete o.timer.dur;o.timer={...S.timer};return {round:o.round,targetPts:o.targetPts,deaths:Math.max(0,o.deaths-0),threshold:o.threshold,impostersCaught:o.impostersCaught,sabotagesUsed:Math.max(0,o.sabotagesUsed-1),sabItems:[],banner:"none",timer:o.timer,phase:{mode:"idle",endsAt:0,remain:0,label:""}}})()}];
   }
