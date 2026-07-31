@@ -807,8 +807,7 @@ function controlsHTML(role){
            <div class="guide"><b>${esc(st.label)}</b><span>${esc(st.guide)}</span></div>
            <div class="small">The stages move on by themselves — ${MEETPLAN.map(p=>p[2].toLowerCase()).join(" → ")}. Just call each one aloud as it comes up.</div>
            <div class="row"><button class="btn-ghost" onclick="act.callVote()">Skip ahead to the vote</button></div>`
-        : `<div class="row"><button class="btn-blue" onclick="act.meeting()">Start meeting — 3:00</button></div>
-           <div class="small">Only if you are calling it from the desk yourself. Otherwise use <b>Call emergency meeting</b> above, which stops the clock and gathers the room first.</div>`;
+        : "";     // no meeting: the only way in is Call emergency meeting, above
   if(role==="foreman"||role==="referee")
     return `${sabCard()}${meetCard()}<div class="sect">Sabotage — ${S.sabotagesUsed}/${S.sabotageMax} this round</div>${sabSection}
       ${callSection}
@@ -828,8 +827,7 @@ function controlsHTML(role){
     <button class="btn-step btn-bad" onclick="act.dAdj(1)">Death +</button>
   </div>
   ${callSection}
-  <div class="sect">Meeting</div>
-  ${meetingSection}
+  ${meetingSection?`<div class="sect">Meeting</div>${meetingSection}`:""}
   <div class="sect">Sabotage — ${S.sabotagesUsed}/${S.sabotageMax} this round</div>
   ${sabSection}`;
 
