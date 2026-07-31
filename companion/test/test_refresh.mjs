@@ -17,6 +17,16 @@ const reload = async p => {
 // values; those get their own tolerance check.
 const NOCLOCK = FIELDS.filter(k=>k!=="timer"&&k!=="phase");
 const remaining = s => s.timer.mode==="run" ? s.timer.endsAt-Date.now() : s.timer.remain;
+// What a screen is actually showing for a sabotage: the TV separates the props
+// with <br>, the phones list them in the desk card.
+const tvItems = p => p.evaluate(()=>{
+  const d=document.querySelector(".overlay.sab .items");
+  return d ? d.innerHTML.split(/<br\s*\/?>/i).map(x=>x.replace(/<[^>]*>/g,"").trim()).filter(Boolean) : null;
+});
+const cardItems = p => p.evaluate(()=>{
+  const ul=document.querySelector(".sabitems");
+  return ul ? [...ul.querySelectorAll("li b")].map(b=>b.textContent.trim()) : null;
+});
 
 /* ================================================================= */
 section("1 · refresh in every game state");
@@ -120,12 +130,13 @@ section("1c · the Game Master's settings survive a refresh");
   const GM = await mk("/c/gm","r-gmset"), TV = await mk("/monitor","r-gmset");
   await act(GM,"impAdj",1); await act(GM,"impAdj",1);       // five imposters
   await act(GM,"sabMaxAdj",1);                              // three sabotages a round
+  await act(GM,"sabPropsAdj",-1);                           // four props a scramble
   await act(GM,"durAdj",-120000);                           // six-minute rounds
   await settle(1000);
   const before = await st(GM);
   check("the settings are what the Game Master set",
-    before.imposters===5 && before.sabotageMax===3 && before.timer.dur===360000,
-    `imposters=${before.imposters} sabotageMax=${before.sabotageMax} dur=${before.timer.dur}`);
+    before.imposters===5 && before.sabotageMax===3 && before.sabProps===4 && before.timer.dur===360000,
+    `imposters=${before.imposters} sabotageMax=${before.sabotageMax} sabProps=${before.sabProps} dur=${before.timer.dur}`);
 
   await reload(GM);
   const after = await st(GM);
@@ -134,17 +145,31 @@ section("1c · the Game Master's settings survive a refresh");
   check("reload · the round length comes back too",
     after.timer.dur===360000 && after.timer.remain===360000, JSON.stringify(after.timer));
   check("reload · the dials are on screen at the new values",
-    /Imposters — <b>5<\/b>/.test(await html(GM)) && /Sabotages — <b>3<\/b>/.test(await html(GM)),
-    ((await html(GM)).match(/(Imposters|Sabotages) — <b>\d<\/b>/g)||["neither"]).join(" | "));
+    /Imposters — <b>5<\/b>/.test(await html(GM)) && /Sabotages — <b>3<\/b>/.test(await html(GM)) &&
+    /Props per sabotage — <b>4<\/b>/.test(await html(GM)),
+    ((await html(GM)).match(/(Imposters|Sabotages|Props per sabotage) — <b>\d<\/b>/g)||["none"]).join(" | "));
 
   // a phone that was never told about them reads them off the document
   const LATE = await mk("/c/gm","r-gmset");
   const late = await st(LATE);
   check("a phone joining later picks the settings up on its own",
-    late.imposters===5 && late.sabotageMax===3 && late.timer.dur===360000,
-    `imposters=${late.imposters} sabotageMax=${late.sabotageMax} dur=${late.timer.dur}`);
-  check("…and the TV agrees", (await st(TV)).imposters===5 && (await st(TV)).sabotageMax===3,
-    JSON.stringify({i:(await st(TV)).imposters, s:(await st(TV)).sabotageMax}));
+    late.imposters===5 && late.sabotageMax===3 && late.sabProps===4 && late.timer.dur===360000,
+    `imposters=${late.imposters} sabotageMax=${late.sabotageMax} sabProps=${late.sabProps} dur=${late.timer.dur}`);
+  check("…and the TV agrees",
+    (await st(TV)).imposters===5 && (await st(TV)).sabotageMax===3 && (await st(TV)).sabProps===4,
+    JSON.stringify({i:(await st(TV)).imposters, s:(await st(TV)).sabotageMax, p:(await st(TV)).sabProps}));
+
+  // a dial that survived the reload is only worth something if the next draw obeys it
+  await act(GM,"sab");
+  await until(TV,"window.__state().banner==='sabotage'");
+  await settle(400);
+  const drew = (await st(TV)).sabItems;
+  check("the props-per-sabotage dial still drives the draw after the refresh",
+    drew.length===4 && new Set(drew).size===4, JSON.stringify(drew));
+  check("…and the Game Master, the TV and the late phone all show that same four",
+    eq(drew,(await st(GM)).sabItems) && eq(drew,(await st(LATE)).sabItems) && eq(await tvItems(TV), drew),
+    JSON.stringify({gm:(await st(GM)).sabItems, late:(await st(LATE)).sabItems, tv:await tvItems(TV)}));
+  await act(GM,"sabOk"); await until(TV,"window.__state().banner==='none'");
 }
 
 /* ================================================================= */
@@ -202,20 +227,32 @@ section("3 · refresh timing edges");
   if(landed===0) note("a tap can be LOST if the phone reloads before the write is acknowledged — re-check the number after any refresh");
   else note("the tap survived a refresh issued in the same tick");
 
-  // reload while a 2-minute sabotage phase is ticking: the phase clock must not restart
+  // Reload while a 2-minute sabotage phase is ticking: the phase clock must not
+  // restart — and now that the props are drawn rather than picked from a printed
+  // set, the phone must come back to the SAME five. A re-draw on refresh would
+  // send that phone's holder hunting a different list from everyone else.
   await act(A,"sab"); await settle(900);
   const ph0 = (await st(A)).phase.endsAt;
+  const drew = (await st(A)).sabItems;
+  check("the scramble has a five-prop draw behind it", drew.length===5, JSON.stringify(drew));
   await settle(1200);
   await reload(A);
   const ph1 = (await st(A)).phase.endsAt;
   check("a sabotage phase clock does not restart on refresh", ph0===ph1, `${ph0} → ${ph1}`);
   const shown = await A.evaluate("document.querySelector('[data-phclk]')?.textContent");
   check("the refreshed phone shows the phase counting down, not 2:00", shown && shown!=="2:00", shown);
+  check("a refresh mid-scramble comes back to the same props, it does not re-draw",
+    eq((await st(A)).sabItems, drew),
+    `${JSON.stringify(drew)} → ${JSON.stringify((await st(A)).sabItems)}`);
+  check("…and the desk card is painted with that same list",
+    eq(await cardItems(A), drew), JSON.stringify(await cardItems(A)));
 
   // reload the TV during a sabotage: overlay must come straight back
   await reload(B);
   check("the TV refreshed mid-sabotage still shows the overlay",
     /SABOTAGE/.test(await html(B)) && !!(await B.evaluate("!!document.querySelector('.overlay.sab')")));
+  check("…listing the same props it was showing before the reload",
+    eq(await tvItems(B), drew), JSON.stringify(await tvItems(B)));
 
   // hash navigation between views should not disturb state
   const before = await st(A);

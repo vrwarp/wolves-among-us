@@ -383,11 +383,12 @@ section("9 · real taps, not scripted calls");
 }
 
 /* ================================================================= */
-// Three dials the Game Master owns and nobody else: how many imposters the TV
-// counts against, how many sabotages a round allows, and how long a round runs.
-// They live in the shared document and in FIELDS, so they reach every phone,
-// survive undo, and carry across rounds rather than resetting with the deaths.
-section("9b · the Game Master's three settings");
+// The dials the Game Master owns and nobody else: how many imposters the TV
+// counts against, how many sabotages a round allows, how many props a scramble
+// draws, and how long a round runs. They live in the shared document and in
+// FIELDS, so they reach every phone, survive undo, and carry across rounds
+// rather than resetting with the deaths.
+section("9b · the Game Master's dials");
 {
   const GM = await mk("/c/gm","f-gmset"), FM = await mk("/c/foreman","f-gmset"),
         TV = await mk("/monitor","f-gmset");
@@ -404,13 +405,14 @@ section("9b · the Game Master's three settings");
   }, label);
 
   const s0 = await st(GM);
-  check("the three settings start at the documented defaults",
-    s0.imposters===3 && s0.sabotageMax===2 && s0.timer.dur===480000,
-    `imposters=${s0.imposters} sabotageMax=${s0.sabotageMax} dur=${s0.timer.dur}`);
+  check("the settings start at the documented defaults",
+    s0.imposters===3 && s0.sabotageMax===2 && s0.sabProps===5 && s0.timer.dur===480000,
+    `imposters=${s0.imposters} sabotageMax=${s0.sabotageMax} sabProps=${s0.sabProps} dur=${s0.timer.dur}`);
   check("the dials belong to the Game Master and to no one else",
     /Imposters —/.test(await html(GM)) && /Sabotages —/.test(await html(GM)) &&
+    /Props per sabotage —/.test(await html(GM)) &&
     /Round length/.test(await html(GM)) && !/Imposters —/.test(await html(FM)) &&
-    !/Round length/.test(await html(FM)));
+    !/Props per sabotage —/.test(await html(FM)) && !/Round length/.test(await html(FM)));
 
   /* --- imposters: 1..6 --- */
   await act(GM,"impAdj",1);
@@ -441,17 +443,17 @@ section("9b · the Game Master's three settings");
     (await byCall(GM,"sabMaxAdj(-1)")).disabled===true, JSON.stringify(await byCall(GM,"sabMaxAdj(-1)")));
 
   // Zero allowed means the floor cannot start one at all. The Foreman is the
-  // test here on purpose: Set 1/2/3 is the whole of that phone's game control,
-  // and the dial that disables them lives on someone else's.
+  // test here on purpose: the one sabotage button is the whole of that phone's
+  // game control, and the dial that disables it lives on someone else's.
   await until(FM,"window.__state().sabotageMax===0"); await settle(300);
-  check("at zero the Foreman's Set buttons are already dead",
-    (await byLabel(FM,"Set 1")).disabled===true && (await byLabel(FM,"Set 3")).disabled===true,
-    JSON.stringify(await byLabel(FM,"Set 1")));
+  check("at zero the Foreman's sabotage button is already dead",
+    (await byLabel(FM,"Start sabotage")).disabled===true,
+    JSON.stringify(await byLabel(FM,"Start sabotage")));
 
   await act(GM,"sabMaxAdj",1);                       // one sabotage a round
   await until(FM,"window.__state().sabotageMax===1"); await settle(300);
-  check("raising the dial brings the Foreman's Set buttons back",
-    (await byLabel(FM,"Set 1")).disabled===false, JSON.stringify(await byLabel(FM,"Set 1")));
+  check("raising the dial brings the Foreman's sabotage button back",
+    (await byLabel(FM,"Start sabotage")).disabled===false, JSON.stringify(await byLabel(FM,"Start sabotage")));
   check("…and the Foreman's heading counts against the dial",
     /Sabotage — 0\/1 this round/.test(await html(FM)),
     (await html(FM)).match(/Sabotage — \d+\/\d+ this round/)?.[0]);
@@ -462,13 +464,52 @@ section("9b · the Game Master's three settings");
   await settle(500);
   check("the round's one sabotage was spent", (await st(FM)).sabotagesUsed===1,
     "used="+(await st(FM)).sabotagesUsed);
-  check("spending the allowance kills the Set buttons on the Foreman's phone",
-    (await byLabel(FM,"Set 1")).disabled===true && (await byLabel(FM,"Set 2")).disabled===true &&
-    (await byLabel(FM,"Set 3")).disabled===true, JSON.stringify(await byLabel(FM,"Set 2")));
+  check("spending the allowance kills the sabotage button on the Foreman's phone",
+    (await byLabel(FM,"Start sabotage")).disabled===true, JSON.stringify(await byLabel(FM,"Start sabotage")));
   await act(GM,"sabMaxAdj",1);                       // the GM can hand out another
   await until(FM,"window.__state().sabotageMax===2"); await settle(300);
   check("the Game Master raising the dial re-arms the floor mid-round",
-    (await byLabel(FM,"Set 1")).disabled===false, JSON.stringify(await byLabel(FM,"Set 1")));
+    (await byLabel(FM,"Start sabotage")).disabled===false, JSON.stringify(await byLabel(FM,"Start sabotage")));
+
+  /* --- props per sabotage: 2..6, and the floor's button counts them out --- */
+  const NUM = ["no","one","two","three","four","five","six"];
+  const sabLabel = async p => ((await html(p)).match(/Start sabotage[^<]*/)||[""])[0];
+  check("props per sabotage starts at the printed five", (await st(GM)).sabProps===5);
+  check("…and the floor's button spells that out",
+    /Start sabotage — five props/.test(await sabLabel(FM)), await sabLabel(FM));
+  await act(GM,"sabPropsAdj",1);
+  await until(TV,"window.__state().sabProps===6");
+  check("+1 prop reaches every device", (await st(TV)).sabProps===6);
+  await act(GM,"sabPropsAdj",1); await settle(700);
+  check("props per sabotage clamps at 6", (await st(GM)).sabProps===6, "sabProps="+(await st(GM)).sabProps);
+  check("…and the +1 prop button goes dead there",
+    (await byCall(GM,"sabPropsAdj(1)")).disabled===true, JSON.stringify(await byCall(GM,"sabPropsAdj(1)")));
+  for(let i=0;i<5;i++){await act(GM,"sabPropsAdj",-1); await settle(170)}
+  await until(GM,"window.__state().sabProps===2"); await settle(350);
+  check("props per sabotage clamps at 2", (await st(GM)).sabProps===2, "sabProps="+(await st(GM)).sabProps);
+  check("…and the −1 prop button goes dead there",
+    (await byCall(GM,"sabPropsAdj(-1)")).disabled===true, JSON.stringify(await byCall(GM,"sabPropsAdj(-1)")));
+  await act(GM,"sabPropsAdj",-1); await settle(600);
+  check("…and a step past the bottom writes nothing at all", (await st(GM)).sabProps===2,
+    "sabProps="+(await st(GM)).sabProps);
+
+  // the dial is a promise about the NEXT draw, on the phone that will tap it
+  await act(GM,"sabPropsAdj",1);
+  await until(FM,"window.__state().sabProps===3"); await settle(300);
+  check("the floor's button now offers three props",
+    /Start sabotage — three props/.test(await sabLabel(FM)), await sabLabel(FM));
+  await act(FM,"sab");
+  await until(TV,"window.__state().banner==='sabotage'"); await settle(400);
+  const drawn = (await st(TV)).sabItems;
+  check("the next draw takes exactly the number the dial asks for",
+    drawn.length===3 && new Set(drawn).size===3, JSON.stringify(drawn));
+  check("…and the TV, the desk and the floor all show that same list",
+    eq(drawn, (await st(GM)).sabItems) && eq(drawn, (await st(FM)).sabItems),
+    JSON.stringify({tv:drawn, gm:(await st(GM)).sabItems, fm:(await st(FM)).sabItems}));
+  check("…and the TV spells the count out under it",
+    (await html(TV)).includes(NUM[drawn.length].toUpperCase()+" PEOPLE"),
+    ((await html(TV)).match(/[A-Z]+ PEOPLE/)||[""])[0]);
+  await act(GM,"sabOk"); await until(FM,"window.__state().banner==='none'"); await settle(300);
 
   /* --- round length: 1:00..20:00 --- */
   await act(GM,"resetT"); await settle(500);         // sabOk added a minute to the clock
@@ -524,11 +565,12 @@ section("9b · the Game Master's three settings");
   check("…and it takes effect on the next Reset", (await st(TV)).timer.remain===510000,
     (await st(TV)).timer.remain+"ms");
 
-  /* --- undo puts all three back --- */
+  /* --- undo puts every one of them back --- */
   for(const [name,fn,arg,read] of [
-      ["imposters",           "impAdj",    1,     s=>s.imposters],
-      ["sabotages per round", "sabMaxAdj", 1,     s=>s.sabotageMax],
-      ["round length",        "durAdj",    30000, s=>s.timer.dur]]){
+      ["imposters",           "impAdj",     1,     s=>s.imposters],
+      ["sabotages per round", "sabMaxAdj",  1,     s=>s.sabotageMax],
+      ["props per sabotage",  "sabPropsAdj",1,     s=>s.sabProps],
+      ["round length",        "durAdj",     30000, s=>s.timer.dur]]){
     const before = await st(GM);
     await act(GM,fn,arg); await settle(700);
     const mid = await st(GM);
@@ -546,10 +588,11 @@ section("9b · the Game Master's three settings");
   check("New round moved on", await confirmNewRound(GM));
   await until(TV,`window.__state().round===${pre.round+1}`);
   const nr = await st(TV);
-  check("New round clears the round but keeps all three settings",
-    nr.deaths===0 && nr.sabotagesUsed===0 &&
-    nr.imposters===pre.imposters && nr.sabotageMax===pre.sabotageMax && nr.timer.dur===pre.timer.dur,
-    `imposters=${nr.imposters} sabotageMax=${nr.sabotageMax} dur=${nr.timer.dur}`);
+  check("New round clears the round but keeps every setting",
+    nr.deaths===0 && nr.sabotagesUsed===0 && nr.sabItems.length===0 &&
+    nr.imposters===pre.imposters && nr.sabotageMax===pre.sabotageMax &&
+    nr.sabProps===pre.sabProps && nr.timer.dur===pre.timer.dur,
+    `imposters=${nr.imposters} sabotageMax=${nr.sabotageMax} sabProps=${nr.sabProps} dur=${nr.timer.dur}`);
   check("…and the new round's clock is set to that length",
     nr.timer.remain===pre.timer.dur && nr.timer.mode==="idle", JSON.stringify(nr.timer));
 }

@@ -6,7 +6,7 @@ import {join} from "path";
 import {HERE, APP, EMU, DEF, SDK_CDN, EMU_HOST, EMU_PORT, PROJECT,
         section, check, note, eq, gid, settle, boot, newCtx, mk, live,
         st, conn, act, until, softUntil, html, btnText, btnBy, tap,
-        confirmNewRound, confirmPause, modal, CONFIRM_YES,
+        confirmNewRound, confirmPause, modal, CONFIRM_YES, allAgree,
         raw, pageErrs, finish, BASE, CFG} from "./harness.mjs";
 
 const b = await boot();
@@ -389,12 +389,15 @@ section("5 · sabotage lifecycle");
   check("failure costs +2 deaths", s.deaths===d0+2);
 
   check("both sabotages now spent", s.sabotagesUsed===2);
-  const btns = await A.evaluate(()=>[...document.querySelectorAll("button")]
-    .filter(x=>/^Set [123]$/.test(x.textContent.trim())).map(x=>x.disabled));
-  check("Set 1–3 buttons disabled after 2 sabotages", btns.length===3 && btns.every(Boolean), JSON.stringify(btns));
-  const fBtns = await F.evaluate(()=>[...document.querySelectorAll("button")]
-    .filter(x=>/^Set [123]$/.test(x.textContent.trim())).map(x=>x.disabled));
-  check("…on the foreman's phone too", fBtns.length===3 && fBtns.every(Boolean), JSON.stringify(fBtns));
+  // The three "Set" buttons are gone: one button, and the allowance still gates it.
+  const sabBtns = p => p.evaluate(()=>[...document.querySelectorAll("button.btn-sab")]
+    .map(x=>({disabled:x.disabled, label:x.textContent.trim()})));
+  const btns = await sabBtns(A);
+  check("the one sabotage button is dead after 2 sabotages",
+    btns.length===1 && btns[0].disabled===true && /none left/.test(btns[0].label), JSON.stringify(btns));
+  const fBtns = await sabBtns(F);
+  check("…on the foreman's phone too",
+    fBtns.length===1 && fBtns.every(x=>x.disabled), JSON.stringify(fBtns));
 
   // clamp: failure must not drive a short clock negative
   await act(A,"pause");   await until(A,"window.__state().timer.mode==='pause'");
@@ -410,6 +413,183 @@ section("5 · sabotage lifecycle");
   check("foreman is told CC resolves it (no SUCCESS/FAILED buttons)",
     !/SUCCESS/.test(foremanControls) || /Central Command resolves it/.test(foremanControls));
 }
+
+/* ================================================================= */
+// Readers shared by the two sabotage-draw sections below.
+const SABPROPS = Object.keys(APP.props);
+const SABNUM = ["no","one","two","three","four","five","six"];
+// The TV overlay separates the props with <br>; the card lists them in an <li>.
+const tvItems = p => p.evaluate(()=>{
+  const d=document.querySelector(".overlay.sab .items");
+  return d ? d.innerHTML.split(/<br\s*\/?>/i).map(x=>x.replace(/<[^>]*>/g,"").trim()).filter(Boolean) : null;
+});
+const cardItems = p => p.evaluate(()=>{
+  const ul=document.querySelector(".sabitems");
+  return ul ? [...ul.querySelectorAll("li b")].map(b=>b.textContent.trim()) : null;
+});
+
+// The three printed sets are gone — every scramble is drawn now. What matters
+// is not which props come up but that ONE draw happened and every screen in the
+// room is reading that same one. Five devices each rolling their own five would
+// send the crew hunting five different lists, and nobody would know why.
+section("5b · the draw — one list, on every screen");
+{
+  const A = await mk("/c/cc","g-draw"), F = await mk("/c/foreman","g-draw"),
+        M = await mk("/monitor","g-draw"), G = await mk("/c/gm","g-draw");
+
+  // driven from the floor phone, because that is who gets tapped by an imposter
+  await act(F,"sab");
+  await until(M,"!!document.querySelector('.overlay.sab')");
+  await until(A,"!!document.querySelector('.sabitems')");
+  await until(G,"!!document.querySelector('.sabitems')");
+  await settle(400);
+  const items = (await st(F)).sabItems;
+  check("a default draw is five props", items.length===5, JSON.stringify(items));
+  check("every drawn prop is a real one with a known door",
+    items.length>0 && items.every(p=>SABPROPS.includes(p) && APP.props[p]), JSON.stringify(items));
+  check("no prop is drawn twice", new Set(items).size===items.length, JSON.stringify(items));
+  check("the list comes back in door order, the way it is read aloud",
+    eq(items, items.slice().sort((a,b)=>SABPROPS.indexOf(a)-SABPROPS.indexOf(b))), JSON.stringify(items));
+
+  const agree = await allAgree([A,F,M,G]);
+  check("all four devices hold the same drawn list",
+    agree.ok && eq(agree.state.sabItems, items),
+    agree.ok ? JSON.stringify(agree.state.sabItems) : agree.detail);
+  const onTV = await tvItems(M), onDesk = await cardItems(A),
+        onFloor = await cardItems(F), onGM = await cardItems(G);
+  check("the TV paints exactly those props, in that order", eq(onTV, items), JSON.stringify(onTV));
+  check("the desk card paints exactly those props, in that order", eq(onDesk, items), JSON.stringify(onDesk));
+  check("the floor phone paints them too", eq(onFloor, items), JSON.stringify(onFloor));
+  check("…and so does the Game Master's", eq(onGM, items), JSON.stringify(onGM));
+
+  const LATE = await mk("/monitor","g-draw");
+  await until(LATE,"!!document.querySelector('.overlay.sab')");
+  check("a device joining mid-scramble reads that list, it does not draw its own",
+    eq(await tvItems(LATE), items), JSON.stringify(await tvItems(LATE)));
+
+  // the doors: the desk must be able to verify, the room must have to search
+  const cardHTML = await html(A), tvHTML = await html(M);
+  check("the desk card gives Central Command every door",
+    items.every(p=>cardHTML.includes("door "+APP.props[p])),
+    (cardHTML.match(/door [UD]\d/g)||[]).join(","));
+  check("the TV gives away no doors at all", !/door [UD]\d/.test(tvHTML),
+    (tvHTML.match(/door [UD]\d/g)||[]).join(","));
+  check("card and TV both spell the count out, and it matches the list",
+    cardHTML.includes(`one item per person · ${SABNUM[items.length]} people`) &&
+    tvHTML.includes(`ONE ITEM PER PERSON · ${SABNUM[items.length].toUpperCase()} PEOPLE`),
+    ((cardHTML.match(/one item per person · \w+ people/)||[""])[0])+" / "+
+    ((tvHTML.match(/[A-Z]+ PEOPLE/)||[""])[0]));
+  check("the card header counts this sabotage against the allowance",
+    cardHTML.includes("SABOTAGE · 1 of 2"), (cardHTML.match(/SABOTAGE · [^<]*/)||[""])[0]);
+  check("the undo entry names the draw, not a set number",
+    (await st(A)).hist.slice(-1)[0].label==="Sabotage — 5 props",
+    (await st(A)).hist.slice(-1)[0].label);
+  await act(A,"sabOk"); await until(M,"window.__state().banner==='none'");
+
+  // Eight scrambles. Five of six props is only six possible lists, so strict
+  // uniqueness is the wrong bar — repeats are expected. Eight identical is not.
+  const draws = [];
+  for(let i=0;i<8;i++){
+    await act(A,"sab"); await until(M,"window.__state().banner==='sabotage'");
+    await settle(200);
+    const d = (await st(M)).sabItems;
+    draws.push(d.join(","));
+    check(`draw ${i+1} is five real props with no repeat`,
+      d.length===5 && new Set(d).size===5 && d.every(p=>SABPROPS.includes(p)), JSON.stringify(d));
+    await act(A,"sabOk"); await until(M,"window.__state().banner==='none'");
+    await settle(120);
+  }
+  const distinct = new Set(draws).size;
+  check("repeated sabotages do not hand out the same list every time", distinct>1,
+    `${distinct} distinct of 8 — ${[...new Set(draws)].join(" | ")}`);
+  note(`eight draws produced ${distinct} distinct lists (six are possible)`);
+
+  // the Game Master's dial is what the next draw asks for
+  for(const n of [2,6,3]){
+    const from = (await st(G)).sabProps;
+    for(let i=0;i<Math.abs(n-from);i++){await act(G,"sabPropsAdj", n>from?1:-1); await settle(150)}
+    await until(F,`window.__state().sabProps===${n}`);
+    await act(F,"sab"); await until(M,"window.__state().banner==='sabotage'");
+    await settle(250);
+    const d = (await st(M)).sabItems;
+    check(`the dial at ${n} draws exactly ${n} props`,
+      d.length===n && new Set(d).size===n && d.every(p=>SABPROPS.includes(p)), JSON.stringify(d));
+    check(`…and the TV spells ${n} out under the list`,
+      (await html(M)).includes(`${SABNUM[n].toUpperCase()} PEOPLE`),
+      ((await html(M)).match(/[A-Z]+ PEOPLE/)||[""])[0]);
+    const a2 = await allAgree([A,F,M,G]);
+    check(`…and every device agrees on that ${n}-prop list`,
+      a2.ok && eq(a2.state.sabItems, d), a2.ok?JSON.stringify(a2.state.sabItems):a2.detail);
+    await act(A,"sabOk"); await until(M,"window.__state().banner==='none'");
+  }
+
+  // the Game Master can lower the cap under what has already fired
+  await act(A,"sab"); await until(A,"!!document.querySelector('.sabitems')");
+  await settle(300);
+  const used = (await st(A)).sabotagesUsed;
+  check("past the cap the card names which sabotage this was, not “12 of 2”",
+    (await html(A)).includes(`SABOTAGE · no. ${used}`),
+    ((await html(A)).match(/SABOTAGE · [^<]*/)||[""])[0]);
+  await act(A,"sabOk"); await until(M,"window.__state().banner==='none'");
+}
+
+/* ================================================================= */
+// A document can carry a sabotage banner with no usable draw behind it: one
+// written before the draw existed, or a write that half-arrived. The TV is in
+// front of the whole room, so this must not throw and must not paint junk.
+section("5c · a sabotage banner with no usable list behind it");
+if(EMU){
+  const enc = v =>
+    Array.isArray(v)     ? {arrayValue:{values:v.map(enc)}} :
+    v===null             ? {nullValue:null} :
+    typeof v==="number"  ? {integerValue:String(v)} :
+    typeof v==="boolean" ? {booleanValue:v} :
+    typeof v==="object"  ? {mapValue:{fields:Object.fromEntries(Object.entries(v).map(([k,x])=>[k,enc(x)]))}} :
+                           {stringValue:String(v)};
+  // Straight into the emulator, around the app. A field named in the mask but
+  // absent from the body is deleted — that is the "written before the draw" case.
+  const write = async (id, fields) => {
+    const mask = Object.keys(fields).map(k=>"updateMask.fieldPaths="+k).join("&");
+    const body = {fields:Object.fromEntries(Object.entries(fields)
+      .filter(([,v])=>v!==undefined).map(([k,v])=>[k,enc(v)]))};
+    const r = await fetch(`http://${EMU_HOST}:${EMU_PORT}/v1/projects/${PROJECT}/databases/(default)/documents/games/${id}?${mask}`,
+      {method:"PATCH", headers:{Authorization:"Bearer owner","Content-Type":"application/json"},
+       body:JSON.stringify(body)});
+    return r.ok;
+  };
+  const RUNNING = () => ({mode:"run", endsAt:Date.now()+90000, remain:90000, label:"SABOTAGE"});
+  const cases = [
+    ["no sabItems field at all", {banner:"sabotage", phase:RUNNING(), sabItems:undefined}, []],
+    ["sabItems is a string",     {banner:"sabotage", phase:RUNNING(), sabItems:"FUSE, BATTERY"}, []],
+    ["sabItems is a map",        {banner:"sabotage", phase:RUNNING(), sabItems:{a:"FUSE"}}, []],
+    ["sabItems holds junk",      {banner:"sabotage", phase:RUNNING(), sabItems:["BANANA",7,null,"FUSE"]}, ["FUSE"]],
+  ];
+  for(const [i,[name, fields, expect]] of cases.entries()){
+    const id = "g-bad-"+i;                               // its own document, so one case cannot leak into the next
+    const DESK = await mk("/c/cc", id);                  // let the app create a normal document first
+    const errs0 = pageErrs.length;
+    check(`${name} — written straight into Firestore`, await write(gid(id), fields));
+    await until(DESK,"window.__state().banner==='sabotage'");
+    const TV = await mk("/monitor", id);                 // and a device that only ever sees the broken one
+    await settle(700);
+    const s = await st(TV);
+    check(`${name} — the TV still answers`, !!s && s.banner==="sabotage", JSON.stringify(s&&s.sabItems));
+    const h = await html(TV);
+    check(`${name} — the overlay is the sabotage one, and prints no junk`,
+      /SABOTAGE/.test(h) && !/undefined|NaN|\[object Object\]/.test(h),
+      (h.match(/undefined|NaN|\[object Object\]/g)||[]).join(","));
+    check(`${name} — the TV lists only real props`, eq(await tvItems(TV), expect),
+      JSON.stringify(await tvItems(TV)));
+    check(`${name} — the desk card lists only real props`, eq(await cardItems(DESK), expect),
+      JSON.stringify(await cardItems(DESK)));
+    check(`${name} — the spelled count matches what is actually listed`,
+      h.includes(`${SABNUM[expect.length].toUpperCase()} PEOPLE`),
+      ((h.match(/[A-Z]+ PEOPLE/)||[""])[0]));
+    check(`${name} — nothing threw on either device`, pageErrs.length===errs0,
+      pageErrs.slice(errs0).join(" | "));
+    if(!expect.length) note(`${name}: the room sees the SABOTAGE overlay with an empty list ("NO PEOPLE")`);
+  }
+} else note("skipped — needs the emulator's REST API to write a broken document");
 
 /* ================================================================= */
 section("6 · counters and clamps");
@@ -537,8 +717,12 @@ section("8 · undo — depth, compounds, cross-device");
   await act(A,"sabFail"); await until(B,"window.__state().deaths===7");
   await act(B,"undo"); await until(A,"window.__state().deaths===5");
   s = await st(A);
-  check("undo of sabotage-fail restores deaths, banner, set and phase",
-    s.deaths===5 && s.banner==="sabotage" && s.sabItems.length===5 && s.phase.label==="SABOTAGE");
+  check("undo of sabotage-fail restores deaths, banner, phase and the exact drawn list",
+    s.deaths===5 && s.banner==="sabotage" && s.phase.label==="SABOTAGE" &&
+    s.sabItems.length===5 && eq(s.sabItems, pre.sabItems),
+    `was ${JSON.stringify(pre.sabItems)} → now ${JSON.stringify(s.sabItems)}`);
+  check("…and the props on the desk card are that same list again",
+    eq(await cardItems(A), pre.sabItems), JSON.stringify(await cardItems(A)));
   check("undo of sabotage-fail restores the clock too",
     Math.abs(s.timer.endsAt-pre.timer.endsAt)<50, (s.timer.endsAt-pre.timer.endsAt)+"ms");
 

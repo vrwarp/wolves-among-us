@@ -280,13 +280,24 @@ section("5 · sequences nobody planned");
   await act(A,"sab"); await settle(400); await act(A,"sabOk"); await settle(600);
   check("two sabotages used", (await st(A)).sabotagesUsed===2, "used="+(await st(A)).sabotagesUsed);
   const before3 = await st(A);
-  const clicked = await tap(A,"Set 1");
+  // One button now, not three sets — and the guard is the button's disabled
+  // state, so click it for real and prove the tap is swallowed.
+  const third = await A.evaluate(()=>{
+    const b=[...document.querySelectorAll("button.btn-sab")][0];
+    if(!b) return {there:false};
+    const o={there:true, disabled:b.disabled, label:b.textContent.trim()};
+    b.click();
+    return o;
+  });
   await settle(700);
-  check("a third sabotage cannot be started from the buttons",
-    (await st(A)).sabotagesUsed===2 && eq(pick(before3), pick(await st(A))), diff(before3, await st(A)));
-  const ghostBtns = await G.evaluate(()=>[...document.querySelectorAll("button")]
-    .filter(x=>/^Set [123]$/.test(x.textContent.trim())).map(x=>x.disabled));
-  check("…on the ghost's phone too", ghostBtns.length===3 && ghostBtns.every(Boolean), JSON.stringify(ghostBtns));
+  check("a third sabotage cannot be started from the button",
+    third.there===true && third.disabled===true && (await st(A)).sabotagesUsed===2 &&
+    eq(pick(before3), pick(await st(A))),
+    JSON.stringify(third)+" "+diff(before3, await st(A)));
+  check("…and the dead button says why", /none left/.test(third.label||""), third.label);
+  const ghostBtns = await G.evaluate(()=>[...document.querySelectorAll("button.btn-sab")]
+    .map(x=>x.disabled));
+  check("…on the ghost's phone too", ghostBtns.length===1 && ghostBtns.every(Boolean), JSON.stringify(ghostBtns));
 
   // new round while a meeting is open
   await act(A,"meeting"); await settle(600);

@@ -4,7 +4,7 @@
 // corrections, a phone that dies and comes back, and a wifi drop.
 // After every single step all six devices must agree.
 //   EMU=1 node test/test_fullgame.mjs
-import {EMU, DEF, FIELDS, section, check, note, eq, pick, diff, gid, settle,
+import {EMU, APP, DEF, FIELDS, section, check, note, eq, pick, diff, gid, settle,
         boot, mk, live, st, conn, act, until, softUntil, html, tap,
         confirmNewRound, allAgree, raw, pageErrs, finish} from "./harness.mjs";
 
@@ -60,14 +60,38 @@ section("round 1 — by the book");
   await beat("Foreman reports a kill — CC ticks a death", CC, p=>act(p,"dAdj",1), s=>s.deaths===1);
   await beat("a second kill", CC, p=>act(p,"dAdj",1), s=>s.deaths===2);
 
-  await beat("an imposter taps the Referee — Referee starts Sabotage set 2", RF,
+  await beat("an imposter taps the Referee — the Referee starts a sabotage", RF,
     p=>act(p,"sab"), s=>s.banner==="sabotage" && s.sabItems.length===5 && s.sabotagesUsed===1);
   const sab = await st(TV), tvHtml = await html(TV);
-  const props = ["FUSE","BATTERY","KEYCARD","O2 TANK","REACTOR ROD"];
+  const PROPS = Object.keys(APP.props);
+  const drawn = sab.sabItems;
+  // The props are drawn now, so no test can know the five in advance. What it
+  // can require: that they are real, that none repeats, and — the one that would
+  // wreck the night — that every device in the building is reading that ONE list
+  // rather than each rolling its own five.
+  check("the draw is five real props with no repeat",
+    drawn.length===5 && new Set(drawn).size===5 && drawn.every(x=>PROPS.includes(x)),
+    JSON.stringify(drawn));
+  const listOf = p => p.evaluate(()=>{
+    const d=document.querySelector(".overlay.sab .items");
+    if(d) return d.innerHTML.split(/<br\s*\/?>/i).map(x=>x.replace(/<[^>]*>/g,"").trim()).filter(Boolean);
+    const ul=document.querySelector(".sabitems");
+    return ul ? [...ul.querySelectorAll("li b")].map(b=>b.textContent.trim()) : null;
+  });
+  const held = await Promise.all(ALL.map(p=>st(p).then(s=>s.sabItems)));
+  check("all seven devices hold that one drawn list, not one each",
+    held.every(l=>eq(l,drawn)), NAMES.map((n,i)=>n+":"+JSON.stringify(held[i])).join(" | "));
+  const painted = await Promise.all(ALL.map(listOf));
+  check("…and all seven have painted those same props on screen",
+    painted.every(l=>eq(l,drawn)), NAMES.map((n,i)=>n+":"+JSON.stringify(painted[i])).join(" | "));
   // the doors are deliberately NOT on the TV — finding the props is the scramble
-  check("the TV lists set 2's five props, without giving their doors away",
-    /SABOTAGE/.test(tvHtml) && props.every(x=>tvHtml.includes(x)) && !/door [UD]\d/.test(tvHtml),
-    props.filter(x=>!tvHtml.includes(x)).join(",")||"all present");
+  check("the TV lists exactly the props that were drawn, without giving their doors away",
+    /SABOTAGE/.test(tvHtml) && eq(painted[0], drawn) && !/door [UD]\d/.test(tvHtml),
+    (tvHtml.match(/door [UD]\d/g)||[]).join(",")||JSON.stringify(painted[0]));
+  const ccHtml = await html(CC);
+  check("…while the desk card still tells Central Command which door each is at",
+    drawn.every(x=>ccHtml.includes("door "+APP.props[x])),
+    (ccHtml.match(/door [UD]\d/g)||[]).join(","));
   check("the sabotage phase clock is running at 2:00 on every device",
     sab.phase.label==="SABOTAGE" && sab.phase.remain===120000,
     sab.phase.label+"/"+sab.phase.remain);
@@ -92,14 +116,21 @@ section("round 1 — by the book");
     s=>s.deaths===3 && s.banner==="none");
 
   await beat("the GM resumes the clock", GM, p=>act(p,"start"), s=>s.timer.mode==="run");
-  await beat("the second sabotage — Foreman gets tapped, set 3", FM, p=>act(p,"sab"),
+  await beat("the second sabotage — the Foreman gets tapped", FM, p=>act(p,"sab"),
     s=>s.sabotagesUsed===2 && s.sabItems.length===5);
-  const sets = await CC.evaluate(()=>[...document.querySelectorAll("button")]
-    .filter(x=>/^Set [123]$/.test(x.textContent.trim())).map(x=>x.disabled));
-  check("with both sabotages spent the Set buttons are dead on every phone",
-    sets.length===0 || sets.every(Boolean), JSON.stringify(sets));
+  const second = (await st(TV)).sabItems;
+  check("the second scramble is its own draw, not a repeat of the printed card",
+    second.length===5 && new Set(second).size===5 && second.every(x=>PROPS.includes(x)),
+    JSON.stringify(second));
   await beat("the crew blows it — FAILED costs 2 deaths and 1:30", CC, p=>act(p,"sabFail"),
     s=>s.deaths===5 && s.banner==="none");
+  // the allowance is spent, so the one sabotage button is dead on every phone
+  // that carries it (the GM's own view never has one — theirs is the dial)
+  const sabBtns = await Promise.all([CC,CC2,FM,RF,GH].map(p=>p.evaluate(()=>{
+    const b=[...document.querySelectorAll("button.btn-sab")];
+    return b.length===1 ? b[0].disabled : "buttons:"+b.length})));
+  check("with both sabotages spent the sabotage button is dead on every phone",
+    sabBtns.every(x=>x===true), JSON.stringify(sabBtns));
 
   const now = await st(TV);
   check("deaths are past the threshold — the TV calls it for the imposters",
@@ -208,7 +239,7 @@ section("round 2 — reset and replay");
   await beat("three quick deaths", CC, async p=>{
     for(let i=0;i<3;i++){await act(p,"dAdj",1); await settle(300)}}, s=>s.deaths===3);
   // The button that started a bare 2:00 scramble is gone from the desk — a
-  // sabotage now always comes in through a Set. The action itself still exists
+  // sabotage now always comes in through the draw. The action itself still exists
   // and still has to work, so this drives it directly rather than by tap.
   await beat("a bare 2:00 sabotage stopwatch, started by the action alone", CC,
     p=>act(p,"phasePre",120,"SABOTAGE"), s=>s.phase.label==="SABOTAGE");

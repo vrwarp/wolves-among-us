@@ -35,6 +35,15 @@ await until(B,"window.__state().banner==='sabotage' && window.__state().deaths==
 let sB=await st(B);
 check("B sees A's clock running",sB.timer.mode==="run");
 check("B sees death=1, five props, phase SABOTAGE",sB.deaths===1&&sB.sabItems.length===5&&sB.phase.label==="SABOTAGE");
+// The props are drawn, not picked from a printed set, so the only thing that
+// can be asserted about them is that there is ONE draw and both screens have it.
+let sA0=await st(A);
+check("A and B hold the same drawn props, in the same order",
+  JSON.stringify(sB.sabItems)===JSON.stringify(sA0.sabItems));
+check("no prop was drawn twice",new Set(sB.sabItems).size===sB.sabItems.length);
+const tvList=await B.evaluate(()=>{const d=document.querySelector(".overlay.sab .items");
+  return d?d.innerHTML.split(/<br\s*\/?>/i).map(x=>x.replace(/<[^>]*>/g,"").trim()).filter(Boolean):null});
+check("the TV has painted exactly that list",JSON.stringify(tvList)===JSON.stringify(sB.sabItems));
 
 console.log("== mid-game join must NOT reset the game (regression) ==");
 const C=await mk("/c/ghost");
@@ -44,6 +53,8 @@ check("after C joins: deaths still 1 on A",sA.deaths===1);
 check("after C joins: sabotage still active on A",sA.banner==="sabotage");
 check("after C joins: clock still running on A",sA.timer.mode==="run");
 check("C sees the live game, not defaults",sC.deaths===1&&sC.banner==="sabotage");
+check("C reads the draw already in progress rather than making its own",
+  JSON.stringify(sC.sabItems)===JSON.stringify(sA.sabItems)&&sC.sabItems.length===5);
 
 console.log("== compound action + cross-device undo ==");
 await act(A,"sabFail");
