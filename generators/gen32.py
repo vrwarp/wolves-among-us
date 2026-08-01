@@ -80,7 +80,15 @@ assert CODE
 for d in DOORS: assert len(set(CODE[d].values()))==G
 share=max(sum(1 for d in DOORS if CODE[d][a]==CODE[d][b]) for a,b in itertools.combinations(range(1,G+1),2))
 print(f"\n  DOOR CODES · {len(pairs)} possible pairs · all {G} distinct at every door · max shared positions {share}")
-json.dump({"groups":G,"doors":DOORS,
+# Each group owes 3 of the 7 doors — night one showed all 7 was a slog. Always
+# at least one per floor, seeded per group so a re-run agrees with the app.
+D3={}
+for g in range(1,G+1):
+    r3=random.Random(7000+g)
+    pick=[r3.choice(DOORS[:4]), r3.choice(DOORS[4:])]
+    pick.append(r3.choice([x for x in DOORS if x not in pick]))
+    D3[str(g)]=sorted(set(pick), key=DOORS.index)
+json.dump({"groups":G,"doors":DOORS,"doors3":D3,
   "cards":{str(g):[list(r) for r in CARDS[g]] for g in CARDS},
   "verse_triples":{str(g):[[V[i][0],V[i][1]] for i in sorted(VT[g],key=lambda i:V[i][1])] for g in VT},
   "gospel":{str(g):w for g,w in GOS.items()},

@@ -4,7 +4,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter, landscape
 from reportlab.lib.colors import Color, black, white
 s=json.load(open('cardspec32.json'))
-CODE=s['code']; DOORS=s['doors']; NG=s['groups']
+CODE=s['code']; DOORS=s['doors']; NG=s['groups']; D3={int(k):v for k,v in s['doors3'].items()}
 VT={int(k):[tuple(x) for x in v] for k,v in s['verse_triples'].items()}
 GOS={int(k):v for k,v in s['gospel'].items()}; DIR={int(k):v for k,v in s['dir'].items()}
 GREY=Color(.40,.38,.36); LINE=Color(.76,.74,.71); FILL=Color(.955,.95,.94)
@@ -47,10 +47,13 @@ def block(c,x,y,w,h,g):
     def lab(t):
         nonlocal ty
         c.setFillColor(GREY); c.setFont("Helvetica-Bold",6.5); c.drawString(x+8,ty,t); ty-=14
-    lab("DOOR CODES")
+    lab("DOOR CODES — boxed = the 3 this card owes")
     for row in (DOORS[:4],DOORS[4:]):
         xx=x+8
         for d in row:
+            if d in D3[g]:
+                c.setStrokeColor(black); c.setLineWidth(1.2); c.setFillColor(white)
+                c.roundRect(xx-3,ty-5,38,15,3,stroke=1,fill=0)
             c.setFillColor(GREY); c.setFont("Helvetica",7.5); c.drawString(xx,ty,d)
             c.setFillColor(black); c.setFont("Helvetica-Bold",11); c.drawString(xx+13,ty-1,CODE[d][str(g)])
             xx+=41
@@ -75,7 +78,7 @@ for page in range((NG+per-1)//per):
     c.setFillColor(GREY); c.setFont("Helvetica",9.5)
     c.drawString(42,PH-68,f"Groups {lo}–{hi}.  Find the group number on the student's card, then check their answers here.")
     c.setFillColor(black); c.setFont("Helvetica-Bold",9)
-    c.drawRightString(PW-42,PH-52,"TONIGHT'S TARGET: ______ pts     PEW BIBLE EDITION: ___________________________")
+    c.drawRightString(PW-42,PH-52,"TONIGHT'S TARGET: ______ pts     BIBLES: ESV LARGE PRINT pew — other prints have DIFFERENT page numbers")
     c.setFillColor(GREY); c.setFont("Helvetica",7.5)
     c.drawRightString(PW-42,PH-66,"Page numbers are worthless against a different printing.")
     c.setStrokeColor(black); c.setLineWidth(1.4); c.line(42,PH-76,PW-42,PH-76)

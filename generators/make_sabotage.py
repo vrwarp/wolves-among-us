@@ -110,7 +110,7 @@ for nm,items in SETS:
     c.drawString(M+50,y," · ".join(f"{i} ({D[i]})" for i in items)); y-=19
 y-=6
 sect("THE CALL")
-line("“LIGHTS. Nobody runs. Bring me five supplies:”", True, 13)
+line("“LIGHTS. Nobody runs. Bring me these supplies:”  (read the list off the TV)", True, 13)
 line("“[read the set] — ONE ITEM PER PERSON. Five items, five different people.”", True, 13)
 line("“You have TWO MINUTES. Go.”", True, 13)
 y-=4
@@ -125,8 +125,8 @@ line("+2 deaths on the whiteboard and −1:30 off the round clock. The round doe
 y-=12
 sect("LIMITS")
 line("Two Sabotage events per round. None in the first two minutes.", False, 12)
-line("Any counselor can be tapped to trigger it — not just the Roaming Referee.", False, 12)
-line("The tapped counselor waits about five seconds, then starts dimming. Others join in.", False, 12)
+line("It starts two ways: a 2-second hold on a STATUS KIOSK (fires 5–15s later, anonymously),", False, 12)
+line("or a spoon tap on any counselor — who waits ~5 seconds, then hits Start sabotage.", False, 12)
 y-=8
 sect("SAFETY — say the first line out loud before the first Sabotage of the night")
 line("Lights DIM, never off. One counselor stands at the stairs and does nothing else.", True, 12)

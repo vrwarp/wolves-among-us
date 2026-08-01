@@ -32,13 +32,13 @@ Doors are labelled **U1 U2 U3 U4** upstairs and **D1 D2 D3** downstairs. The she
 All four counselors on the floor carry all four pages. Before the doors open, write on **every copy**:
 
 - **TONIGHT'S TARGET** — the number you announce in the briefing
-- **PEW BIBLE EDITION** — the page numbers are worthless against a different printing
+- The Bible line is pre-printed: **ESV LARGE PRINT pew** — large print and regular print have DIFFERENT page numbers, so the exact edition matters, not just "ESV"
 
 ## 4. Station signs
 
-**`06-signs/station-signs.pdf`** · 8 pages, **print page 8 twice** = 9 sheets · plain
+**`06-signs/station-signs.pdf`** · 9 pages, **print the SPECIAL DELIVERY page twice** = 10 sheets · plain
 
-`CUP STACK · APPLE STACK · FLIGHT ZONE · SUDOKU & MAZES · BIBLE TABLE · GOSPEL & THEME · DEAD ROOM · SPECIAL DELIVERY ×2` (one per delivery station).
+`CUP STACK · APPLE STACK · FLIGHT ZONE · SUDOKU · MAZE · BIBLE TABLE · GOSPEL & THEME · DEAD ROOM · SPECIAL DELIVERY ×2` (one per delivery station). Sudoku and Maze are separate signs now — they can live in different rooms.
 
 ## 5. Gospel & Theme
 

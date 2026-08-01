@@ -101,9 +101,9 @@ def build(total=None,path="/tmp/pb/playbook.pdf"):
 
     d.h1("At a glance")
     d.b("Crew wins","when every crewmate — living and dead — reaches tonight's target.")
-    d.b("The target is spoken, never printed.","Cards are worth 11. Announce it in the briefing: 6 is easy, 8 is neutral, 10 is hard. At 8 or below a student can skip their 3-point task — that slack is what stops a jammed station from locking anyone out.")
-    d.b("Imposters win","when the death count on the whiteboard reaches the threshold. Start at 6 for ~20 students (7 if 25+ show). Kills and CREWMATE ejections tick the count. An ejected imposter does not — catching one is free.")
-    d.b("3 imposters.","Kill = a spoon tap on the shoulder or upper back. Reload = a silent count of 20. No kills in the first 60 seconds.")
+    d.b("The target is spoken, never printed.","Cards are worth 11. Announce it in the briefing: 4 is easy, 5 is standard, 6 is hard — night one lost round 1 outright at 10 and won round 2 at 5 with a single +0:30. At these targets every student can skip their 3-point task — that slack is what stops a jammed station from locking anyone out.")
+    d.b("Imposters win","when the death count on the whiteboard reaches the threshold. Start at 6 for ~20 students (7 if 25+ show). Only kills and failed Sabotages tick the count — ejections never do. Catching an imposter pays the crew +1:00 on the round clock.")
+    d.b("3–4 imposters.","Kill = a spoon tap on the shoulder or upper back. Reload = walk through any doorway before your next kill (played this way night one — zero disputes). No kills in the first 60 seconds.")
     d.b("The round clock","is the Game Master's, and counts DOWN from 8:00 of floor time. Only meetings pause it. A successful Sabotage adds 1:00; a failed one subtracts 1:30. There are no other timers — if no Sabotage fires, the round simply ends at 0:00.")
     d.b("Meetings happen one way only:","someone finds a body and yells EMERGEN-C in the lobby. There is no button.")
 
@@ -111,7 +111,7 @@ def build(total=None,path="/tmp/pb/playbook.pdf"):
     d.p("Each round is 8 floor minutes but 15–18 real minutes once meetings pause the clock. Two rounds fit the hour; the 96-card deck covers a third if time permits.")
     d.b("0:00","Briefing — 8 minutes, script on the last page. Imposters are tapped privately BEFORE the room fills.")
     d.b("Round 1","8:00 floor time. Budget 2–3 meetings.")
-    d.b("Reset (3–4 min)","Reveal the imposters. Re-place the 6 Sabotage props (hand them to students — the door is printed on each). Restock the gospel boxes. Reset cup lanes and apple trays. Clear the whiteboard; the Game Master adjusts the threshold — imposters got 2 or fewer kills: drop to 4; they hit it before minute five: raise to 8. Re-roll imposters, announce the new target if it changed.")
+    d.b("Reset (3–4 min)","Reveal the imposters. Re-place the 6 Sabotage props (hand them to students — the door is printed on each). Restock the gospel boxes. Reset cup lanes and apple trays. Clear the whiteboard; the Game Master adjusts the threshold — imposters got 2 or fewer kills: drop to 4; they hit it before minute five: raise to 8. Re-roll imposters and RUN THE REVEAL again — they must know each other. Announce the new target if it changed.")
     d.b("New cards each round.","Deal deck 2 starting from group 11, deck 3 starting from group 21, keeping students in the same order — nobody gets the same group twice, so nobody carries door codes forward.")
 
     d.h1("Counselors  (full detail on each role card)")
@@ -126,7 +126,7 @@ def build(total=None,path="/tmp/pb/playbook.pdf"):
 
     d.h1("The tasks")
     d.h2("Easy — 1 point each · on every card")
-    d.b("DOORS.","The card names the student's row (their group number). They copy BOTH letters posted for that row at all 7 doors — U1–U4 upstairs, D1–D3 down. Verify all 14 characters against the answer sheet. Every group has different codes at every door, so a copied answer is 14 wrong characters.")
+    d.b("DOORS.","The card names the student's row (their group number) and THEIR 3 doors — always at least one per floor. They copy BOTH letters at each; verify all 6 characters against the answer sheet, where those doors are boxed. Every group has different codes at every door, so a copied answer is 6 wrong characters. (All 7 doors was a slog — night one's verdict.)")
     d.b("GOSPEL & THEME.","The card gives a word (GOD · PAYING · OUR · EVERYONE · SINS · LIFE). Six boxes around the building each show a sentence with its first word blanked. The student takes ONE card from the box their word completes and hands it over. Check the word on the answer sheet against the card. Keep the card — an adult restocks between rounds.")
     d.h2("Medium — 2 points each · three per card")
     d.b("SIMPLE MAZE / SUDOKU.","Take one numbered puzzle slip, solve it, show any counselor. Sudoku answers are on the key by number — or scan it by eye.")
@@ -141,15 +141,15 @@ def build(total=None,path="/tmp/pb/playbook.pdf"):
 
     d.h1("Imposters")
     d.b("Blend in.","Do real tasks, earn real marks — an imposter's card looks exactly like anyone else's, so “show me your card” proves nothing.")
-    d.b("The kill.","Tap, say nothing, keep walking. Count 20 silently before the next one. Target anyone standing alone.")
-    d.b("SABOTAGE: LIGHTS OUT.","Tap ANY counselor with your spoon. They wait ~5 seconds, then the lights dim. Central Command reads five props and their doors from the script page. The crew has 2:00 to bring all five — ONE ITEM PER PERSON, five different people. Succeed: +1:00 on the round clock. Fail: +2 deaths and −1:30. Two per round, none in the first two minutes.")
+    d.b("The kill.","Tap, say nothing, keep walking. Walk through a doorway to reload before the next one. Target anyone standing alone.")
+    d.b("SABOTAGE.","Hold any STATUS KIOSK screen for 2 full seconds, then walk away — it fires 5–15 seconds later, and nobody knows who. (Tapping any counselor with your spoon still works too.) The TV goes red and the alarm sounds; in the dark, dim the lights as well. Central Command reads the drawn props off the TV. The crew has 2:00 — ONE ITEM PER PERSON, a different person per prop. Succeed: +1:00 on the round clock. Fail: +2 deaths and −1:30. Two per round, none in the first two minutes. Night one barely used it — sell it to the imposters in the briefing.")
     d.b("Sabotage safety.","Lights DIM, never off. One counselor stands at the stairs and does nothing else. Flashlights to the stairs and the Ghost Guide. Running during Sabotage costs a mark, crossed out on the spot.")
 
     d.h1("Death, bodies and meetings")
     d.b("When you die:","lie down where you were tapped — against a wall, never in a doorway, never on stairs. Silent. You stay until someone finds you.")
     d.b("Finding a body:","say NOTHING at the scene. Walk to the lobby, and the moment you cross in, yell EMERGEN-C. Everyone echoes it and walks in. The dead player stands and walks straight to the dead room — ghosts do not attend meetings.")
     d.b("The meeting — 3:00, hard stop.","0:00–0:30 THE REPORT: silence; the finder says where the body was, who they saw, who they suspect; interrupting costs your vote. 0:30–2:00 NOMINATIONS: “I nominate ___ because ___” — no second within five seconds and it dies; ends at three seconded names. 2:00–2:30 THE CORNERS: 15 seconds each to answer. 2:30–3:00 THE VOTE: walk to a corner to eject, stand dead centre to skip; largest corner wins, tie ejects nobody.")
-    d.b("Reveal the result on the spot.","Say whether the ejected player was an imposter. Crewmate: tick the death board. Imposter: no tick. Then everyone back to the floor — Central Command never lets a meeting stretch past 3:00.")
+    d.b("Reveal the result on the spot.","Say whether the ejected player was an imposter. Crewmate: out — the board does NOT move. Imposter: caught, and the crew earns +1:00 on the clock. Then everyone back to the floor — Central Command never lets a meeting stretch past 3:00.")
 
     d.h1("Quick rulings")
     for a,b_ in [
@@ -160,7 +160,9 @@ def build(total=None,path="/tmp/pb/playbook.pdf"):
       ("A student runs","Verbal warning, then cross out one mark box and initial it."),
       ("Argument over a mark","The counselor's mark is final. No appeals."),
       ("Imposter taps any counselor","Sabotage triggers, whoever it was."),
-      ("Ejected player was an imposter","No tick on the death count. Their removal is free."),
+      ("Ejected player was an imposter","No tick — and the crew earns +1:00 on the round clock."),
+      ("Ejected player was a crewmate","Also no tick. They're just dead — losing a live tasker is cost enough."),
+      ("A crew student pokes the kiosk","Nothing happens — short taps are inert. Don't explain why."),
       ("Lost card","Central Command reissues once: student states their total, CC writes and initials it. Taking or destroying someone else's card ends your night."),
       ("Ghost talking toward the hall","Ghost Guide pauses their origami for 30 seconds."),
       ("A counselor mis-taps the app","Call it to the Game Master. Undo is theirs alone, and it moves the whole game back one step."),
@@ -187,15 +189,27 @@ def build(total=None,path="/tmp/pb/playbook.pdf"):
       "“Walk. One foot on the ground. Always.”",
       "“If the lights dim, freeze and listen for Central Command. One item per person.”"],1):
         d.b(f"{i}.",t)
-    d.b("Privately, before the room fills, tell the 3 imposters:","do real tasks, get real marks, count 20 between kills, nothing in the first minute, target anyone alone — and tapping a counselor triggers Sabotage.")
+    d.b("Privately, at the reveal, tell the imposters:","do real tasks, get real marks, walk through a doorway between kills, nothing in the first minute, target anyone alone — and a 2-second hold on any status kiosk fires a Sabotage after you're gone. Use them: an unused Sabotage is a free gift to the crew.")
+
+    d.h1("The reveal  (every round — night one skipped it and the imposters suffered)")
+    d.p("Imposters must know each other. Circle up, then read this verbatim:",col=GREY,sz=9.8)
+    for i,t in enumerate([
+      "“Everyone: eyes closed.”  (walk the circle, tap the imposters)",
+      "“If I tapped you — and only if I tapped you — raise a hand high. Eyes stay closed.”",
+      "“Imposters: open your eyes. Every raised hand is your partner. Memorize them.”",
+      "“Imposters: close your eyes. Hands down.”",
+      "“Everyone: arms up. … And down.”  (cover — nobody can tell who moved before)",
+      "“Open your eyes.”"],1):
+        d.b(f"{i}.",t)
 
     d.h1("Ten-minute pre-game check")
     for t in ["7 door sheets taped up, all four corners","6 Sabotage props taped at their printed doors",
-      "Tonight's target and the pew Bible edition written on all 4 answer-sheet copies",
+      "Tonight's target written on all 4 answer-sheet copies — Bibles are ESV LARGE PRINT (other prints = different page numbers)",
       "6 gospel boxes stocked and spread out — OUR and SINS far apart","Bible table set with 6 identical Bibles",
       "Cup lanes reset, apple trays down, both flight-zone lines taped","Sudoku and maze stacks out",
       "Red balls in the bowls","Whiteboard blank, death count 0, threshold written beside it",
-      "Both stopwatches zeroed — the round clock (Game Master) and the phase timer (Central Command)",
+      "Every phone scanned in and its dot GREEN, sound tapped on, both TVs' volume HIGH — night one never heard the cues",
+      "1–2 kiosk tablets charged, opened to the Status screen, propped in quiet hallways",
       "A spoon in EVERY student's hand","Imposters briefed privately",
       "Every counselor: role card + ALL COUNSELORS page + all 4 answer-sheet pages"]:
         d.box(t)

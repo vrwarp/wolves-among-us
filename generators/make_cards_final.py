@@ -8,7 +8,7 @@ s=json.load(open('cardspec32.json'))
 CARDS={int(k):[tuple(x) for x in v] for k,v in s['cards'].items()}
 VT={int(k):[tuple(x) for x in v] for k,v in s['verse_triples'].items()}
 DIR={int(k):v for k,v in s['dir'].items()}; GOS={int(k):v for k,v in s['gospel'].items()}
-DOORS=s['doors']; NG=s['groups']
+DOORS=s['doors']; NG=s['groups']; D3={int(k):v for k,v in s['doors3'].items()}
 PTS={'I Can Fly':3,'Verse Order':3,'Cup Stack':2,'Apple Stack':2,'Simple Maze':2,'Sudoku':2,
      'Special Delivery':2,'Doors':1,'Gospel & Theme':1}
 RENAME={'Verse Order':'Find the Verse'}
@@ -73,13 +73,12 @@ def card(c,x0,g):
                 c.rect(x+112,dy-4,38,17,stroke=1,fill=1)
         elif n=='Doors':
             c.setFillColor(GREY); c.setFont("Helvetica",10)
-            c.drawString(x,y-31,f"Row {g} — all 7 doors. Copy BOTH letters at each.")
-            for li,row in enumerate((DOORS[:4],DOORS[4:])):
-                dy=y-53-li*21; xx=x
-                for d in row:
-                    c.setFillColor(black); c.setFont("Helvetica-Bold",11); c.drawString(xx,dy,d)
-                    c.setStrokeColor(black); c.setLineWidth(1.1); c.setFillColor(white)
-                    c.rect(xx+19,dy-4,34,17,stroke=1,fill=1); xx+=61
+            c.drawString(x,y-31,f"Row {g} — YOUR 3 doors. Copy BOTH letters at each.")
+            dy=y-56; xx=x
+            for d in D3[g]:
+                c.setFillColor(black); c.setFont("Helvetica-Bold",13); c.drawString(xx,dy,d)
+                c.setStrokeColor(black); c.setLineWidth(1.1); c.setFillColor(white)
+                c.rect(xx+26,dy-5,44,20,stroke=1,fill=1); xx+=90
         else:
             dy=y-21; c.setFillColor(GREY)
             for d in detail(g,n):

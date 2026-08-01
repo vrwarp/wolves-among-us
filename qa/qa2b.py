@@ -129,7 +129,7 @@ for i,s in enumerate(sets,1):
 print(f"  [x] props↔CC map identical ({pm==cc==WANT}) · 3 sets, each 5 items at true doors, both floors")
 
 print("== STATION SIGNS: points (poppler) ==")
-want={'CUP STACK':'2 PTS','APPLE STACK':'2 PTS','FLIGHT ZONE':'3 PTS','SUDOKU & MAZES':'2 PTS',
+want={'CUP STACK':'2 PTS','APPLE STACK':'2 PTS','FLIGHT ZONE':'3 PTS','SUDOKU':'2 PTS','MAZE':'2 PTS',
       'BIBLE TABLE':'3 PTS','GOSPEL & THEME':'1 PT','DEAD ROOM':'GHOSTS ONLY','SPECIAL DELIVERY':'2 PTS'}
 got={}
 for W,H,ws in words('footprints-print-pack/06-signs/station-signs.pdf'):
@@ -138,5 +138,5 @@ for W,H,ws in words('footprints-print-pack/06-signs/station-signs.pdf'):
     pts=[t for _,t,h in ls if re.fullmatch(r'\d PTS?|GHOSTS ONLY',t)]
     got[title]=pts[0] if pts else None
 chk(got==want,f"station signs {got}")
-print("  [x] 8 station signs: titles and point values all correct")
+print("  [x] 9 station signs: titles and point values all correct")
 print(f"\n{'ALL QA2B CHECKS PASSED' if not fails else f'{len(fails)} REAL FAILURES'}")

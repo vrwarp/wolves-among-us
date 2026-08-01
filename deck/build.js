@@ -98,12 +98,12 @@ stat('What is on your card','YOUR CARD','11','POINTS AVAILABLE',[
   'Your GROUP NUMBER is in the top right corner. You will need it.',
   'If you die, there are extra boxes at the bottom for origami.',
 ])
-  .addNotes('Announce tonight’s target out loud here. 8 is the normal setting.');
+  .addNotes('Announce tonight’s target out loud here. 5 is the normal setting — 4 easy, 6 hard.');
 
 section('The Tasks','Easy, medium and hard — you choose');
 
 rows('Worth 1 point','EASY',[
-  {n:1,name:'Doors',desc:'Copy the two letters posted for YOUR ROW at all seven doors.'},
+  {n:1,name:'Doors',desc:'Your card names YOUR 3 doors. Copy the two letters posted for your row at each.'},
   {n:1,name:'Gospel & Theme',desc:'Your card gives you a word. Find the box whose sentence it completes.'},
 ],'Every card has both of these.');
 
@@ -148,19 +148,19 @@ duo('Special Delivery','2 POINTS  ·  THREE RED BALLS',
     'That round trip still counts.',
     'No ball anywhere? Go do something else and come back.'],hc:B});
 
-section('If You Are An Imposter','Three of you. Nobody else knows.');
+section('If You Are An Imposter','A few of you — and you know each other. Nobody else knows.');
 
 rows('The kill','IMPOSTERS',[
   {n:1,name:'Tap them with your spoon',desc:'Shoulder or upper back only. Nothing else, ever.'},
   {n:2,name:'Say nothing. Keep walking.',desc:'Do not react, do not look back, do not smile.'},
-  {n:3,name:'Count silently to twenty',desc:'That is your reload. You cannot kill again until you finish counting.'},
+  {n:3,name:'Walk through a doorway',desc:'That is your reload. You cannot kill again until you have left the room.'},
 ],'Do real tasks. Get real marks. Your card should look exactly like everyone else’s.')
   .addNotes('Brief the three imposters privately before the room fills.');
 
 rows('Sabotage: Lights Out','IMPOSTERS  ·  TWICE PER ROUND',[
-  {n:1,name:'Tap any counselor with your spoon',desc:'They wait a few seconds, then the lights start going down.'},
-  {n:2,name:'Central Command calls five supplies',desc:'FUSE, BATTERY, KEYCARD, O2 TANK, WRENCH, REACTOR ROD — each one taped at a door.'},
-  {n:3,name:'The crew has two minutes',desc:'ONE ITEM PER PERSON. Five items means five different people. Nobody runs.'},
+  {n:1,name:'Hold a STATUS KIOSK for 2 seconds',desc:'It fires after you walk away — nobody sees who. (Tapping a counselor works too.)'},
+  {n:2,name:'The TV goes red and calls supplies',desc:'FUSE, BATTERY, KEYCARD, O2 TANK, WRENCH, REACTOR ROD — each one taped at a door.'},
+  {n:3,name:'The crew has two minutes',desc:'ONE ITEM PER PERSON — a different person for every item. Nobody runs.'},
 ],'Crew fails: two more deaths and ninety seconds off the clock. Crew wins: a whole extra minute.')
   .addNotes('Lights DIM, never off. One counselor stands at the stairs and does nothing else.');
 
@@ -186,7 +186,7 @@ rows('The meeting','THREE MINUTES  ·  HARD STOP',[
   {n:'2',name:'Nominations — 90 seconds',desc:'“I nominate ___ because ___.” No second, and the accusation dies.',fs:15},
   {n:'3',name:'The corners — 30 seconds',desc:'Each nominee gets fifteen seconds to answer their accuser.',fs:15},
   {n:'4',name:'The vote — 30 seconds',desc:'Walk to a corner to eject. Stand dead centre to skip. Biggest corner wins, ties eject nobody.',fs:15},
-],'Ejections are revealed on the spot — a crewmate ticks the death count, an imposter doesn’t.');
+],'Ejections are revealed on the spot. A crewmate: no tick — just gone. An imposter: the crew earns +1:00.');
 
 section('How It Ends');
 

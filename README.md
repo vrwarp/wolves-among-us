@@ -2,14 +2,17 @@
 
 Everything for the youth-group game night: the print pack, the briefing deck,
 the facilitator playbook, and the live companion app. ~20–25 students,
-grades 6–12, 5 counselors, 2–3 rounds. No student phones.
+grades 6–12, 6 counselors (5 in the game + a Game Master), 2–3 rounds. No
+student phones. Played live 2026-07-30 — the rules below carry that night's
+debrief; `STARTER-GUIDE.md` is the fast path to running it again.
 
 ## Start here on game week
 
 | | |
 |---|---|
+| **Next time, start here** | `STARTER-GUIDE.md` — shopping, setup, settings that worked, the reveal script |
 | **What to print** | `print-pack/PRINT-ME-FIRST.md` — every file, copy count, paper type |
-| **The rules** | `print-pack/FACILITATOR-PLAYBOOK.pdf` — 4 pages, self-contained |
+| **The rules** | `print-pack/FACILITATOR-PLAYBOOK.pdf` — 5 pages, self-contained |
 | **The briefing deck** | `deck/among-us-footprints.pptx` — rebuild with `node deck/build.js` |
 | **The companion app** | `companion/SETUP.md` — 10-minute Firebase deploy, then QR the phones |
 
@@ -20,7 +23,8 @@ easier than the BLUE one (green scores 2, blue 3).
 
 - `print-pack/` — the 13 finished PDFs + print guide. These are the artifacts; print from here.
 - `deck/` — 24-slide briefing deck (`build.js` regenerates the .pptx).
-- `companion/` — single-file web app (monitor + 5 role views, shared clock,
+- `companion/` — single-file web app (monitor + 3 role views + the sabotage
+  kiosk, shared clock,
   deaths, sabotage, undo, answer lookup). `appdata.json` is embedded in
   `index.html`. `npm run test:emulator` runs the whole multi-device suite
   against Google's real Firestore emulator — see `companion/test/EMULATOR.md`,
@@ -47,7 +51,7 @@ Python 3 + `reportlab` (`pip install reportlab`). Each generator is standalone:
     python3 generators/make_gospel_cards.py
     python3 generators/make_sabotage.py    # props + Central Command script
     python3 generators/make_roles.py       # role cards
-    python3 generators/make_playbook.py
+    python3 generators/make_playbook.py    # 5 pages — includes the reveal script
     python3 generators/gen_sudoku.py       # 80 puzzles + answers (deterministic seed)
     python3 generators/export_appdata.py   # re-extract app data FROM the printed PDFs
     python3 qa/qa1.py && python3 qa/qa2b.py && python3 qa/qa3.py
@@ -60,10 +64,14 @@ the original workspace).
 ## The game in one breath
 
 Cards are worth 11 (1/2/3-point tasks); the target is announced, never printed
-(6 easy · 8 neutral · 10 hard). Three imposters kill by spoon tap, reload on a
-silent 20-count. Bodies stay until found; meetings only happen via EMERGEN-C;
-ejections are revealed on the spot — a crewmate ticks the death board, an
-imposter is free. Sabotage: any tapped counselor dims the lights, five props
-from five people in 2:00 — success +1:00, failure +2 deaths and −1:30.
-Imposters win at the threshold (start 6); crew wins by everyone reaching the
-target before the 8:00 clock runs out.
+(4 easy · 5 standard · 6 hard). 3–4 imposters — who learn each other at the
+eyes-closed reveal, every round — kill by spoon tap and reload by walking
+through a doorway. Bodies stay until found; meetings happen one way: find a
+body, walk to the lobby, yell EMERGEN-C — the app gathers the room, then runs
+the 3:00 and its stages itself. Ejections never tick the death board (the
+crewmate is just dead); catching an imposter pays the crew +1:00. Sabotage
+fires anonymously from a hallway kiosk (a 2-second hold; a tap on any
+counselor still works): the TV goes red and names the drawn props — all back
+in 2:00 or +2 deaths and −1:30; made it, +1:00. Imposters win at the death
+threshold (start 6); crew wins by everyone reaching the target before the
+8:00 clock runs out.
