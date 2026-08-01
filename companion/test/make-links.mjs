@@ -24,7 +24,7 @@ const b64url = o => Buffer.from(JSON.stringify(o),"utf8").toString("base64")
   .replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 const token = b64url({cfg:CFG, gameId:GAME});
 const VIEWS = [["/monitor","TV Monitor"],["/c/gm","Game Master"],["/c/cc","Central Command"],
-               ["/c/foreman","Foreman"],["/c/referee","Roaming Referee"],["/c/ghost","Ghost Guide"]];
+               ["/c/foreman","Foreman (all floor counselors)"],["/kiosk","Sabotage Kiosk"]];
 const link = v => `${SITE}/#${v}?cfg=${token}`;
 
 console.log(`\ngame id: ${GAME}\n`);
