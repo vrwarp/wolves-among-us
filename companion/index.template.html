@@ -229,6 +229,14 @@ const DEF={round:1,targetPts:8,deaths:0,threshold:6,impostersCaught:0,sabotagesU
   phase:{mode:"idle",endsAt:0,remain:0,label:""}};
 let S=JSON.parse(JSON.stringify(DEF));
 let offset=0, conn="demo", backend=null, uiTab=null, uiMode="grp", uiNum="", uiShare="/monitor", shareUrl="", uiDesk=false;
+// What is half-typed on the connect form. render() replaces the whole page, so
+// anything left only in the DOM is thrown away the next time anything repaints
+// — and something always does, starting with the audio unlock on the first tap.
+// null means "not touched yet, show the pre-fill".
+let uiCfgTxt=null, uiGid=null;
+// Generated once rather than inside the template: a repaint must not hand out
+// a different game id to someone already reading it aloud to another phone.
+let uiNewGid="footprints-"+Math.random().toString(36).slice(2,6);
 const now=()=>Date.now()+offset;
 const remOf=t=>t.mode==="run"?Math.max(0,t.endsAt-now()):t.remain;
 const fmt=ms=>{const s=Math.max(0,Math.round(ms/1000));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")};
@@ -609,7 +617,11 @@ window.act={
   forget(){askConfirm("forget")},
   // must drop the token from the URL too, or the reload would just read it back in
   doForget(){store.removeItem("fpCfg");store.removeItem("fpDemo");cfgToken="";location.hash="#/";location.reload()},   // fpLastCfg survives on purpose
-  forgetAll(){store.removeItem("fpLastCfg");render()},
+  // Record only — no render. Repainting the page under someone's thumb is the
+  // whole bug this exists to fix.
+  typed(which,v){if(which==="cfg")uiCfgTxt=v;else uiGid=v},
+  forgetAll(){store.removeItem("fpLastCfg");uiCfgTxt=null;uiGid=null;
+    uiNewGid="footprints-"+Math.random().toString(36).slice(2,6);render()},
 };
 /* Every confirmation in the app. Each says what will actually happen to the
    room, not what the button is called. */
@@ -1053,10 +1065,12 @@ function homeView(){
     share=`<div class="sect">Connect (once, on this device)</div>
     <div class="card">
       <div class="small" style="margin-bottom:8px">Paste the <b>firebaseConfig</b> block from the Firebase console (SETUP.md walks through it):</div>
-      <textarea id="cfgtxt" placeholder="const firebaseConfig = { apiKey: ... };">${last?esc("const firebaseConfig = "+JSON.stringify(last.cfg,null,2)+";"):""}</textarea>
+      <textarea id="cfgtxt" oninput="act.typed('cfg',this.value)" placeholder="const firebaseConfig = { apiKey: ... };">${
+        esc(uiCfgTxt!==null?uiCfgTxt:last?"const firebaseConfig = "+JSON.stringify(last.cfg,null,2)+";":"")}</textarea>
       ${last?`<div class="small" style="margin-top:6px">Filled in from the last connection on this device. <button class="linkish" onclick="act.forgetAll()">clear it</button></div>`:""}
       <div style="margin:8px 0 4px" class="small">Game id (any word — same on every device):</div>
-      <input type="text" id="gid" value="${last?esc(last.gameId||""):"footprints-"+Math.random().toString(36).slice(2,6)}">
+      <input type="text" id="gid" oninput="act.typed('gid',this.value)" value="${
+        esc(uiGid!==null?uiGid:last?last.gameId||"":uiNewGid)}">
       <div class="row"><button class="btn-acc btn-wide" onclick="act.saveCfg()">Connect</button></div>
       <div class="small" style="text-align:center;margin-top:10px">
         Just looking? <button class="linkish" onclick="act.demo()">Skip — demo mode</button><br>
@@ -1085,11 +1099,20 @@ window.drawQR=async url=>{
 /* ---------------- render / tick ---------------- */
 function render(){
   keepCfgInUrl();
+  // A repaint replaces the page wholesale, so a field being typed into loses
+  // the caret and, on a phone, the keyboard with it. Put both back.
+  const a=document.activeElement;
+  const caret=a&&a.id&&(a.tagName==="INPUT"||a.tagName==="TEXTAREA")
+    ?{id:a.id,s:a.selectionStart,e:a.selectionEnd}:null;
   const {path}=route();
   if(path==="/monitor")monitorView();
   else if(path.startsWith("/c/")){const r=path.split("/")[2];ROLES[r]?counselorView(r):homeView()}
   else homeView();
   if(uiModal)app.insertAdjacentHTML("beforeend",modalHTML());
+  if(caret){
+    const el=document.getElementById(caret.id);
+    if(el){el.focus(); try{el.setSelectionRange(caret.s,caret.e)}catch(e){}}
+  }
 }
 // Clock-driven sound. Every device computes this from the shared absolute
 // deadline, so nothing has to be broadcast and they all fire together.
