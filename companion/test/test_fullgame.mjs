@@ -1,8 +1,9 @@
-// A whole game night, end to end, on six devices at once: the TV, two phones on
-// Central Command, the Foreman, the Roaming Referee and the Ghost Guide.
-// Three rounds, run the way the playbook says — including the mistakes, the
-// corrections, a phone that dies and comes back, and a wifi drop.
-// After every single step all six devices must agree.
+// A whole game night, end to end, on seven devices at once: the TV, two phones
+// on Central Command, the Game Master, the Foreman — and two floor phones that
+// scanned last season's printed referee/ghost QR codes, which now land on the
+// Foreman view. Three rounds, run the way the playbook says — including the
+// mistakes, the corrections, a phone that dies and comes back, and a wifi drop.
+// After every single step all seven devices must agree.
 //   EMU=1 node test/test_fullgame.mjs
 import {EMU, APP, DEF, FIELDS, section, check, note, eq, pick, diff, gid, settle,
         boot, mk, live, st, conn, act, until, softUntil, html, tap, btnText,
@@ -17,10 +18,10 @@ const CC  = await mk("/c/cc",      GAME);   // Central Command, at the desk
 const CC2 = await mk("/c/cc",      GAME);   // a second CC phone — a co-leader
 const GM  = await mk("/c/gm",      GAME);   // the facilitator, outside the game
 const FM  = await mk("/c/foreman", GAME);
-const RF  = await mk("/c/referee", GAME);
-const GH  = await mk("/c/ghost",   GAME);
+const RF  = await mk("/c/referee", GAME);   // old printed QR — redirects to Foreman
+const GH  = await mk("/c/ghost",   GAME);   // old printed QR — redirects to Foreman
 const ALL = [TV,CC,CC2,GM,FM,RF,GH];
-const NAMES = ["TV","CC","CC2","GM","Foreman","Referee","Ghost"];
+const NAMES = ["TV","CC","CC2","GM","Foreman","Floor(old-referee-QR)","Floor(old-ghost-QR)"];
 
 let step = 0;
 // Do a thing on one device, then require every device to land on the same state.
@@ -61,7 +62,7 @@ section("round 1 — by the book");
   await beat("Foreman reports a kill — CC ticks a death", CC, p=>act(p,"dAdj",1), s=>s.deaths===1);
   await beat("a second kill", CC, p=>act(p,"dAdj",1), s=>s.deaths===2);
 
-  await beat("an imposter taps the Referee — the Referee starts a sabotage", RF,
+  await beat("an imposter taps a floor counselor — the old-QR phone starts a sabotage", RF,
     p=>act(p,"sab"), s=>s.banner==="sabotage" && s.sabItems.length===5 && s.sabotagesUsed===1);
   const sab = await st(TV), tvHtml = await html(TV);
   const PROPS = Object.keys(APP.props);
@@ -135,8 +136,10 @@ section("round 1 — by the book");
   check("only now is CC offered the three ways a meeting can end",
     ["Crewmate ejected","IMPOSTER caught","Tie"].every(e=>ccBtns.some(t=>t.startsWith(e))),
     ccBtns.join(" | "));
-  await beat("the vote ejects a crewmate — reveal on the spot", CC, p=>act(p,"ejectCrew"),
-    s=>s.deaths===3 && s.banner==="none");
+  // The ejected crewmate dies in the fiction, but the board does not move —
+  // night one taught the room to stop nominating when a wrong guess cost a tick.
+  await beat("the vote ejects a crewmate — reveal on the spot, no tick", CC, p=>act(p,"ejectCrew"),
+    s=>s.deaths===2 && s.banner==="none");
 
   await beat("the GM resumes the clock", GM, p=>act(p,"start"), s=>s.timer.mode==="run");
   await beat("the second sabotage — the Foreman gets tapped", FM, p=>act(p,"sab"),
@@ -145,8 +148,14 @@ section("round 1 — by the book");
   check("the second scramble is its own draw, not a repeat of the printed card",
     second.length===5 && new Set(second).size===5 && second.every(x=>PROPS.includes(x)),
     JSON.stringify(second));
+  // one at a time: a second tap while this one runs must be swallowed whole
+  const during = await st(CC);
+  await act(RF,"sab"); await settle(700);
+  check("a sab() landing on a live sabotage is a no-op",
+    (await st(CC)).sabotagesUsed===2 && eq(pick(during), pick(await st(CC))),
+    diff(during, await st(CC)) || "used="+(await st(CC)).sabotagesUsed);
   await beat("the crew blows it — FAILED costs 2 deaths and 1:30", CC, p=>act(p,"sabFail"),
-    s=>s.deaths===5 && s.banner==="none");
+    s=>s.deaths===4 && s.banner==="none");
   // the allowance is spent, so the one sabotage button is dead on every phone
   // that carries it (the GM's own view never has one — theirs is the dial)
   const sabBtns = await Promise.all([CC,CC2,FM,RF,GH].map(p=>p.evaluate(()=>{
@@ -165,17 +174,22 @@ section("round 1 — the corrections");
 {
   // "wait — I hit FAILED, they actually got it"
   await beat("the GM undoes CC's mis-tapped FAILED", GM, p=>act(p,"undo"),
-    s=>s.deaths===3 && s.banner==="sabotage");
+    s=>s.deaths===2 && s.banner==="sabotage");
   const gone = await softUntil(TV,"!document.querySelector('.overlay.win')",10000);
   check("the win screen comes off the TV the moment the number is fixed", gone,
     (await st(TV)).deaths+"/"+(await st(TV)).threshold);
   await beat("CC resolves it properly as SUCCESS instead", CC, p=>act(p,"sabOk"),
-    s=>s.banner==="none" && s.deaths===3);
+    s=>s.banner==="none" && s.deaths===2);
 
-  // "and that ejection was the imposter, not a crewmate"
-  await beat("CC corrects the ejection: −1 death …", CC, p=>act(p,"dAdj",-1), s=>s.deaths===2);
-  await beat("…and records the imposter catch", CC2, p=>act(p,"ejectImp"),
+  // "and that ejection was the imposter, not a crewmate" — nothing to un-tick
+  // now that a crew ejection never moved the board; the catch is recorded and
+  // buys the crew its +1:00.
+  const preCatch = (await st(CC)).timer.endsAt;
+  await beat("CC2 records the imposter catch", CC2, p=>act(p,"ejectImp"),
     s=>s.impostersCaught===1 && s.deaths===2);
+  check("the catch bought exactly +1:00 on the running clock",
+    (await st(CC)).timer.endsAt - preCatch === 60000,
+    ((await st(CC)).timer.endsAt - preCatch)+"ms");
   await beat("the GM nudges the threshold back to 6 for the night", GM,
     async p=>{await act(p,"thAdj",1); await settle(250); await act(p,"thAdj",1)}, s=>s.threshold===6);
 
@@ -228,7 +242,10 @@ section("round 1 — a phone dies and comes back");
 section("round 1 — the clock runs out");
 {
   await allAgree(ALL, 20000);
-  await beat("the GM winds the clock all the way down", GM, p=>act(p,"adj",-600000),
+  // −15:00, not −10:00: the night has banked two SUCCESSes and an imposter
+  // catch at +1:00 each, so the clock can be holding up to ~11:00 — the wind
+  // must clear any possible balance for the clamp at 0:00 to engage.
+  await beat("the GM winds the clock all the way down", GM, p=>act(p,"adj",-900000),
     s=>s.timer.mode==="run");
   await until(TV,"!!document.querySelector('.mon.crit')||!!document.querySelector('.overlay.crew')",15000);
   await until(TV,"!!document.querySelector('.overlay.crew')||!!document.querySelector('.overlay.win')",20000);
@@ -267,7 +284,7 @@ section("round 2 — reset and replay");
     s=>s.banner==="sabotage" && s.phase.mode==="run");
   await settle(1600);
   const scramble = await st(TV);
-  await beat("…and the Ghost calls a meeting straight over the top of it", GH,
+  await beat("…and an old-QR floor phone calls a meeting straight over the top of it", GH,
     p=>callMeeting(p),
     s=>s.banner==="meeting" && s.meet.sab===true && s.phase.mode==="pause" &&
        eq(s.sabItems, scramble.sabItems) && s.sabotagesUsed===scramble.sabotagesUsed);
@@ -277,7 +294,7 @@ section("round 2 — reset and replay");
        Math.abs((s.phase.endsAt-Date.now())-heldAt) < 3000);
   await beat("…and the crew get it in the end", CC, p=>act(p,"sabOk"),
     s=>s.banner==="none" && s.sabItems.length===0);
-  await beat("target bumped to 9 points", GM, p=>act(p,"tgAdj",1), s=>s.targetPts===9);
+  await beat("target bumped to 6 — the played hard setting", GM, p=>act(p,"tgAdj",1), s=>s.targetPts===6);
 }
 
 /* ================================================================= */

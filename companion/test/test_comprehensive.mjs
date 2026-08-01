@@ -212,9 +212,12 @@ section("3b · every way out of a meeting hands the round clock back");
   const A = await mk("/c/cc","g-mclock"), M = await mk("/monitor","g-mclock");
   const left = s => s.timer.mode==="run" ? s.timer.endsAt-Date.now() : s.timer.remain;
 
-  for(const [name, exit] of [["End meeting","endMeeting"],
-                             ["Crewmate ejected","ejectCrew"],
-                             ["IMPOSTER caught","ejectImp"]]){
+  // An imposter catch buys +1:00 on the round clock, so its hand-back is the
+  // held time plus the bought minute; the other two exits give back exactly
+  // what the meeting took.
+  for(const [name, exit, bonus] of [["End meeting","endMeeting",0],
+                                    ["Crewmate ejected","ejectCrew",0],
+                                    ["IMPOSTER caught","ejectImp",60000]]){
     await act(A,"resetT"); await act(A,"start");
     await until(M,"window.__state().timer.mode==='run'");
     await settle(600);                       // let real seconds come off it
@@ -233,8 +236,9 @@ section("3b · every way out of a meeting hands the round clock back");
     await settle(400);
     const s = await st(M);
     check(`${name}: the round clock is running again`, s.timer.mode==="run", s.timer.mode);
-    check(`${name}: it resumes where the meeting froze it, not from full`,
-      Math.abs(left(s)-held)<2500, `${Math.round(held)}ms held → ${Math.round(left(s))}ms`);
+    check(`${name}: it resumes where the meeting froze it${bonus?" plus the bought minute":", not from full"}`,
+      Math.abs(left(s)-(held+bonus))<2500,
+      `${Math.round(held)}ms held +${bonus}ms → ${Math.round(left(s))}ms`);
     check(`${name}: and the meeting clock is cleared with it`,
       s.meet.mode==="idle" && s.banner==="none", JSON.stringify(s.meet));
   }
@@ -315,9 +319,11 @@ section("3c · a meeting that ends under a pause hands the clock back on resume"
   const chips = () => A.evaluate(
     "[...document.querySelectorAll('.strip .chip')].map(c=>c.textContent.trim()).join(' | ')");
 
-  for(const [name, exit] of [["End meeting","endMeeting"],
-                             ["Crewmate ejected","ejectCrew"],
-                             ["IMPOSTER caught","ejectImp"]]){
+  // ejectImp's +1:00 lands in `remain` while the game is paused — the deferred
+  // restart then hands back the held time plus the bought minute.
+  for(const [name, exit, bonus] of [["End meeting","endMeeting",0],
+                                    ["Crewmate ejected","ejectCrew",0],
+                                    ["IMPOSTER caught","ejectImp",60000]]){
     await act(A,"resetT"); await act(A,"start");
     await until(M,"window.__state().timer.mode==='run'");
     await settle(600);                       // let real seconds come off it
@@ -335,6 +341,8 @@ section("3c · a meeting that ends under a pause hands the clock back on resume"
       s.timer.mode!=="run" && s.paused.on===true, `${s.timer.mode}, paused.on=${s.paused.on}`);
     check(`${name} under a pause: the clock the meeting took is held for the resume`,
       s.paused.clock===true, JSON.stringify(s.paused));
+    if(bonus) check(`${name} under a pause: the bought minute lands in remain, not on a live clock`,
+      s.timer.remain===held+bonus, `${Math.round(held)}ms held → remain ${Math.round(s.timer.remain)}ms`);
 
     await act(A,"resumeGame");
     await until(M,"window.__state().paused.on===false");
@@ -343,9 +351,9 @@ section("3c · a meeting that ends under a pause hands the clock back on resume"
     s = await st(M);
     check(`${name} under a pause: resuming hands the round clock back`,
       s.timer.mode==="run", s.timer.mode);
-    check(`${name} under a pause: …from where the meeting froze it, not from full`,
-      Math.abs((s.timer.endsAt-Date.now())-held)<2500,
-      `${Math.round(held)}ms held → ${Math.round(s.timer.endsAt-Date.now())}ms`);
+    check(`${name} under a pause: …from where the meeting froze it${bonus?", plus the bought minute":", not from full"}`,
+      Math.abs((s.timer.endsAt-Date.now())-(held+bonus))<2500,
+      `${Math.round(held)}ms held +${bonus}ms → ${Math.round(s.timer.endsAt-Date.now())}ms`);
     check(`${name} under a pause: and the meeting stays ended`,
       s.meet.mode==="idle" && s.banner==="none" && s.phase.mode==="idle", JSON.stringify(s.meet));
     check(`${name} under a pause: no phantom chip left on the desk strip`,
@@ -492,12 +500,12 @@ section("3d · the stages advance with nobody touching anything");
 }
 
 /* ================================================================= */
-// One way in, for everyone. An EMERGEN-C card can be played anywhere in the
+// One way in, for everyone. The EMERGEN-C yell can come from anywhere in the
 // building, so any phone can halt the round — and no phone, the desk included,
 // can start the 3:00 without gathering the room first.
 section("3e · one way in, and it asks first");
 {
-  const roles = ["gm","cc","foreman","referee","ghost"];
+  const roles = ["gm","cc","foreman"];
   const pages = {};
   for(const r of roles) pages[r] = await mk("/c/"+r,"g-call");
   const TV = await mk("/monitor","g-call");
@@ -537,7 +545,7 @@ section("3e · one way in, and it asks first");
     idle.every(h=>/act\.callMeeting\(\)/.test(h)),
     roles.filter((r,i)=>!/act\.callMeeting\(\)/.test(idle[i])).join(",")||"all can");
 
-  await callMeeting(pages.ghost);                          // a ghost calls it, from upstairs
+  await callMeeting(pages.foreman);                        // a floor phone calls it, from upstairs
   for(const r of roles) await until(pages[r],"window.__state().meet.mode==='gather'");
   const gathering = await Promise.all(roles.map(r=>html(pages[r])));
   const canStart = roles.filter((r,i)=>/act\.meeting\(\)/.test(gathering[i]));
@@ -552,7 +560,7 @@ section("3e · one way in, and it asks first");
     !/act\.ejectCrew|act\.callVote/.test(gathering[roles.indexOf("foreman")]));
   // A second call while one is already up must not restart anything.
   const g0 = await st(TV);
-  await act(pages.referee,"doCallMeeting"); await settle(600);
+  await act(pages.foreman,"doCallMeeting"); await settle(600);
   check("a second call landing on top of a live gather is a no-op",
     eq(pick(g0), pick(await st(TV))), diff(g0, await st(TV)));
 
@@ -616,10 +624,11 @@ section("3f · the end options exist only once the meeting is over");
     eq(pick(z), pick(await st(CC))), diff(z, await st(CC)));
   await act(CC,"endMeeting"); await until(CC,"window.__state().meet.mode==='idle'");
 
-  /* --- and each of the three, taken from the over state, hands the round back --- */
-  for(const [name, exit] of [["Crewmate ejected","ejectCrew"],
-                             ["IMPOSTER caught","ejectImp"],
-                             ["Tie","endMeeting"]]){
+  /* --- and each of the three, taken from the over state, hands the round back
+         (the imposter catch with its bought minute on top) --- */
+  for(const [name, exit, bonus] of [["Crewmate ejected","ejectCrew",0],
+                                    ["IMPOSTER caught","ejectImp",60000],
+                                    ["Tie","endMeeting",0]]){
     await act(CC,"resetT"); await act(CC,"start");
     await until(CC,"window.__state().timer.mode==='run'");
     await settle(600);                          // let real seconds come off it
@@ -633,8 +642,8 @@ section("3f · the end options exist only once the meeting is over");
     const s = await st(CC);
     check(`${name} closes an expired meeting and puts the round clock back`,
       s.banner==="none" && s.meet.mode==="idle" && s.timer.mode==="run" &&
-      Math.abs((s.timer.endsAt-Date.now())-held)<2500,
-      `${s.banner}/${s.meet.mode}/${s.timer.mode}, held ${held}ms → ${Math.round(s.timer.endsAt-Date.now())}ms`);
+      Math.abs((s.timer.endsAt-Date.now())-(held+bonus))<2500,
+      `${s.banner}/${s.meet.mode}/${s.timer.mode}, held ${held}ms +${bonus}ms → ${Math.round(s.timer.endsAt-Date.now())}ms`);
     check(`${name}: …and the end options are gone with it`,
       eq(await ends(CC), []), (await ends(CC)).join(","));
   }
@@ -780,23 +789,71 @@ section("3g · a meeting holds a live sabotage");
 }
 
 /* ================================================================= */
-section("4 · ejections");
+// Rewritten for the night-one debrief. A wrong ejection used to tick the death
+// board, which taught the room to stop nominating — so it no longer does: the
+// ejected crewmate dies in the fiction, the board stays put. And catching an
+// imposter now BUYS +1:00 on the round clock, the mirror of a failed sabotage
+// costing 1:30.
+section("4 · ejections — no tick for crew, +1:00 for a catch");
 {
   const A = await mk("/c/cc","g-eject"), M = await mk("/monitor","g-eject");
-  await startMeeting(A); await until(M,"window.__state().meet.mode==='run'");
-  await act(A,"ejectCrew");
-  await until(M,"window.__state().deaths===1");
-  let s = await st(M);
-  check("crewmate ejected = +1 death", s.deaths===1);
-  check("ejection closes the meeting banner, stage and meeting clock",
-    s.banner==="none" && s.phase.mode==="idle" && s.meet.mode==="idle", JSON.stringify(s.meet));
+  const left = s => s.timer.mode==="run" ? s.timer.endsAt-Date.now() : s.timer.remain;
 
+  /* --- crewmate ejected: the board does not move --- */
+  await act(A,"start"); await until(M,"window.__state().timer.mode==='run'");
+  await settle(600);                       // let real seconds come off it
   await startMeeting(A); await until(M,"window.__state().meet.mode==='run'");
+  const heldC = (await st(M)).timer.remain;    // the clock the room walked in with
+  await act(A,"ejectCrew");
+  await until(M,"window.__state().meet.mode==='idle'");
+  await settle(400);
+  let s = await st(M);
+  check("crewmate ejected leaves the death board unchanged", s.deaths===0, "deaths="+s.deaths);
+  check("…and is labelled as the no-tick it is",
+    s.hist.slice(-1)[0].label==="Crewmate ejected — no tick", s.hist.slice(-1)[0].label);
+  check("…and still closes the meeting banner, stage and meeting clock",
+    s.banner==="none" && s.phase.mode==="idle" && s.meet.mode==="idle", JSON.stringify(s.meet));
+  check("…and hands the round clock back where the meeting froze it",
+    s.timer.mode==="run" && Math.abs(left(s)-heldC)<2500,
+    `${Math.round(heldC)}ms held → ${Math.round(left(s))}ms`);
+
+  /* --- imposter caught: +1 catch, and the crew buys a minute --- */
+  await startMeeting(A); await until(M,"window.__state().meet.mode==='run'");
+  const heldI = (await st(M)).timer.remain;
   await act(A,"ejectImp");
   await until(M,"window.__state().impostersCaught===1");
+  await settle(400);
   s = await st(M);
-  check("imposter caught = no death tick", s.deaths===1 && s.impostersCaught===1);
-  check("imposter ejection also closes the meeting", s.banner==="none");
+  check("imposter caught = still no death tick", s.deaths===0 && s.impostersCaught===1,
+    `deaths=${s.deaths} caught=${s.impostersCaught}`);
+  check("…and is labelled with the minute it buys",
+    s.hist.slice(-1)[0].label==="Imposter caught (+1:00)", s.hist.slice(-1)[0].label);
+  check("…and also closes the meeting and restarts the round clock",
+    s.banner==="none" && s.meet.mode==="idle" && s.timer.mode==="run", JSON.stringify(s.meet));
+  check("the catch gains ≈1:00 over the clock the room walked in with",
+    Math.abs(left(s)-(heldI+60000))<2500,
+    `${Math.round(heldI)}ms held → ${Math.round(left(s))}ms (want +60000)`);
+
+  /* --- and the same catch while the whole game is paused: the minute lands in
+         `remain`, and the deferred restart hands it back with the bonus on --- */
+  await startMeeting(A); await until(M,"window.__state().meet.mode==='run'");
+  const heldP = (await st(M)).timer.remain;
+  await confirmPause(A); await until(M,"window.__state().paused.on===true");
+  await act(A,"ejectImp");
+  await until(M,"window.__state().impostersCaught===2");
+  await settle(400);
+  s = await st(M);
+  check("a catch while the game is paused still closes the meeting",
+    s.meet.mode==="idle" && s.banner==="none" && s.paused.on===true, JSON.stringify(s.meet));
+  check("…does not start a clock behind the word PAUSED", s.timer.mode!=="run", s.timer.mode);
+  check("…and its +1:00 lands in remain, exactly",
+    s.timer.remain===heldP+60000, `${heldP}ms held → remain ${s.timer.remain}ms`);
+  await act(A,"resumeGame"); await until(M,"window.__state().paused.on===false");
+  await settle(400);
+  s = await st(M);
+  check("…so the resume hands back the frozen clock plus the bought minute",
+    s.timer.mode==="run" && Math.abs(left(s)-(heldP+60000))<3000,
+    `${Math.round(heldP)}ms held → ${Math.round(left(s))}ms`);
 }
 
 /* ================================================================= */
@@ -811,6 +868,16 @@ section("5 · sabotage lifecycle");
   let s = await st(M);
   check("foreman can start a sabotage", s.sabItems.length===5 && s.sabotagesUsed===1);
   check("sabotage arms the 2:00 phase clock", s.phase.label==="SABOTAGE" && s.phase.remain===120000);
+
+  // One at a time: two kiosks can both be held, so a second sab() while one is
+  // live must be swallowed whole — no second draw, no second tick of the count.
+  const guard = await st(M);
+  await act(A,"sab"); await settle(700);
+  check("sab() during a live sabotage is a no-op",
+    (await st(M)).sabotagesUsed===1 && eq(pick(guard), pick(await st(M))),
+    diff(guard, await st(M)) || "used="+(await st(M)).sabotagesUsed);
+  check("…and burns no undo slot", (await st(M)).hist.length===guard.hist.length,
+    `${guard.hist.length} → ${(await st(M)).hist.length}`);
 
   const before = (await st(A)).timer.endsAt;
   await act(A,"sabOk");
@@ -1061,11 +1128,11 @@ section("7 · new round asks before it wipes the round");
 
   const labels0 = await btnText(A);
   check("Undo and New round are distinct buttons",
-    labels0.filter(t=>t.startsWith("New round")).length===1 && labels0.some(t=>t.startsWith("↩")),
-    labels0.filter(t=>/New round|↩/.test(t)).join(" / "));
+    labels0.filter(t=>/^NEW ROUND/.test(t)).length===1 && labels0.some(t=>t.startsWith("↩")),
+    labels0.filter(t=>/NEW ROUND|↩/.test(t)).join(" / "));
 
   // The button only asks. Nothing may move until the dialog is answered.
-  await tap(A,"New round");
+  await tap(A,"NEW ROUND");
   await settle(300);
   check("the button only asks — nothing changes yet",
     (await st(A)).round===1 && (await st(A)).deaths===1 && (await st(A)).banner==="sabotage",
@@ -1090,7 +1157,7 @@ section("7 · new round asks before it wipes the round");
     !(await st(A)).hist.some(h=>h.label==="New round"), (await st(A)).hist.map(h=>h.label).join(","));
 
   // the escape hatch a phone keyboard does not have, but a tablet does
-  await tap(A,"New round"); await settle(250);
+  await tap(A,"NEW ROUND"); await settle(250);
   await A.keyboard.press("Escape"); await settle(500);
   check("Escape closes the dialog too", (await modal(A))===null, JSON.stringify(await modal(A)));
   check("…without starting a round", (await st(A)).round===1, "round="+(await st(A)).round);
@@ -1099,7 +1166,7 @@ section("7 · new round asks before it wipes the round");
   // re-renders this whole view. The dialog is drawn by that render, so an
   // innocent update from the desk must not drop the question on the floor —
   // and must not leave a live confirm behind an ordinary-looking screen.
-  await tap(A,"New round");
+  await tap(A,"NEW ROUND");
   await settle(150);
   await act(M,"dAdj",1);                                  // any second phone acting would do this
   await until(A,"window.__state().deaths===2");
@@ -1115,13 +1182,13 @@ section("7 · new round asks before it wipes the round");
   check("new round clears deaths, catches, sabotages", s.deaths===0 && s.impostersCaught===0 && s.sabotagesUsed===0 && s.sabItems.length===0);
   check("new round clears the sabotage banner and phase", s.banner==="none" && s.phase.mode==="idle");
   check("new round re-arms a full idle clock", s.timer.mode==="idle" && s.timer.remain===480000);
-  check("new round keeps target and threshold", s.targetPts===8 && s.threshold===6);
+  check("new round keeps target and threshold", s.targetPts===5 && s.threshold===6);
   check("the dialog closes once it has run", (await modal(A))===null, JSON.stringify(await modal(A)));
   await settle(700);
   check("one confirmation advances exactly one round", (await st(A)).round===2, "round="+(await st(A)).round);
 
   // and it is repeatable — the ask is not a one-shot
-  await tap(A,"New round"); await settle(250);
+  await tap(A,"NEW ROUND"); await settle(250);
   await tap(A,CONFIRM_YES.newRound);
   await until(M,"window.__state().round===3");
   check("the next round can be started the same way", (await st(M)).round===3, "round="+(await st(M)).round);
@@ -1130,6 +1197,8 @@ section("7 · new round asks before it wipes the round");
 /* ================================================================= */
 section("8 · undo — depth, compounds, cross-device");
 {
+  // B rides on the old referee QR link, which now lands on the Foreman view —
+  // the redirect must not cost the phone its writes.
   const A = await mk("/c/cc","g-undo"), B = await mk("/c/referee","g-undo");
   check("nothing to undo on a fresh game", (await st(A)).hist.length===0);
   await act(A,"undo"); await settle(400);
@@ -1143,7 +1212,7 @@ section("8 · undo — depth, compounds, cross-device");
   check("both phones agree on the history", eq((await st(B)).hist, s.hist));
 
   await act(B,"undo"); await until(A,"window.__state().deaths===14");
-  check("referee's undo lands on CC", (await st(A)).deaths===14);
+  check("an undo from the old referee link lands on CC", (await st(A)).deaths===14);
   for(let i=13;i>=5;i--){await act(A,"undo"); await until(B,`window.__state().deaths===${i}`)}
   s = await st(B);
   check("ten undos walk all the way back", s.deaths===5 && s.hist.length===0, "deaths="+s.deaths+" hist="+s.hist.length);
@@ -1237,7 +1306,7 @@ section("9 · monitor (TV) rendering");
   await until(M,"!!document.querySelector('.overlay.crew')",20000);
   h = await html(M);
   check("clock hitting 0:00 shows ROUND OVER", /ROUND OVER/.test(h));
-  check("ROUND OVER quotes the point target", /target was 8/.test(h));
+  check("ROUND OVER quotes the point target", /target was 5/.test(h));
 
   // imposters win overrides
   await act(A,"resetT"); await until(M,"!document.querySelector('.overlay.crew')",20000);
@@ -1262,11 +1331,21 @@ section("10 · answers tab — every group and every sudoku");
       const el=document.getElementById("ansres"); if(!el)return null;
       const codes={}; el.querySelectorAll(".cd").forEach(c=>codes[c.querySelector("span").textContent]=c.querySelector("b").textContent);
       const kv=[...el.querySelectorAll(".kv")].map(k=>[k.querySelector("span").textContent, k.querySelector("b").textContent]);
-      return {title:el.querySelector("h1")?.textContent, codes, kv, text:el.textContent};
+      const ringed=[...el.querySelectorAll(".cd.mine")].map(c=>c.querySelector("span").textContent);
+      return {title:el.querySelector("h1")?.textContent, codes, kv, ringed,
+              small:el.querySelector(".small")?.textContent||"", text:el.textContent};
     });
     if(!got){bad.push(`${g}: no card`); continue}
     if(got.title!==`Group ${g}`) bad.push(`${g}: title "${got.title}"`);
     for(const d of APP.doors) if(got.codes[d]!==APP.code[d][g]) bad.push(`${g}/${d}: ${got.codes[d]}≠${APP.code[d][g]}`);
+    // the card now names and rings this group's own three doors
+    const mine = (APP.doors3||{})[g];
+    if(!mine || mine.length!==3) bad.push(`${g}: appdata doors3 missing/short (${JSON.stringify(mine)})`);
+    else {
+      if(!got.small.includes(`their doors: ${mine.join(" · ")}`)) bad.push(`${g}: doors line missing ("${got.small}")`);
+      if(!eq(got.ringed.slice().sort(), mine.slice().sort()) || got.ringed.length!==3)
+        bad.push(`${g}: ringed ${JSON.stringify(got.ringed)} ≠ ${JSON.stringify(mine)}`);
+    }
     if(!got.text.includes(APP.gospel[g].toUpperCase())) bad.push(`${g}: gospel ${APP.gospel[g]} missing`);
     // the counsellor reads the whole line aloud, not just the cue word
     if(!got.text.includes(APP.gospelPhrase[APP.gospel[g]])) bad.push(`${g}: gospel phrase for ${APP.gospel[g]} missing`);
@@ -1276,7 +1355,8 @@ section("10 · answers tab — every group and every sudoku");
     else wantV.forEach(([ref,page],i)=>{
       if(got.kv[i][0]!==ref || got.kv[i][1]!==String(page)) bad.push(`${g}: verse ${got.kv[i]} ≠ ${ref}/${page}`)});
   }
-  check("all 32 groups: door codes, verse pages, gospel word, ball direction", bad.length===0, bad.slice(0,4).join(" | "));
+  check("all 32 groups: door codes, their-doors ring, verse pages, gospel word, ball direction",
+    bad.length===0, bad.slice(0,4).join(" | "));
 
   await act(A,"padMode","sud");
   bad = [];
@@ -1340,8 +1420,9 @@ section("10 · answers tab — every group and every sudoku");
 /* ================================================================= */
 section("11 · role views");
 {
-  const roles = {gm:"Game Master", cc:"Central Command", foreman:"Foreman",
-                 referee:"Roaming Referee", ghost:"Ghost Guide"};
+  // Three app roles now. The old referee/ghost QR codes are printed on real
+  // paper, so those URLs must keep working — by landing on the Foreman view.
+  const roles = {gm:"Game Master", cc:"Central Command", foreman:"Foreman"};
   const pages = {};
   for(const r of Object.keys(roles)) pages[r] = await mk("/c/"+r,"g-roles");
 
@@ -1351,14 +1432,35 @@ section("11 · role views");
     check(`${r}: has controls / answers / my role tabs`, /Controls/.test(h) && /Answers/.test(h) && /My role/.test(h));
   }
 
+  // the redirect: printed QR sheets from night one keep working
+  for(const old of ["referee","ghost"]){
+    pages[old] = await mk("/c/"+old,"g-roles");
+    const h = await html(pages[old]);
+    check(`old /c/${old} URL lands on the Foreman view`,
+      h.includes("<b>Foreman</b>") && /Controls/.test(h) && /My role/.test(h),
+      (h.match(/<b>[A-Z][a-z]+ ?[A-Za-z]*<\/b>/)||["(no header)"])[0]);
+    check(`old /c/${old} URL never shows the retired role name`,
+      !/Roaming Referee|Ghost Guide/.test(h));
+  }
+
   // The split: the desk runs the fiction, the Game Master runs the session.
   const gm = await html(pages.gm), cc = await html(pages.cc);
   const gmBtns = await btnText(pages.gm), ccBtns = await btnText(pages.cc);
   const dial = ts => ts.some(t=>t.startsWith("−1 death")) && ts.some(t=>t.startsWith("+1 death"));
   check("gm: owns the clock, the dials, undo and New round",
     /Round clock/.test(gm) && /Death threshold/.test(gm) && dial(gmBtns) &&
-    /class="sect">Undo</.test(gm) && gmBtns.some(t=>t.startsWith("New round")),
+    /class="sect">Undo</.test(gm) && gmBtns.some(t=>/^NEW ROUND/.test(t)),
     gmBtns.join(" | "));
+  // Post-playtest order: the setup dials come BEFORE New round, and New round
+  // is dead last on the screen in its standout class — nothing below it to
+  // scroll past, nothing above it to mistake it for.
+  check("gm: the setup dials come before New round",
+    gm.indexOf("Round length —")>=0 && gm.indexOf("Round length —") < gm.indexOf("NEW ROUND") &&
+    gm.indexOf("Props per sabotage —") < gm.indexOf("NEW ROUND"),
+    `length@${gm.indexOf("Round length —")} props@${gm.indexOf("Props per sabotage —")} newround@${gm.indexOf("NEW ROUND")}`);
+  check("gm: the last button on the controls tab is NEW ROUND, in the standout class",
+    /^NEW ROUND/.test(gmBtns[gmBtns.length-1]||"") && /btn-newround/.test(gm),
+    "last button = "+(gmBtns[gmBtns.length-1]||"(none)"));
   // "Deaths — N of M" is the desk's own heading; the GM's version of the same
   // idea reads "Death threshold". ("Death +" is not usable as a marker — the
   // Undo button quotes the last action, which can itself be "Death +1".)
@@ -1401,16 +1503,18 @@ section("11 · role views");
   // has to be judged on the controls themselves, not on the words.
   check("cc: no clock, no dials, no New round button, no undo button",
     !/Round clock/.test(cc) && !dial(ccBtns) && !/btn-undo/.test(cc) &&
-    !ccBtns.some(t=>t.startsWith("New round")) && !ccBtns.some(t=>t.startsWith("↩")),
+    !ccBtns.some(t=>/^NEW ROUND/i.test(t)) && !ccBtns.some(t=>t.startsWith("↩")),
     ccBtns.join(" | "));
 
+  // The floor view proper, plus the two redirected old URLs — all three must
+  // render the same Foreman controls.
   for(const r of ["foreman","referee","ghost"]){
     const h = await html(pages[r]);
     check(`${r}: no clock and no desk controls`,
       !/Round clock/.test(h) && !/Crewmate ejected/.test(h));
     check(`${r}: keeps sabotage and pause`, /Sabotage —/.test(h) && /Pause game|Resume game/.test(h));
     check(`${r}: undo now lives with the Game Master`, !/btn-undo/.test(h));
-    // An EMERGEN-C card is not the desk's to play, so every phone in the
+    // The EMERGEN-C yell can come from anywhere, so every phone in the
     // building can halt the round — but none of them can run the meeting.
     check(`${r}: can call an emergency meeting`,
       (await btnText(pages[r])).some(t=>t.startsWith("Call emergency meeting")),
@@ -1426,7 +1530,19 @@ section("11 · role views");
     check(`${r}: role crib renders its briefing lines`, (h.match(/· /g)||[]).length>=4);
     await act(pages[r],"tab","controls");
   }
-  // every role still writes to the same document
+  // The one Foreman crib now carries every station's verification rules, and
+  // the old URLs read that same crib. (The cribs were rewritten wholesale — no
+  // old referee/ghost sentences are asserted anywhere.)
+  for(const r of ["foreman","referee","ghost"]){
+    await act(pages[r],"tab","role");
+    const h = await html(pages[r]);
+    check(`${r}: the crib is the Foreman one, covering every floor station`,
+      /Foreman — the short version/.test(h) &&
+      ["STAGE —","DEAD ROOM —","UPSTAIRS —","SPECIAL DELIVERY —","ANSWERS TAB —"].every(x=>h.includes(x)),
+      ["STAGE —","DEAD ROOM —","UPSTAIRS —","SPECIAL DELIVERY —","ANSWERS TAB —"].filter(x=>!h.includes(x)).join(",")||"all present");
+    await act(pages[r],"tab","controls");
+  }
+  // every role still writes to the same document — driven from an old-URL phone
   await act(pages.referee,"sab");
   await until(pages.ghost,"window.__state().banner==='sabotage'");
   await callMeeting(pages.cc);
@@ -1460,6 +1576,23 @@ section("12 · share links carry the connection");
   const link = await A.evaluate("document.getElementById('sharelink')?.textContent||''");
   check("home screen prints a share link", link.includes("#/monitor?cfg="), link.slice(0,60));
 
+  // Post-playtest roster: four view links plus the kiosk, and nothing retired.
+  const homeLinks = await A.evaluate(()=>[...document.querySelectorAll(".home button")]
+    .map(b=>b.childNodes[0].textContent.trim()));
+  check("the home screen lists the four views and the kiosk, in order",
+    eq(homeLinks, ["TV Monitor","Game Master","Central Command","Foreman","Sabotage Kiosk"]),
+    homeLinks.join(" | "));
+  const picker = await A.evaluate(()=>[...document.querySelectorAll(".viewpick button")]
+    .map(b=>b.textContent.trim()));
+  check("the share picker is monitor · gm · cc · foreman · kiosk",
+    eq(picker, ["TV Monitor","Game Master","Central Cmd","Foreman","Kiosk"]),
+    picker.join(" | "));
+  check("no referee or ghost link survives anywhere on the home screen",
+    !/Roaming Referee|Ghost Guide|\/c\/referee|\/c\/ghost/.test(await html(A)));
+
+  await act(A,"shareView","/kiosk"); await settle(300);
+  check("the kiosk can be shared like any view",
+    (await A.evaluate("document.getElementById('sharelink').textContent")).includes("#/kiosk?cfg="));
   await act(A,"shareView","/c/foreman"); await settle(300);
   const link2 = await A.evaluate("document.getElementById('sharelink').textContent");
   check("share-view picker rewrites the link", link2.includes("#/c/foreman?cfg="));
@@ -1615,6 +1748,17 @@ section("16 · shipped data integrity");
       solved.length===0, solved.slice(0,3).map(([n])=>"#"+n).join(","));
     check("every sabotage set is 5 props with a known door",
       [1,2,3].every(i=>embedded.sets[i].length===5 && embedded.sets[i].every(p=>embedded.props[p])));
+    // doors3: each group's own three doors — always real doors, no repeats,
+    // and always at least one upstairs (U*) and one downstairs (D*).
+    const d3bad = [...Array(32)].map((_,i)=>String(i+1)).filter(g=>{
+      const ds = embedded.doors3?.[g];
+      return !(Array.isArray(ds) && ds.length===3 && new Set(ds).size===3 &&
+        ds.every(d=>embedded.doors.includes(d)) &&
+        ds.some(d=>d.startsWith("U")) && ds.some(d=>d.startsWith("D")));
+    });
+    check("doors3: every group 1–32 has exactly 3 valid doors spanning both floors",
+      !!embedded.doors3 && Object.keys(embedded.doors3).length===32 && d3bad.length===0,
+      d3bad.length ? "bad groups: "+d3bad.slice(0,6).join(",") : Object.keys(embedded.doors3||{}).length+" groups");
     check("every group has a gospel word", Object.keys(embedded.gospel).length===32);
     check("every gospel word has a sentence to finish it",
       [...new Set(Object.values(embedded.gospel))].every(w=>typeof embedded.gospelPhrase?.[w]==="string"

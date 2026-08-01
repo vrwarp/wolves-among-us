@@ -406,8 +406,9 @@ section("6 · refresh from a share link, and losing the config");
   const A = await mk("/c/cc","r-link");
   await act(A,"dAdj",5); await settle(700);
   await A.evaluate("location.hash='#/'"); await settle(500);
-  await act(A,"shareView","/c/referee"); await settle(300);
+  await act(A,"shareView","/kiosk"); await settle(300);   // the new picker's fifth view
   const link = await A.evaluate("document.getElementById('sharelink').textContent");
+  check("the picker can send the kiosk view", link.includes("#/kiosk?cfg="), link.slice(0,60));
 
   const ctx = await newCtx();
   const N = await ctx.newPage();
@@ -417,11 +418,17 @@ section("6 · refresh from a share link, and losing the config");
   check("a shared link joins the running game", (await st(N)).deaths===5, "deaths="+(await st(N)).deaths);
   await reload(N);
   check("refreshing a link-joined device keeps it in the game", (await st(N)).deaths===5);
-  check("…and keeps the role it was sent", /Roaming Referee/.test(await html(N)));
+  check("…and keeps the view it was sent — the buttonless kiosk board",
+    !!(await N.evaluate("!!document.querySelector('.kiosk')")) &&
+    (await N.evaluate("document.querySelectorAll('button').length"))===0);
 
-  // the hash still carries ?cfg= after the reload; strip it and reload again
+  // the hash still carries ?cfg= after the reload; strip it and reload again.
+  // An old printed referee QR is also still a valid destination — it lands on
+  // the Foreman view.
   await N.evaluate("location.hash='#/c/referee'");
   await reload(N);
+  check("…and the old referee hash renders the Foreman view",
+    /<b>Foreman<\/b>/.test(await html(N)), ((await html(N)).match(/<b>[^<]*<\/b>/)||["?"])[0]);
   check("it stays connected from stored config once the link params are gone",
     (await st(N)).deaths===5 && await conn(N)==="live");
 
@@ -726,8 +733,9 @@ section("6e · the escaping never reaches anyone's eyes");
     ["/c/gm?demo=live&banner=meeting","Game Master, meeting running"],
     ["/c/cc?demo=live&banner=sabotage","Central Command, sabotage up"],
     ["/c/foreman?demo=live&banner=sabotage&tab=answers&grp=7","Foreman, answers"],
-    ["/c/referee?demo=live&tab=role","Roaming Referee, role crib"],
-    ["/c/ghost?demo=live&banner=meeting","Ghost Guide, controls"],
+    ["/c/referee?demo=live&tab=role","old referee link (Foreman crib)"],
+    ["/c/ghost?demo=live&banner=meeting","old ghost link (Foreman controls)"],
+    ["/kiosk?demo=live&banner=sabotage","kiosk status board"],
     ["/monitor?demo=live&banner=meeting","TV monitor, meeting overlay"],
     ["/monitor?demo=live&banner=sabotage","TV monitor, sabotage"],
   ]) { await open(D,hash); await noEntity(D,where) }

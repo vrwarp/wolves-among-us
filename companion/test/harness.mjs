@@ -21,7 +21,7 @@ export const APP = JSON.parse(readFileSync(join(HERE,"..","appdata.json"),"utf8"
 
 // The app's own documented starting state. Key order matters: section 1 of the
 // comprehensive suite compares this against the seeded document verbatim.
-export const DEF = {round:1,targetPts:8,deaths:0,threshold:6,impostersCaught:0,sabotagesUsed:0,
+export const DEF = {round:1,targetPts:5,deaths:0,threshold:6,impostersCaught:0,sabotagesUsed:0,
   // the Game Master's dials — set once for the night and carried across rounds
   imposters:3,sabotageMax:2,sabProps:5,
   // the props this sabotage wants, drawn fresh each time rather than a preset index
@@ -31,10 +31,8 @@ export const DEF = {round:1,targetPts:8,deaths:0,threshold:6,impostersCaught:0,s
   // (report / nominations / corners / vote) are derived from this one deadline
   // rather than stored, so nothing writes when a stage ends. `phase` is the
   // sabotage's 2:00 and nothing else now.
-  // NOTE: no `sab` key here — that is what a fresh game is really seeded with.
-  // MIDLE in index.html does carry `sab:false`, so the shape drifts the first
-  // time a meeting or a New round writes it; see the failing undo comparison in
-  // test_chaos section 2.
+  // `sab:false` is seeded from the start (bcf9882): the fresh document and
+  // MIDLE in index.html share one shape, so undo comparisons no longer drift.
   meet:{mode:"idle",endsAt:0,remain:0,clock:false,sab:false},
   timer:{mode:"idle",endsAt:0,remain:480000,dur:480000},
   phase:{mode:"idle",endsAt:0,remain:0,label:""}};

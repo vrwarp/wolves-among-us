@@ -2,7 +2,7 @@
 // call. Sounds are asserted through window.__sound(), which records every cue
 // the app decided to emit (muted = nothing recorded at all).
 //   EMU=1 node test/test_features.mjs
-import {EMU, DEF, FIELDS, section, check, note, eq, pick, diff, gid, settle,
+import {EMU, DEF, FIELDS, APP, section, check, note, eq, pick, diff, gid, settle,
         boot, mk, live, st, snd, sndReset, clearSounds, conn, act, until,
         softUntil, html, btnText, tap, confirmNewRound, confirmPause, modal,
         callMeeting,
@@ -42,8 +42,8 @@ section("1 · the countdown, on every device");
 section("2 · the minute chime is the TV's alone");
 {
   const CC = await mk("/c/cc","f-min"), TV = await mk("/monitor","f-min"),
-        GH = await mk("/c/ghost","f-min");
-  const all=[CC,TV,GH];
+        FM = await mk("/c/foreman","f-min");
+  const all=[CC,TV,FM];
   await act(CC,"start");
   await until(TV,"window.__state().timer.mode==='run'");
   await act(CC,"adj",-(480000-303000));                // ~5:03 → crosses 5:00
@@ -51,10 +51,10 @@ section("2 · the minute chime is the TV's alone");
   await clearSounds(all);
   await settle(6000);
 
-  const tv = await snd(TV), cc = await snd(CC), gh = await snd(GH);
+  const tv = await snd(TV), cc = await snd(CC), fm = await snd(FM);
   check("the TV chimes on the minute", tv.log.includes("minute"), tv.log.join(",")||"(silent)");
   check("a counsellor phone stays quiet on the minute", !cc.log.includes("minute"), cc.log.join(",")||"(silent)");
-  check("…and so does the ghost's", !gh.log.includes("minute"), gh.log.join(",")||"(silent)");
+  check("…and so does the Foreman's", !fm.log.includes("minute"), fm.log.join(",")||"(silent)");
   check("nobody beeps the countdown this far out",
     !tv.log.includes("tick") && !cc.log.includes("tick"), tv.log.join(","));
 }
@@ -63,15 +63,15 @@ section("2 · the minute chime is the TV's alone");
 section("3 · sabotage, meeting and pause cues");
 {
   const CC = await mk("/c/cc","f-cue"), TV = await mk("/monitor","f-cue"),
-        RF = await mk("/c/referee","f-cue");
-  const all=[CC,TV,RF];
+        FM = await mk("/c/foreman","f-cue");
+  const all=[CC,TV,FM];
   await act(CC,"start"); await allAgree(all);
 
   await clearSounds(all);
-  await act(RF,"sab");
+  await act(FM,"sab");
   await until(TV,"window.__state().banner==='sabotage'");
   await settle(700);
-  for(const [p,n] of [[CC,"CC"],[TV,"the TV"],[RF,"the Referee"]])
+  for(const [p,n] of [[CC,"CC"],[TV,"the TV"],[FM,"the Foreman"]])
     check(`${n} plays the sabotage alert`, (await snd(p)).log.includes("sabotage"), (await snd(p)).log.join(","));
 
   await clearSounds(all);
@@ -84,10 +84,10 @@ section("3 · sabotage, meeting and pause cues");
   // The chime belongs to the moment the room is called in, not to the moment
   // the desk starts the 3:00 — that is the tap the whole building has to notice.
   await clearSounds(all);
-  await callMeeting(RF);
+  await callMeeting(FM);
   await until(TV,"window.__state().meet.mode==='gather'");
   await settle(700);
-  for(const [p,n] of [[CC,"CC"],[TV,"the TV"],[RF,"the Referee"]])
+  for(const [p,n] of [[CC,"CC"],[TV,"the TV"],[FM,"the Foreman"]])
     check(`${n} chimes the emergency meeting the moment it is called`,
       (await snd(p)).log.includes("meeting"), (await snd(p)).log.join(","));
   await clearSounds(all);
@@ -99,17 +99,17 @@ section("3 · sabotage, meeting and pause cues");
   await act(CC,"endMeeting"); await allAgree(all);
 
   await clearSounds(all);
-  await pauseNow(RF);
+  await pauseNow(FM);
   await until(TV,"window.__state().paused.on===true");
   await settle(600);
-  for(const [p,n] of [[CC,"CC"],[TV,"the TV"],[RF,"the Referee"]])
+  for(const [p,n] of [[CC,"CC"],[TV,"the TV"],[FM,"the Foreman"]])
     check(`${n} chimes on pause`, (await snd(p)).log.includes("paused"), (await snd(p)).log.join(","));
 
   await clearSounds(all);
   await act(CC,"resumeGame");
   await until(TV,"window.__state().paused.on===false");
   await settle(600);
-  for(const [p,n] of [[CC,"CC"],[TV,"the TV"],[RF,"the Referee"]])
+  for(const [p,n] of [[CC,"CC"],[TV,"the TV"],[FM,"the Foreman"]])
     check(`${n} chimes on resume`, (await snd(p)).log.includes("resumed"), (await snd(p)).log.join(","));
 }
 
@@ -161,7 +161,7 @@ section("4 · sound restraint");
 /* ================================================================= */
 section("5 · any role can pause, and it asks first");
 {
-  for(const role of ["gm","cc","foreman","referee","ghost"]){
+  for(const role of ["gm","cc","foreman"]){
     const A = await mk("/c/"+role,"f-pause-"+role), TV = await mk("/monitor","f-pause-"+role);
     await act(A,"start");
     await until(TV,"window.__state().timer.mode==='run'");
@@ -206,7 +206,7 @@ section("5 · any role can pause, and it asks first");
 section("6 · pause really freezes, and resume restores exactly");
 {
   const CC = await mk("/c/cc","f-freeze"), TV = await mk("/monitor","f-freeze"),
-        GH = await mk("/c/ghost","f-freeze");
+        GH = await mk("/c/foreman","f-freeze");
   await act(CC,"start");
   await until(TV,"window.__state().timer.mode==='run'");
   await pauseNow(GH);
@@ -302,7 +302,7 @@ section("7 · pause behaves like every other action");
   check("New round clears the pause", (await st(CC)).paused.on===false, JSON.stringify((await st(CC)).paused));
 
   // and prove the stale case explicitly rather than just working around it
-  const SLOW = await mk("/c/referee","f-pact");
+  const SLOW = await mk("/c/foreman","f-pact");
   await until(SLOW,"window.__state().paused.on===false");
   await pauseNow(CC);                     // CC pauses
   await until(SLOW,"window.__state().paused.on===true");
@@ -344,7 +344,7 @@ section("8 · pause survives the things that break state");
   }
 
   // two phones pausing at the same instant
-  const A = await mk("/c/referee","f-prace"), B = await mk("/c/ghost","f-prace"), M = await mk("/monitor","f-prace");
+  const A = await mk("/c/foreman","f-prace"), B = await mk("/c/cc","f-prace"), M = await mk("/monitor","f-prace");
   await act(A,"start"); await allAgree([A,B,M]);
   await Promise.all([pauseNow(A), pauseNow(B)]);
   const agree = await allAgree([A,B,M], 15000);
@@ -383,7 +383,7 @@ section("9 · real taps, not scripted calls");
   await tap(A,"Pause game"); await settle(200); await tap(A,CONFIRM_YES.pauseGame);
   await until(A,"window.__state().paused.on===true",12000);
   const r0 = (await st(A)).round;
-  check("New round opens its dialog by real click", await tap(A,"New round"));
+  check("New round opens its dialog by real click", await tap(A,"NEW ROUND"));
   await settle(220);
   check("…and its confirm button clicks", await tap(A,CONFIRM_YES.newRound));
   check("New round works by real clicks even while paused",
@@ -610,6 +610,111 @@ section("9b · the Game Master's dials");
     `imposters=${nr.imposters} sabotageMax=${nr.sabotageMax} sabProps=${nr.sabProps} dur=${nr.timer.dur}`);
   check("…and the new round's clock is set to that length",
     nr.timer.remain===pre.timer.dur && nr.timer.mode==="idle", JSON.stringify(nr.timer));
+}
+
+/* ================================================================= */
+// The sabotage kiosk: a tablet propped in a hallway that shows nothing but the
+// clock and the deaths, and admits nothing. Hold anywhere ≥2s, let go, and the
+// strike fires 5–15s AFTER the finger is gone. Everything here is driven with
+// real mouse.down()/mouse.up() — the whole feature is a hold, and fill/click
+// cannot hold anything.
+section("9c · the sabotage kiosk");
+{
+  const K = await mk("/kiosk","f-kiosk"), CC = await mk("/c/cc","f-kiosk"),
+        TV = await mk("/monitor","f-kiosk");
+  await act(CC,"start");
+  for(const p of [K,TV]) await until(p,"window.__state().timer.mode==='run'");
+  await clearSounds([K,CC,TV]);
+
+  /* --- the innocuous face --- */
+  const face = await K.evaluate(()=>({
+    board:!!document.querySelector(".kiosk"),
+    buttons:document.querySelectorAll("button").length,
+    text:document.body.innerText}));
+  check("the kiosk renders the status board", face.board);
+  check("the kiosk has zero buttons — nothing to admit to", face.buttons===0,
+    face.buttons+" buttons");
+  check("the kiosk never renders the word sabotage", !/sabotage/i.test(face.text),
+    face.text.replace(/\s+/g," ").slice(0,90));
+  check("…but does show the clock and the death count",
+    /DEATHS/.test(face.text) && /\d:\d\d/.test(face.text) && /ROUND 1/.test(face.text),
+    face.text.replace(/\s+/g," ").slice(0,90));
+
+  /* --- a short tap: nothing, ever --- */
+  await K.mouse.move(400,300);
+  await K.mouse.down(); await settle(700); await K.mouse.up();
+  await settle(18000);              // past the whole 2s-arm + 15s-fuse worst case
+  let s = await st(TV);
+  check("a short tap never fires anything, even 18s later",
+    s.banner==="none" && s.sabotagesUsed===0, `banner=${s.banner} used=${s.sabotagesUsed}`);
+
+  /* --- the hold: ≥2s, release, and the strike lands well after the finger is gone --- */
+  await K.mouse.move(420,320);
+  await K.mouse.down(); await settle(3200); await K.mouse.up();
+  const released = Date.now();
+  check("nothing fires at the moment of release", (await st(K)).banner==="none",
+    (await st(K)).banner);
+  let firedAfter = 0;
+  while(Date.now()-released < 20000){                 // the 20s budget
+    if((await st(K)).banner==="sabotage"){firedAfter = Date.now()-released; break}
+    await settle(200);
+  }
+  check("the strike fires within the 20s budget", firedAfter>0,
+    firedAfter ? Math.round(firedAfter)+"ms after release" : "never fired");
+  check("…and only after a real delay, so the hallway is empty by then",
+    firedAfter>=3000, Math.round(firedAfter)+"ms after release");
+  note(`kiosk strike landed ${(firedAfter/1000).toFixed(1)}s after the finger left (5–15s fuse from the 2s arm, minus the ~1.2s the hold ran past it)`);
+
+  // other devices see it, and the draw is a normal one
+  check("the desk sees the kiosk's sabotage",
+    await softUntil(CC,"window.__state().banner==='sabotage'",8000), (await st(CC)).banner);
+  await until(TV,"!!document.querySelector('.overlay.sab')",8000);
+  s = await st(TV);
+  const PROPS = Object.keys(APP.props);
+  check("the props are drawn normally — five real ones, no repeat, counted once",
+    s.sabItems.length===5 && new Set(s.sabItems).size===5 &&
+    s.sabItems.every(p=>PROPS.includes(p)) && s.sabotagesUsed===1 && s.phase.label==="SABOTAGE",
+    JSON.stringify(s.sabItems)+" used="+s.sabotagesUsed);
+
+  // kiosks are silent by design: the cue fired on the other devices, never here
+  await settle(700);
+  check("the sabotage cue fired on the desk and the TV",
+    (await snd(CC)).log.includes("sabotage") && (await snd(TV)).log.includes("sabotage"),
+    "cc="+(await snd(CC)).log.join(",")+" tv="+(await snd(TV)).log.join(","));
+  check("…while the kiosk recorded no cue at all", (await snd(K)).count===0,
+    JSON.stringify((await snd(K)).log));
+  check("even mid-sabotage the kiosk shows no overlay, no buttons, and never says the word",
+    await K.evaluate(()=>!/sabotage/i.test(document.body.innerText) &&
+      document.querySelectorAll("button").length===0 && !document.querySelector(".overlay")));
+
+  /* --- a hold during a live sabotage is inert --- */
+  await K.mouse.down(); await settle(3200); await K.mouse.up();
+  await settle(16500);              // sit out the whole fuse window
+  s = await st(TV);
+  check("a hold during a live sabotage is inert — sabotagesUsed does not move",
+    s.sabotagesUsed===1 && s.banner==="sabotage", `used=${s.sabotagesUsed} banner=${s.banner}`);
+  await act(CC,"sabOk"); await until(TV,"window.__state().banner==='none'");
+
+  /* --- a hold during a meeting is inert --- */
+  await callMeeting(CC); await until(K,"window.__state().banner==='meeting'");
+  await K.mouse.down(); await settle(3200); await K.mouse.up();
+  await settle(16500);
+  s = await st(TV);
+  check("a hold during a meeting is inert",
+    s.banner==="meeting" && s.sabotagesUsed===1, `banner=${s.banner} used=${s.sabotagesUsed}`);
+  await act(CC,"endMeeting"); await until(TV,"window.__state().banner==='none'");
+
+  /* --- and once the allowance is spent, the kiosk is spent with it --- */
+  await act(CC,"sab"); await until(TV,"window.__state().sabotagesUsed===2");
+  await act(CC,"sabOk"); await until(TV,"window.__state().banner==='none'");
+  await until(K,"window.__state().sabotagesUsed===2");
+  await K.mouse.down(); await settle(3200); await K.mouse.up();
+  await settle(16500);
+  s = await st(TV);
+  check("a hold with sabotagesUsed at the max is inert",
+    s.sabotagesUsed===2 && s.banner==="none", `used=${s.sabotagesUsed} banner=${s.banner}`);
+  check("…and after every cue of this section the kiosk's sound log is still empty",
+    (await snd(K)).count===0, JSON.stringify((await snd(K)).log));
 }
 
 /* ================================================================= */

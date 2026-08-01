@@ -286,12 +286,25 @@ section("5 · sequences nobody planned");
   check("…and neither one burns an undo slot", s.hist.length===before.hist.length,
     `${before.hist.length} → ${s.hist.length}`);
 
-  // ejection with no meeting open
+  // ejection with no meeting open — and the post-playtest board rules: a crew
+  // ejection never ticks the death board any more, meeting or not
   const b2 = await st(A);
   await act(A,"ejectCrew"); await settle(600);
-  check("an ejection with no meeting open still records the death", (await st(A)).deaths===b2.deaths+1);
+  check("a crew ejection with no meeting open leaves the death board alone",
+    (await st(A)).deaths===b2.deaths, `deaths ${b2.deaths} → ${(await st(A)).deaths}`);
   await act(A,"undo"); await settle(600);
   check("…and undoes cleanly", eq(pick(b2), pick(await st(A))), diff(b2, await st(A)));
+  // …while a stray imposter-caught tap still counts the catch and buys the minute
+  const b3 = await st(A);
+  await act(A,"ejectImp"); await settle(600);
+  const s3 = await st(A);
+  check("a stray IMPOSTER-caught tap counts the catch, no death, +1:00 on the clock",
+    s3.impostersCaught===b3.impostersCaught+1 && s3.deaths===b3.deaths &&
+    (s3.timer.mode==="run" ? s3.timer.endsAt-b3.timer.endsAt===60000
+                           : s3.timer.remain-b3.timer.remain===60000),
+    `caught ${b3.impostersCaught}→${s3.impostersCaught}, timer ${b3.timer.mode}`);
+  await act(A,"undo"); await settle(600);
+  check("…and that undoes cleanly too", eq(pick(b3), pick(await st(A))), diff(b3, await st(A)));
 
   // the UI guard on a third sabotage — start the round clean so the count is exact
   await confirmNewRound(A); await settle(800);
@@ -316,7 +329,7 @@ section("5 · sequences nobody planned");
   check("…and the dead button says why", /none left/.test(third.label||""), third.label);
   const ghostBtns = await G.evaluate(()=>[...document.querySelectorAll("button.btn-sab")]
     .map(x=>x.disabled));
-  check("…on the ghost's phone too", ghostBtns.length===1 && ghostBtns.every(Boolean), JSON.stringify(ghostBtns));
+  check("…on the old-ghost-QR floor phone too", ghostBtns.length===1 && ghostBtns.every(Boolean), JSON.stringify(ghostBtns));
 
   // new round while a meeting is open
   await act(A,"doCallMeeting"); await settle(400);
