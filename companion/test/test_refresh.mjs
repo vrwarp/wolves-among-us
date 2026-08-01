@@ -783,6 +783,175 @@ section("6e · the escaping never reaches anyone's eyes");
 }
 
 /* ================================================================= */
+section("6f · the connect form can actually be typed in");
+{
+  // The form lives on the home screen, and the home screen is the one view that
+  // never paints the sound button — so `shownSound` stays null and every single
+  // keydown makes unlockAudio → syncSound schedule a render() 120ms later, i.e.
+  // mid-word. render() replaces the page wholesale, so anything left only in the
+  // DOM was thrown away: the box reverted to the pre-fill under a moving thumb
+  // and the caret went with it. Typed text now lives in module state (uiCfgTxt /
+  // uiGid, set by act.typed on oninput, which deliberately does not render), and
+  // render() puts the focus and the caret back afterwards.
+  // Everything here is driven with real click + type on purpose: page.fill()
+  // sets .value and fires one input event with no keydown at all, so it never
+  // schedules the repaint — the bug is completely invisible to it.
+  const formState = p => p.evaluate(()=>{
+    const c=document.getElementById("cfgtxt"), g=document.getElementById("gid"), a=document.activeElement;
+    return {cfg:c?c.value:null, gid:g?g.value:null, focus:a?a.id||a.tagName:null,
+            caret:a&&typeof a.selectionStart==="number"?a.selectionStart:null};
+  });
+  // Count real repaints from outside the app: render() rewrites #app's children,
+  // and #app itself is cached once and outlives every repaint.
+  const watchPaints = p => p.evaluate(()=>{window.__paints=0;
+    new MutationObserver(m=>{window.__paints+=m.length}).observe(document.getElementById("app"),{childList:true})});
+  const paints = p => p.evaluate("window.__paints||0");
+  const toForm = async p => {
+    await act(p,"forget"); await settle(250);
+    await act(p,"confirmYes").catch(()=>{});                     // reloads under us
+    await p.waitForFunction("!!document.getElementById('cfgtxt')",null,{timeout:20000});
+  };
+
+  const PREFILL_GID = gid("r-typed"), TYPED_GID = gid("r-typed2");
+  const TYPED_CFG = "const firebaseConfig = "+JSON.stringify({...CFG, appId:"typed-"+TYPED_GID})+";";
+
+  const A = await mk("/c/cc","r-typed");
+  await toForm(A);
+
+  // the §6d guarantee, restated as this section's starting point: nothing typed
+  // yet means uiCfgTxt/uiGid are still null and the pre-fill is what shows.
+  const pre = await formState(A);
+  check("nothing typed yet, so the form still shows the pre-fill untouched",
+    pre.gid===PREFILL_GID && /const firebaseConfig\s*=\s*\{/.test(pre.cfg) && pre.cfg.includes(CFG.projectId),
+    `gid=${pre.gid} cfg=${String(pre.cfg).slice(0,60)}`);
+
+  // (a) the game id, typed over the pre-fill with real keys
+  await watchPaints(A);
+  await A.click("#gid",{clickCount:3});               // triple-tap selects the pre-fill, as a thumb would
+  await A.keyboard.type(TYPED_GID,{delay:35});        // ~35ms a character — the 120ms render lands mid-word
+  await settle(500);                                  // and well past it before anything is read
+  const t1 = await formState(A);
+  check("something really does repaint while the game id is being typed",
+    await paints(A) > 0, "repaints="+await paints(A));
+  check("…and a game id typed over the pre-fill survives every one of them",
+    t1.gid===TYPED_GID, `want ${TYPED_GID} got ${t1.gid}`);
+  check("…and the field still has the focus, so the next character lands in it",
+    t1.focus==="gid", "focus="+t1.focus);
+
+  // (b) the config box, same treatment
+  await A.click("#cfgtxt");
+  await A.keyboard.press("ControlOrMeta+a");          // select the pre-filled block
+  await A.keyboard.type(TYPED_CFG,{delay:8});
+  await settle(500);
+  const t2 = await formState(A);
+  check("a config typed into the box survives the repaints too", t2.cfg===TYPED_CFG,
+    `got ${JSON.stringify(String(t2.cfg).slice(0,90))}`);
+  check("…and the config box keeps the focus", t2.focus==="cfgtxt", "focus="+t2.focus);
+  check("…and the game id typed before it is still there, untouched by the second field",
+    t2.gid===TYPED_GID, t2.gid);
+
+  // (c) a repaint forced from somewhere else entirely, mid-word, with the caret
+  // parked in the middle of what was typed. The audio unlock is only the repaint
+  // that happens to be guaranteed; another tab, the clock or a hashchange will
+  // do it just as well, and none of them should move anyone's cursor.
+  await A.click("#gid",{clickCount:3});
+  await A.keyboard.type(TYPED_GID,{delay:20});
+  await A.keyboard.press("ArrowLeft");
+  await A.keyboard.press("ArrowLeft");
+  await settle(300);
+  const mid = await A.evaluate(()=>{
+    const before=document.getElementById("gid");
+    const was={value:before.value, caret:before.selectionStart};
+    window.dispatchEvent(new HashChangeEvent("hashchange"));     // the app renders synchronously on this
+    const after=document.getElementById("gid");
+    return {was, replaced:after!==before, value:after.value, caret:after.selectionStart,
+            focus:document.activeElement?document.activeElement.id:null};
+  });
+  check("a repaint forced mid-typing really does replace the field node",
+    mid.replaced && mid.was.caret===TYPED_GID.length-2,
+    `replaced=${mid.replaced} caretBefore=${mid.was.caret}`);
+  check("…and the half-typed value comes through it unchanged", mid.value===TYPED_GID,
+    `want ${TYPED_GID} got ${mid.value}`);
+  check("…and the focus is still on the field afterwards", mid.focus==="gid", "focus="+mid.focus);
+  check("…and the caret is where it was left, not shoved to the end",
+    mid.caret===TYPED_GID.length-2, `caret=${mid.caret} of ${TYPED_GID.length}`);
+
+  // (d) and Connect uses what was typed, not what was pre-filled. The typed
+  // config is the working one plus a marker key, so "the typed one was stored"
+  // and "the device still connects" are both answerable.
+  const W = await mk("/monitor","r-typed2");          // the phone already in the typed-at game
+  await act(W,"dAdj",2);
+  await until(W,"window.__state().deaths===2");
+  await A.click('button:text-is("Connect")').catch(()=>{});
+  const up = await softUntil(A,"window.__conn()==='live'",30000);
+  const stored = await A.evaluate("JSON.parse(localStorage.getItem('fpCfg')||'{}')");
+  check("Connect after typing stores the typed game id, not the pre-filled one",
+    stored.gameId===TYPED_GID, `stored=${stored.gameId} prefill=${PREFILL_GID}`);
+  check("…and the typed config, not the pre-filled one",
+    !!stored.cfg && stored.cfg.appId==="typed-"+TYPED_GID, JSON.stringify(stored.cfg||null).slice(0,160));
+  check("…and the device comes up live in the game the typed id names",
+    up && (await st(A)).deaths===2, `conn=${await conn(A)} deaths=${(await st(A)).deaths}`);
+  await act(A,"dAdj",1);
+  check("…with writes that reach the phone already in that game",
+    await softUntil(W,"window.__state().deaths===3",12000), "W deaths="+(await st(W)).deaths);
+
+  // (e) "clear it" has to forget the typed text as well as the memo — otherwise
+  // the box would look cleared and Connect would still use the old characters.
+  await toForm(A);
+  await A.click("#gid",{clickCount:3});
+  await A.keyboard.type("typed-then-cleared",{delay:20});
+  await A.click("#cfgtxt");
+  await A.keyboard.press("ControlOrMeta+a");
+  await A.keyboard.type("nonsense pasted by mistake",{delay:8});
+  await settle(400);
+  const beforeClear = await formState(A);
+  check("both boxes hold what was typed before the clear",
+    beforeClear.gid==="typed-then-cleared" && beforeClear.cfg==="nonsense pasted by mistake",
+    `gid=${beforeClear.gid} cfg=${String(beforeClear.cfg).slice(0,40)}`);
+  await A.click('button:text-is("clear it")');
+  await settle(500);
+  const cl = await A.evaluate(()=>({cfg:document.getElementById("cfgtxt").value,
+    gid:document.getElementById("gid").value, memo:localStorage.getItem("fpLastCfg"),
+    filled:/Filled in from/.test(document.getElementById("app").innerHTML)}));
+  check("“clear it” empties the config box of what was typed into it",
+    cl.cfg==="" && !cl.filled && !cl.memo, `cfg=${JSON.stringify(cl.cfg.slice(0,40))} memo=${cl.memo}`);
+  check("…and drops the typed game id for a fresh random one",
+    /^footprints-[a-z0-9]+$/.test(cl.gid) && cl.gid!=="typed-then-cleared" && cl.gid!==TYPED_GID, cl.gid);
+  await A.click("#gid",{clickCount:3});
+  await A.keyboard.type("after-the-clear",{delay:35});
+  await settle(500);
+  const post = await formState(A);
+  check("…and the form is still typeable afterwards, with the focus kept",
+    post.gid==="after-the-clear" && post.focus==="gid", `${post.gid} focus=${post.focus}`);
+
+  // (f) A device that never connected has no memo, so the box shows a random id
+  // for the room to use. It used to be dealt inside the template — a fresh one
+  // every repaint, while someone was reading the old one aloud to a second phone.
+  const V = await (await newCtx()).newPage();
+  V.on("pageerror", e=>pageErrs.push("typed-fresh: "+e));
+  await V.goto(`${BASE}/#/`, {waitUntil:"domcontentloaded"});
+  await V.waitForFunction("!!document.getElementById('gid')",null,{timeout:15000});
+  const first = await V.evaluate("document.getElementById('gid').value");
+  const seen = [first];
+  for(let i=0;i<4;i++){
+    await V.evaluate(()=>window.dispatchEvent(new HashChangeEvent("hashchange")));
+    await settle(160);
+    seen.push(await V.evaluate("document.getElementById('gid').value"));
+  }
+  await V.click("h1").catch(()=>{});                  // a real tap: unlocks audio, schedules its own render
+  await settle(500);
+  seen.push(await V.evaluate("document.getElementById('gid').value"));
+  check("a never-connected device offers a random game id",
+    /^footprints-[a-z0-9]+$/.test(first) && !(await V.evaluate("localStorage.getItem('fpLastCfg')")), first);
+  check("…and shows the same one across every repaint, so it can be read aloud safely",
+    seen.every(x=>x===first), seen.join(" | "));
+  await act(V,"forgetAll"); await settle(300);
+  const rolled = await V.evaluate("document.getElementById('gid').value");
+  check("…and only “clear it” deals a new one",
+    /^footprints-[a-z0-9]+$/.test(rolled) && rolled!==first, `${first} → ${rolled}`);
+}
+
+/* ================================================================= */
 section("7 · someone taps “Skip — demo mode” by mistake");
 {
   const REAL = await mk("/c/cc","r-demo");
