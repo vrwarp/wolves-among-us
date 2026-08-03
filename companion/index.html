@@ -192,6 +192,12 @@ box-shadow:0 6px 18px rgba(29,78,137,.26)}
 .twoclock b.dim{color:#c9c4bc}
 .overdue{background:#c0392b;color:#fff;font-weight:800;font-size:13.5px;text-align:center;
 border-radius:9px;padding:9px;margin:8px 0;animation:sabpulse .8s infinite}
+/* The running count of who the vote sent out. Plain while it is still empty —
+   the desk is being told what to do — and it firms up once names are in. */
+.ejtally{font-size:13.5px;line-height:1.45;color:var(--mut);padding:7px 2px 3px}
+.ejtally.some{color:var(--fg);background:#eaf1f9;border:1.5px solid #c3d7ee;
+border-radius:12px;padding:10px 12px;margin:8px 0 2px}
+.ejtally b{font-weight:800}
 .linkish{background:none;border:0;padding:0;font:inherit;font-weight:700;color:var(--acc);
 text-decoration:underline;cursor:pointer}
 .kv{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line);font-size:14.5px}
@@ -235,10 +241,12 @@ const DEF={round:1,targetPts:5,deaths:0,threshold:6,impostersCaught:0,sabotagesU
   // the 3:00 meeting clock, kept apart from `phase` so the derived stages
   // (report / nominations / corners / vote) can run without hiding it.
   // `clock` and `sab` remember what the meeting interrupted so ending it can
-  // put both back. Both belong here as well as in MIDLE: a merge write cannot
-  // delete a field, so a key missing from the starting shape can never be
-  // undone back out of the document once a meeting has written it.
-  meet:{mode:"idle",endsAt:0,remain:0,clock:false,sab:false},
+  // put both back; `ejCrew`/`ejImp` are the ejection tally the vote produced,
+  // counted rather than flagged because a tie ejects everyone tied and the desk
+  // reveals them one at a time. All four belong here as well as in MIDLE: a
+  // merge write cannot delete a field, so a key missing from the starting shape
+  // can never be undone back out of the document once a meeting has written it.
+  meet:{mode:"idle",endsAt:0,remain:0,clock:false,sab:false,ejCrew:0,ejImp:0},
   timer:{mode:"idle",endsAt:0,remain:480000,dur:480000},
   phase:{mode:"idle",endsAt:0,remain:0,label:""}};
 let S=JSON.parse(JSON.stringify(DEF));
@@ -435,9 +443,9 @@ const SABITEMS=()=>Array.isArray(S.sabItems)?S.sabItems.filter(p=>PROPS.includes
 // on the very same tick as the meeting clock above it.
 const MEETPLAN=[
   [ 30000,"REPORT",     "REPORT", "Who found the body, and where? Facts only — no theories yet."],
-  [ 90000,"NOMINATIONS","NOMS",   "Take accusations one at a time. Cut off the speeches; keep names coming."],
+  [ 90000,"NOMINATIONS","NOMS",   "Take accusations one at a time. Somebody is going out — keep names coming. No name by the end and the finder picks one."],
   [ 30000,"CORNERS",    "CNRS",   "Nominees to the corners. Everyone else stays where they are."],
-  [ 30000,"VOTE",       "VOTE",   "Hands up and count aloud. Whatever the room decides, it is decided."],
+  [ 30000,"VOTE",       "VOTE",   "Every corner is a name and everyone stands in one — there is no skip. Count aloud; a tie ejects everyone tied."],
 ];
 const MEETTOTAL=MEETPLAN.reduce((n,p)=>n+p[0],0);       // 3:00
 // null while gathering, and again once the vote is over and it wants resolving.
@@ -453,10 +461,18 @@ function meetStage(){
   }
   return null;
 }
-const meetOver=()=>!!S.meet && S.meet.mode!=="idle" && S.meet.mode!=="gather" && remOf(S.meet)<=0;
+// A meeting that has started: past the gather, whether the 3:00 is running,
+// paused with the game, or spent and waiting on the desk.
+const MEETRUN=()=>!!S.meet && S.meet.mode!=="idle" && S.meet.mode!=="gather";
+const meetOver=()=>MEETRUN() && remOf(S.meet)<=0;
 const GATHERING=()=>!!S.meet && S.meet.mode==="gather";
+// The vote's ejection tally. Every meeting that reaches the vote sends at least
+// one person out and a tie sends everyone tied, so this is a count per kind,
+// added to one tap at a time as Central Command reads the names aloud.
+const EJ=()=>({crew:Math.max(0,(S.meet&&S.meet.ejCrew)|0), imp:Math.max(0,(S.meet&&S.meet.ejImp)|0)});
+const EJN=()=>{const e=EJ();return e.crew+e.imp};
 const IDLE={mode:"idle",endsAt:0,remain:0,label:""};
-const MIDLE={mode:"idle",endsAt:0,remain:0,clock:false,sab:false};
+const MIDLE={mode:"idle",endsAt:0,remain:0,clock:false,sab:false,ejCrew:0,ejImp:0};
 // Ending a meeting — however it ends — puts the round clock back the way the
 // meeting found it. Central Command closes meetings but no longer owns the
 // clock, so leaving it stopped meant nobody at the desk could restart it.
@@ -541,7 +557,7 @@ window.act={
     const held=S.banner==="sabotage", ph=H();
     if(held&&ph.mode==="run"){ph.remain=remOf(ph);ph.mode="pause"}
     doAct("Emergency meeting called",{timer:t,banner:"meeting",
-      meet:{mode:"gather",endsAt:0,remain:MEETTOTAL,clock:wasRunning,sab:held},
+      meet:{mode:"gather",endsAt:0,remain:MEETTOTAL,clock:wasRunning,sab:held,ejCrew:0,ejImp:0},
       phase:held?ph:IDLE})},
   // Central Command starts the clock once the room is together. Straight from
   // idle it still works — that is the desk calling and starting in one go.
@@ -551,11 +567,16 @@ window.act={
     if(!gathering&&held&&ph.mode==="run"){ph.remain=remOf(ph);ph.mode="pause"}
     doAct("Meeting started",{timer:t,banner:"meeting",
       meet:{mode:"run",endsAt:now()+MEETTOTAL,remain:MEETTOTAL,
-            clock:gathering?!!S.meet.clock:wasRunning,sab:held},
+            clock:gathering?!!S.meet.clock:wasRunning,sab:held,ejCrew:0,ejImp:0},
       phase:held?ph:IDLE})},
-  endMeeting(){doAct("Meeting ended — tie",afterMeeting())},
+  // The only way out of a meeting that never started. Once the 3:00 is running
+  // the room is committed — somebody is going out — and a meeting called by
+  // mistake is the Game Master's Undo, not a door at the back of the desk.
+  cancelMeeting(){if(!GATHERING())return;
+    doAct("Meeting called off",afterMeeting())},
   // The desk can cut a meeting short: run the clock out rather than end it, so
-  // the same three end-of-meeting choices are what closes it either way.
+  // a meeting reaches its ejections the same way whether the room was quick or
+  // the 3:00 simply ran out.
   callVote(){if(!S.meet||S.meet.mode==="idle"||S.meet.mode==="gather")return;
     doAct("Vote called early",{meet:{...S.meet,mode:"run",endsAt:now(),remain:0}})},
   // Night one: a wrong ejection ticked the death board, so a wrong guess cost
@@ -564,13 +585,32 @@ window.act={
   // a live tasker, which is cost enough) but the board does not move. And
   // catching an imposter BUYS a minute — the mirror of a failed sabotage
   // costing 1:30. Accusing is cheap; being right is rewarded.
-  ejectCrew(){doAct("Crewmate ejected — no tick",afterMeeting())},
+  //
+  // Which left the other half of the silence: a room that says nothing still
+  // gets to keep everybody. So the vote now has teeth — it decides WHO goes,
+  // never whether, and a tie sends every tied nominee. That means an ejection
+  // is no longer the thing that ends a meeting: it is recorded, one tap per
+  // name, and closeMeeting is what puts the room back on the floor.
+  //
+  // Only the counter that moved goes into the write. Both backends merge nested
+  // maps, so sending the whole `meet` back would have the desk's second tap —
+  // read off a screen the first one has not reached yet — quietly put the first
+  // name back to zero. A tie is exactly that pair of taps, seconds apart.
+  ejectCrew(){if(!MEETRUN())return;                 // nothing to record outside a meeting
+    doAct("Crewmate ejected — no tick",{meet:{ejCrew:EJ().crew+1}})},
+  // The catch is worth its minute wherever it is tapped: inside a meeting it
+  // also joins the tally, and outside one it is the desk correcting a name it
+  // already read out as a crewmate.
   ejectImp(){
-    const o=afterMeeting({impostersCaught:S.impostersCaught+1});
-    const t=o.timer?{...o.timer}:T();
+    const t=T();
     if(t.mode==="run")t.endsAt+=60000;else t.remain+=60000;
-    o.timer=t;
+    const o={timer:t,impostersCaught:S.impostersCaught+1};
+    if(MEETRUN())o.meet={ejImp:EJ().imp+1};
     doAct("Imposter caught (+1:00)",o)},
+  // Closing is refused while the tally is empty. That refusal is the rule —
+  // every meeting sends somebody out — and it is why there is no third button.
+  closeMeeting(){if(!MEETRUN()||EJN()===0)return;
+    doAct("Meeting closed — "+EJN()+" ejected",afterMeeting())},
   // The paper could only carry three printed sets, so the same three came round
   // all night. Nothing here is printed, so draw instead: any of the six props,
   // as many as the Game Master asked for. Listed back in door order, upstairs
@@ -664,7 +704,7 @@ const CONFIRMS={
     body:"This clears the deaths, the imposters caught and the sabotages, and puts the clock back to full. It changes every screen in the room. It can be undone.",
     yes:"Start the new round", danger:true, run:()=>act.doNewRound()},
   callMeeting:{title:"Call an emergency meeting?",
-    body:"The round clock stops everywhere and the TV calls everyone to the lobby. Central Command starts the 3:00 once the room is together.",
+    body:"The round clock stops everywhere and the TV calls everyone to the lobby. Central Command starts the 3:00 once the room is together — and a meeting that starts always ejects somebody.",
     yes:"Call the meeting", run:()=>act.doCallMeeting()},
   forget:{title:"Disconnect this device?",
     body:"This phone leaves the game and goes back to the connect screen. The game itself keeps running for everyone else — scan the QR again to rejoin.",
@@ -697,8 +737,8 @@ function route(){const h=location.hash||"#/";const [path,q]=h.slice(1).split("?"
 // one Foreman link; the old referee/ghost QR codes land there too.
 const ROLES={gm:"Game Master",cc:"Central Command",foreman:"Foreman"};
 const CRIB={
- gm:["You are outside the game. Students never come to you — you run the night, not a station.","Yours: the round clock, the dials, New round (bottom of your screen, the orange one), and Undo.","±0:30 on the fly is your balance dial — round two was won with a single +0:30. Use it without ceremony.","Before EVERY round, run the reveal: eyes closed, imposters raise a hand high, imposters open eyes and memorize each other, hands down, everyone arms up-and-down for cover, open. They must know their partners — night one forgot, and it hurt them.","You are the only Undo. A mis-tap anywhere gets called to you — undo moves the whole game back one step, so do it once and watch the TV.","If Central Command's phone dies, open 'Take over the desk' and run meetings from here."],
- cc:["The lobby desk, and you do not leave it. You are in the game — students come to you.","Meetings run themselves. The app walks report → noms → corners → vote and tells you what to say — read it aloud and keep names coming.","Reveal every ejection on the spot. Crewmate: out, NO tick on the board. IMPOSTER: caught — and the crew earns +1:00 on the clock.","Sabotage props come back to your desk — you call SUCCESS or FAILED.","You are one end of the red-ball run. Bowl empty? Send them to fetch.","The clock and New round are the Game Master's. Never say roles except the ejection reveal."],
+ gm:["You are outside the game. Students never come to you — you run the night, not a station.","Yours: the round clock, the dials, New round (bottom of your screen, the orange one), and Undo.","±0:30 on the fly is your balance dial — round two was won with a single +0:30. Use it without ceremony.","Before EVERY round, run the reveal: eyes closed, imposters raise a hand high, imposters open eyes and memorize each other, hands down, everyone arms up-and-down for cover, open. They must know their partners — night one forgot, and it hurt them.","You are the only Undo. A mis-tap anywhere gets called to you — undo moves the whole game back one step, so do it once and watch the TV.","A meeting that started cannot end with nobody ejected. Called by mistake once the 3:00 was running? That is an Undo, and it is yours.","If Central Command's phone dies, open 'Take over the desk' and run meetings from here."],
+ cc:["The lobby desk, and you do not leave it. You are in the game — students come to you.","Meetings run themselves. The app walks report → noms → corners → vote and tells you what to say — read it aloud and keep names coming.","Every meeting ejects somebody. The room votes on WHO, never on whether, and a tie ejects everyone tied — tap one button per name, then Close the meeting. The app will not close one with nobody recorded.","Reveal every ejection on the spot. Crewmate: out, NO tick on the board. IMPOSTER: caught — and the crew earns +1:00 on the clock, each time.","Sabotage props come back to your desk — you call SUCCESS or FAILED.","You are one end of the red-ball run. Bowl empty? Send them to fetch.","The clock and New round are the Game Master's. Never say roles except the ejection reveal."],
  foreman:["One link, every floor post: stage, upstairs, dead room. Same phone, different station notes below.","Verify instantly with YOUR marker, mark the card, then make them reset the station.","STAGE — Cups: all 15 in a pyramid, they reset. Apples: 3 freestanding for a spoken 3-count. Plane: past the far line, unlimited tries.","ANSWERS TAB — Sudoku & maze by slip number. Doors: the card names their 3 doors, check those letters. Gospel: the card's word matches the box card they hand you. Verses: pages must match — ESV LARGE PRINT Bibles only.","SPECIAL DELIVERY — take the ball at the desk or the dead-room doorway, mark the card, ball goes in the bowl.","DEAD ROOM — origami one sheet at a time, match the kit picture, GREEN 2 · BLUE 3. Ghosts skip meetings. Red balls hand over at the DOORWAY.","UPSTAIRS — enforce walking, split every group of 3+. A kill in front of you counts; you are not protection.","Imposters reload by walking through a doorway — nothing for you to police.","An imposter can still tap YOU for a Sabotage: wait ~5 seconds, then hit Start sabotage. The kiosks fire on their own.","Mis-tapped this phone? Call it to the Game Master — Undo is theirs alone."]};
 function stripHTML(){
   const rT=remOf(S.timer), ph=S.phase.mode==="run", meeting=S.meet.mode!=="idle";
@@ -748,6 +788,18 @@ function undoHTML(){
     <div class="small">Reverts that action everywhere. Press again to step further back (${(S.hist||[]).length} in history).</div>`
     :`<div class="small" style="padding:4px 0">Nothing to undo yet.</div>`}`;
 }
+// What the desk has recorded so far, in words it can read at a glance while a
+// room of students waits. Empty is the interesting case: it is not a status, it
+// is the instruction — the vote decides who goes, never whether.
+const ejWord=n=>(NUM[n]||n)+"";
+function ejLine(){
+  const {crew,imp}=EJ(), n=crew+imp;
+  if(!n)return "Nobody yet. The vote always sends somebody out — tap once for every name it named, and a tie means every tied name goes.";
+  const parts=[];
+  if(crew)parts.push(`${ejWord(crew)} crewmate${crew===1?"":"s"}`);
+  if(imp)parts.push(`${ejWord(imp)} imposter${imp===1?"":"s"}`);
+  return `Ejected: <b>${ejWord(n)}</b> — ${parts.join(" · ")}. Another name in the tie? Tap it in before you close.`;
+}
 // What a meeting looks like on a phone that is not the desk. Read-only: the
 // floor roles can call a meeting but they do not run it, and now that any of
 // them can call one they need to see that it landed and what is happening.
@@ -757,7 +809,9 @@ function meetCard(){
   const body=GATHERING()
     ? `<div class="mtstage"><b>Gather in the lobby</b><span>The round clock is stopped. Central Command starts the 3:00 when everyone is in.</span></div>`
     : meetOver()
-      ? `<div class="mtstage"><b>Vote is up</b><span>Central Command is calling it now.</span></div>`
+      ? `<div class="mtstage"><b>Vote is up</b><span>${EJN()
+          ? `${esc(ejWord(EJN()))} ejected so far — Central Command is reading the names.`
+          : "Somebody is going out — Central Command is calling it now."}</span></div>`
       : st ? `<div class="mtstage"><b>${esc(st.label)}</b><span>${esc(st.guide)}</span></div>` : "";
   return `<div class="meetcard${meetOver()?" over":""}">
     <div class="sabhead"><span>EMERGENCY MEETING</span>${GATHERING()?`<span class="mono">—</span>`
@@ -835,19 +889,23 @@ function controlsHTML(role){
          <span>Round clock stopped. Wait for the room, then start the 3:00.</span>
        </div>
        <div class="row"><button class="btn-blue btn-wide" onclick="act.meeting()">Start the meeting — 3:00</button></div>
-       <div class="row"><button class="btn-ghost" onclick="act.endMeeting()">Never mind — back to the round</button></div>`
+       <div class="row"><button class="btn-ghost" onclick="act.cancelMeeting()">Never mind — back to the round</button></div>
+       <div class="small">The last way out. Once the 3:00 starts, the meeting ejects somebody.</div>`
     : meetOver()
       ? `<div class="twoclock">
            <div class="bad"><span>meeting</span><b class="mono" data-mtclk>${fmt(remOf(S.meet))}</b></div>
            <div><span>vote</span><b class="mono">done</b></div>
          </div>
-         <div class="overdue">Time — take the vote and call it now</div>
-         <div class="sect">How did it end?</div>
+         <div class="overdue">${EJN()?"Read every name out, then close the meeting"
+                                    :"Time — take the vote and call it now"}</div>
+         <div class="sect">Who is going out?</div>
          <div class="row">
            <button class="btn-bad" onclick="act.ejectCrew()">Crewmate ejected&nbsp; no tick</button>
            <button class="btn-ok" onclick="act.ejectImp()">IMPOSTER caught&nbsp; +1:00</button>
          </div>
-         <div class="row"><button class="btn-ghost btn-wide" onclick="act.endMeeting()">Tie — nobody ejected</button></div>`
+         <div class="ejtally${EJN()?" some":""}">${ejLine()}</div>
+         <div class="row"><button class="btn-blue btn-wide" ${EJN()?"":"disabled"} onclick="act.closeMeeting()">${
+           EJN()?`Close the meeting — ${NUM[EJN()]||EJN()} ejected`:"Close the meeting — nobody ejected yet"}</button></div>`
       : st
         ? `<div class="twoclock">
              <div><span>meeting</span><b class="mono" data-mtclk>${fmt(remOf(S.meet))}</b></div>
@@ -1051,7 +1109,9 @@ function monitorView(){
           <div class="items" style="font-size:1.9vw;color:#bcd4ef">the round clock is stopped</div></div>`
       : `<div class="overlay meet${over?" over":""}"><h2>EMERGENCY MEETING</h2>
           <div class="pclk mono" data-mtclk>${fmt(mt)}</div>
-          ${over?`<div class="items" style="font-size:2.4vw">TIME — CALL THE VOTE</div>`
+          ${over?`<div class="items" style="font-size:2.4vw">${EJN()
+                    ? esc(ejWord(EJN()).toUpperCase())+" EJECTED"
+                    : "TIME — CALL THE VOTE"}</div>`
                 :`<div class="items" style="font-size:3.4vw" data-stlabel>${esc(st?st.label:"")}
                     <span class="mono" data-stclk>${fmt(st?st.rem:0)}</span></div>`}</div>`;}
   app.innerHTML=`<div class="mon ${cls}">
@@ -1204,7 +1264,9 @@ function overdueAlarms(){
   if(S.banner==="sabotage" && remOf(S.phase)<=0){
     if(t-sabAlarmAt>=3000){sabAlarmAt=t;SND.sabExpired()}
   }else sabAlarmAt=0;
-  if(S.banner==="meeting" && S.meet.mode!=="idle" && remOf(S.meet)<=0){
+  // Nagging stops at the first recorded name: the desk is plainly working
+  // through a tie by then, and the alarm has already done its one job.
+  if(S.banner==="meeting" && MEETRUN() && remOf(S.meet)<=0 && EJN()===0){
     if(t-meetAlarmAt>=3000){meetAlarmAt=t;SND.meetExpired()}
   }else meetAlarmAt=0;
 }
@@ -1222,7 +1284,7 @@ function clockSounds(isMonitor){
 }
 // Nothing is written when a meeting stage ends — the stage is derived, so the
 // screen has to notice for itself and repaint the guidance, the label and, at
-// the end, the three buttons that close the meeting. This is what makes the
+// the end, the buttons that record who the vote sent out. This is what makes the
 // stages advance on their own instead of being tapped in.
 let lastStageKey=null;
 function stageWatch(){
