@@ -122,4 +122,6 @@ Every puzzle is solver-verified to have exactly one solution. Checking by eye st
 
 **Death threshold.** 6 for round 1 with ~17 crew — write it beside the count on the whiteboard.
 Drop to 4 if the imposters got 2 or fewer kills; raise to 8 if they hit 6 before minute five.
-Kills and **crewmate** ejections tick the count — an ejected imposter doesn't.
+Kills and failed sabotages tick the count — **ejections never do**, crewmate or imposter.
+Every meeting ejects at least one player (a tie ejects everyone tied), so meetings cost the
+crew live taskers rather than board space.

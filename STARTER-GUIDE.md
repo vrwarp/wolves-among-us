@@ -44,6 +44,13 @@ moves *only* on kills and failed sabotages. That makes the threshold slightly
 harder for imposters than the numbers above, so if round 1 feels crew-safe,
 drop the threshold by 1 rather than adding an imposter.
 
+**And meetings now always eject.** Every meeting takes at least one student off
+the floor and into the dead room — a tie takes several. That pushes work onto
+origami without touching the death board, so the crew win (everyone reaches
+target, ghosts included) gets tighter the more the room meets. If the dead room
+is jammed by the second meeting, that's the lever working; add +0:30 rather
+than raising the target.
+
 **The Game Master's ±0:30 is the balance dial.** Round 2 was won because of a
 single +0:30 added mid-round. Don't be precious about it.
 
@@ -67,8 +74,10 @@ is a free gift to the crew.
 ## During a round
 
 - **Meetings run themselves.** Someone yells EMERGEN-C → any counselor taps *Call emergency meeting* → the TV says EVERYONE TO THE LOBBY with the clock stopped → Central Command starts the 3:00 when the room is in. The app walks report → noms → corners → vote and says what to read aloud.
-- **Say this in the briefing:** "a wrong vote doesn't move the death board." Night one's room went quiet because accusing felt expensive. It isn't anymore — a tie costs nothing, a wrong eject just loses the one person, and catching an imposter **earns a minute**.
-- Keep nominations moving: a nomination needs a *reason*, nominees get their 15 seconds in the corners, and skipping ahead to the vote is one tap when the room has decided early.
+- **Every meeting ejects somebody.** There is no skip corner and no "nobody goes" — the room votes on *who*, and a tie ejects **everyone tied**. Central Command taps one button per ejected name (Crewmate / IMPOSTER) and the app won't close the meeting until at least one is recorded.
+- **Say this in the briefing:** "a wrong vote doesn't move the death board — but somebody is going out either way." Night one's room went quiet because accusing felt expensive; now silence is the expensive option. A wrong eject costs the crew one tasker, a tie costs them several, and catching an imposter **earns a minute** each.
+- Keep nominations moving: a nomination needs a *reason*, nominees get their 15 seconds in the corners, and skipping ahead to the vote is one tap when the room has decided early. No name by the end of nominations? The finder of the body picks one — that's the rule, not a judgement call.
+- **Meetings now cost the crew players.** Budget 2–3 a round and expect the dead room to fill faster than night one; the Game Master's ±0:30 absorbs the difference.
 - **New round** is the orange button at the very bottom of the Game Master's screen. Run the reveal *before* tapping it.
 - **Undo** lives with the Game Master alone — a mis-tap anywhere gets called across to them, fixed once, verified on the TV.
 - Dots: **green** good · **red** = offline, keep playing, **don't refresh** (taps queue and land when it heals) · **grey** = talking to nobody, re-scan the QR.

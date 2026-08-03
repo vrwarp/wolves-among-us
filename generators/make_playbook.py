@@ -106,11 +106,12 @@ def build(total=None,path="/tmp/pb/playbook.pdf"):
     d.b("3–4 imposters.","Kill = a spoon tap on the shoulder or upper back. Reload = walk through any doorway before your next kill (played this way night one — zero disputes). No kills in the first 60 seconds.")
     d.b("The round clock","is the Game Master's, and counts DOWN from 8:00 of floor time. Only meetings pause it. A successful Sabotage adds 1:00; a failed one subtracts 1:30. There are no other timers — if no Sabotage fires, the round simply ends at 0:00.")
     d.b("Meetings happen one way only:","someone finds a body and yells EMERGEN-C in the lobby. There is no button.")
+    d.b("Every meeting ejects somebody.","A meeting that reaches the vote always sends at least one person out — there is no skip corner and no “nobody goes”. A tie ejects EVERY tied nominee. Ejections still never tick the board, so the cost of a wrong call is live taskers, not the threshold.")
 
     d.h1("The night  (about 50–55 minutes real time)")
     d.p("Each round is 8 floor minutes but 15–18 real minutes once meetings pause the clock. Two rounds fit the hour; the 96-card deck covers a third if time permits.")
     d.b("0:00","Briefing — 8 minutes, script on the last page. Imposters are tapped privately BEFORE the room fills.")
-    d.b("Round 1","8:00 floor time. Budget 2–3 meetings.")
+    d.b("Round 1","8:00 floor time. Budget 2–3 meetings — every one of them takes at least one student off the floor.")
     d.b("Reset (3–4 min)","Reveal the imposters. Re-place the 6 Sabotage props (hand them to students — the door is printed on each). Restock the gospel boxes. Reset cup lanes and apple trays. Clear the whiteboard; the Game Master adjusts the threshold — imposters got 2 or fewer kills: drop to 4; they hit it before minute five: raise to 8. Re-roll imposters and RUN THE REVEAL again — they must know each other. Announce the new target if it changed.")
     d.b("New cards each round.","Deal deck 2 starting from group 11, deck 3 starting from group 21, keeping students in the same order — nobody gets the same group twice, so nobody carries door codes forward.")
 
@@ -148,8 +149,8 @@ def build(total=None,path="/tmp/pb/playbook.pdf"):
     d.h1("Death, bodies and meetings")
     d.b("When you die:","lie down where you were tapped — against a wall, never in a doorway, never on stairs. Silent. You stay until someone finds you.")
     d.b("Finding a body:","say NOTHING at the scene. Walk to the lobby, and the moment you cross in, yell EMERGEN-C. Everyone echoes it and walks in. The dead player stands and walks straight to the dead room — ghosts do not attend meetings.")
-    d.b("The meeting — 3:00, hard stop.","0:00–0:30 THE REPORT: silence; the finder says where the body was, who they saw, who they suspect; interrupting costs your vote. 0:30–2:00 NOMINATIONS: “I nominate ___ because ___” — no second within five seconds and it dies; ends at three seconded names. 2:00–2:30 THE CORNERS: 15 seconds each to answer. 2:30–3:00 THE VOTE: walk to a corner to eject, stand dead centre to skip; largest corner wins, tie ejects nobody.")
-    d.b("Reveal the result on the spot.","Say whether the ejected player was an imposter. Crewmate: out — the board does NOT move. Imposter: caught, and the crew earns +1:00 on the clock. Then everyone back to the floor — Central Command never lets a meeting stretch past 3:00.")
+    d.b("The meeting — 3:00, hard stop.","0:00–0:30 THE REPORT: silence; the finder says where the body was, who they saw, who they suspect; interrupting costs your vote. 0:30–2:00 NOMINATIONS: “I nominate ___ because ___” — no second within five seconds and it dies; ends at three seconded names. Nobody seconded by 2:00 and the finder of the body names one. 2:00–2:30 THE CORNERS: 15 seconds each to answer. 2:30–3:00 THE VOTE: every nominee has a corner and everyone stands in one — there is no centre and no skip; largest corner wins, and a tie ejects every tied nominee.")
+    d.b("Reveal every ejection on the spot.","Name each player who is going out and say whether they were an imposter. Crewmate: out — the board does NOT move. Imposter: caught, and the crew earns +1:00 on the clock for each one. Then everyone back to the floor — Central Command never lets a meeting stretch past 3:00.")
 
     d.h1("Quick rulings")
     for a,b_ in [
@@ -160,8 +161,11 @@ def build(total=None,path="/tmp/pb/playbook.pdf"):
       ("A student runs","Verbal warning, then cross out one mark box and initial it."),
       ("Argument over a mark","The counselor's mark is final. No appeals."),
       ("Imposter taps any counselor","Sabotage triggers, whoever it was."),
-      ("Ejected player was an imposter","No tick — and the crew earns +1:00 on the round clock."),
+      ("Ejected player was an imposter","No tick — and the crew earns +1:00 on the round clock, per imposter."),
       ("Ejected player was a crewmate","Also no tick. They're just dead — losing a live tasker is cost enough."),
+      ("The vote is a tie","Every tied nominee is ejected. Two corners tie, two students go; three tie, three go."),
+      ("The room won't nominate anybody","The finder of the body names one, and that name goes out. A meeting never ends with nobody ejected."),
+      ("“Can we just skip?”","No. There is no centre and no skip corner — the room chooses who goes, not whether."),
       ("A crew student pokes the kiosk","Nothing happens — short taps are inert. Don't explain why."),
       ("Lost card","Central Command reissues once: student states their total, CC writes and initials it. Taking or destroying someone else's card ends your night."),
       ("Ghost talking toward the hall","Ghost Guide pauses their origami for 30 seconds."),
@@ -185,7 +189,8 @@ def build(total=None,path="/tmp/pb/playbook.pdf"):
       "“Your card is worth 11 points. Tonight you need ___. You pick which tasks.”",
       "“Find a counselor to mark each task. Four counselors, four different marks.”",
       "“A spoon tap on the shoulder kills you. Lie down against a wall, stay silent until you're found — then fold origami in the dead room. You still need your points.”",
-      "“Find a body: say nothing, WALK to the lobby, THEN yell Emergen-C. The vote's result is revealed on the spot.”",
+      "“Find a body: say nothing, WALK to the lobby, THEN yell Emergen-C.”",
+      "“Every meeting sends somebody out — you are voting on WHO, never on whether. A tie sends everyone tied. The result is revealed on the spot.”",
       "“Walk. One foot on the ground. Always.”",
       "“If the lights dim, freeze and listen for Central Command. One item per person.”"],1):
         d.b(f"{i}.",t)
