@@ -185,8 +185,8 @@ rows('The meeting','THREE MINUTES  ·  HARD STOP',[
   {n:'1',name:'The report — 30 seconds',desc:'Silence. The finder says three things: where the body was, who they saw, who they suspect.',fs:15},
   {n:'2',name:'Nominations — 90 seconds',desc:'“I nominate ___ because ___.” No second, and the accusation dies.',fs:15},
   {n:'3',name:'The corners — 30 seconds',desc:'Each nominee gets fifteen seconds to answer their accuser.',fs:15},
-  {n:'4',name:'The vote — 30 seconds',desc:'Walk to a corner to eject. Stand dead centre to skip. Biggest corner wins, ties eject nobody.',fs:15},
-],'Ejections are revealed on the spot. A crewmate: no tick — just gone. An imposter: the crew earns +1:00.');
+  {n:'4',name:'The vote — 30 seconds',desc:'Every corner is a name and everyone stands in one. Biggest corner wins. A tie ejects everyone tied.',fs:15},
+],'Somebody always goes — you vote on WHO, never on whether. Crewmate: no tick, just gone. Imposter: the crew earns +1:00.');
 
 section('How It Ends');
 

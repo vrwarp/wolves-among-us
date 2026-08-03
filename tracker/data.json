@@ -1,5 +1,5 @@
 {
- "rev": "rev 33 \u2014 project archived: full repo (pack, deck, playbook, companion, generators, QA) saved to Benson's folder under git",
+ "rev": "rev 34 \u2014 emergency meetings must eject: no skip, and a tie ejects everyone tied (rules, print pack, deck, companion)",
  "decided": [
   {
    "t": "Bible translation = ESV",
@@ -212,6 +212,10 @@
   {
    "t": "Companion app shipped",
    "d": "index.html + SETUP.md + firestore.rules + firebase.json. Firebase Hosting deploy, QR onboarding for the other devices, all-counselor controls per Benson's call."
+  },
+  {
+   "t": "Meetings always eject \u2014 ties eject everyone tied",
+   "d": "A meeting that reaches the vote can no longer end with nobody out. The Four Corners vote loses its dead-centre skip: every corner is a name and everyone stands in one, largest corner wins, and a tie ejects EVERY tied nominee. No seconded name by the end of nominations and the finder of the body picks one. Ejections still never tick the death board, so the price of a meeting is live taskers, not threshold \u2014 night one's problem was a silent room, and this makes silence the expensive option. The companion enforces it: the desk records one tap per ejected name (Crewmate / IMPOSTER, +1:00 each) and cannot close a meeting with none recorded; a mis-called meeting is backed out of during the gather, or by the Game Master's Undo."
   }
  ],
  "games": [
@@ -507,8 +511,8 @@
    ],
    "open": [
     "Threshold guidance lives in PRINT-ME-FIRST: 6 for round 1, drop to 4 if imposters got \u22642 kills, raise to 8 if they hit 6 before minute five",
-    "Kills and crewmate ejections tick the count; an ejected imposter doesn't",
-    "Every ejection is revealed on the spot"
+    "Kills and failed Sabotages tick the count; ejections never do, crewmate or imposter",
+    "Every ejection is revealed on the spot, and every meeting produces at least one"
    ]
   },
   {
@@ -526,7 +530,8 @@
     "COST: a ghost lying on the floor for two minutes has that much less origami time, and they need 3-4 folds to clear a target of 8",
     "SAFETY LINE for the role cards: bodies lie against a wall, never in a doorway and never on stairs. This matters most during Sabotage, when the lights are dim",
     "Keep 'no kills in the first 60 seconds' so the round starts clean",
-    "Budget 2-3 meetings per round \u2014 each is a 3-minute hard stop that pauses the clock"
+    "Budget 2-3 meetings per round \u2014 each is a 3-minute hard stop that pauses the clock",
+    "Every meeting ejects at least one player \u2014 there is no skip corner and no 'nobody goes'. A tie ejects everyone tied, so a split room can empty three students into the dead room at once"
    ]
   },
   {

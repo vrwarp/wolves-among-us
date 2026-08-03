@@ -68,7 +68,8 @@ Cards are worth 11 (1/2/3-point tasks); the target is announced, never printed
 eyes-closed reveal, every round — kill by spoon tap and reload by walking
 through a doorway. Bodies stay until found; meetings happen one way: find a
 body, walk to the lobby, yell EMERGEN-C — the app gathers the room, then runs
-the 3:00 and its stages itself. Ejections never tick the death board (the
+the 3:00 and its stages itself. Every meeting ejects somebody — there is no
+skip, and a tie ejects everyone tied. Ejections never tick the death board (the
 crewmate is just dead); catching an imposter pays the crew +1:00. Sabotage
 fires anonymously from a hallway kiosk (a 2-second hold; a tap on any
 counselor still works): the TV goes red and names the drawn props — all back

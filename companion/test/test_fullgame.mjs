@@ -133,13 +133,24 @@ section("round 1 — by the book");
   await beat("CC skips the last of the vote and calls it", CC, p=>act(p,"callVote"),
     s=>s.banner==="meeting" && s.meet.mode==="run" && s.meet.remain===0);
   const ccBtns = await btnText(CC);
-  check("only now is CC offered the three ways a meeting can end",
-    ["Crewmate ejected","IMPOSTER caught","Tie"].every(e=>ccBtns.some(t=>t.startsWith(e))),
+  check("only now is CC offered the ejections and the close",
+    ["Crewmate ejected","IMPOSTER caught","Close the meeting"].every(e=>ccBtns.some(t=>t.startsWith(e))),
+    ccBtns.join(" | "));
+  check("…and nothing on the desk offers a way out with nobody ejected",
+    !ccBtns.some(t=>/^Tie|nobody ejected$/i.test(t)) &&
+    ccBtns.some(t=>/Close the meeting — nobody ejected yet/.test(t)),
     ccBtns.join(" | "));
   // The ejected crewmate dies in the fiction, but the board does not move —
   // night one taught the room to stop nominating when a wrong guess cost a tick.
+  // The vote must send somebody out, so this is a name, not an outcome the room
+  // could talk itself out of.
   await beat("the vote ejects a crewmate — reveal on the spot, no tick", CC, p=>act(p,"ejectCrew"),
-    s=>s.deaths===2 && s.banner==="none");
+    s=>s.deaths===2 && s.banner==="meeting" && s.meet.ejCrew===1);
+  // The close reads the tally off the desk's own state, so the name has to be
+  // back from the backend before the desk can close on it.
+  await until(CC,"window.__state().meet.ejCrew===1");
+  await beat("…and the desk closes the meeting on that one name", CC, p=>act(p,"closeMeeting"),
+    s=>s.deaths===2 && s.banner==="none" && s.meet.mode==="idle");
 
   await beat("the GM resumes the clock", GM, p=>act(p,"start"), s=>s.timer.mode==="run");
   await beat("the second sabotage — the Foreman gets tapped", FM, p=>act(p,"sab"),
@@ -289,7 +300,7 @@ section("round 2 — reset and replay");
     s=>s.banner==="meeting" && s.meet.sab===true && s.phase.mode==="pause" &&
        eq(s.sabItems, scramble.sabItems) && s.sabotagesUsed===scramble.sabotagesUsed);
   const heldAt = (await st(TV)).phase.remain;
-  await beat("CC backs out — never mind, back to the round", CC, p=>act(p,"endMeeting"),
+  await beat("CC backs out — never mind, back to the round", CC, p=>act(p,"cancelMeeting"),
     s=>s.banner==="sabotage" && s.phase.mode==="run" &&
        Math.abs((s.phase.endsAt-Date.now())-heldAt) < 3000);
   await beat("…and the crew get it in the end", CC, p=>act(p,"sabOk"),
