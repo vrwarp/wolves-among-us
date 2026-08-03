@@ -33,7 +33,10 @@ export const DEF = {round:1,targetPts:5,deaths:0,threshold:6,impostersCaught:0,s
   // sabotage's 2:00 and nothing else now.
   // `sab:false` is seeded from the start (bcf9882): the fresh document and
   // MIDLE in index.html share one shape, so undo comparisons no longer drift.
-  meet:{mode:"idle",endsAt:0,remain:0,clock:false,sab:false},
+  // `ejCrew`/`ejImp` are the vote's ejection tally, seeded for the same reason —
+  // a merge write cannot delete a field, so every key a meeting writes has to
+  // exist in the fresh document or an undo can never take it back out.
+  meet:{mode:"idle",endsAt:0,remain:0,clock:false,sab:false,ejCrew:0,ejImp:0},
   timer:{mode:"idle",endsAt:0,remain:480000,dur:480000},
   phase:{mode:"idle",endsAt:0,remain:0,label:""}};
 // The fields an undo snapshot restores — everything except the history itself.
@@ -185,6 +188,30 @@ export const startMeeting = async (caller, desk=caller, tries=3) => {
     }
   }
   return (await st(desk)).meet.mode==="run";
+};
+// Out of a meeting that started, verified. There is no "nobody ejected" door any
+// more: the vote names at least one person, the desk records each of them, and
+// only then can it close. `crew`/`imp` say how many of each the vote sent out —
+// a tie is simply more than one.
+export const finishMeeting = async (desk, {crew=1, imp=0}={}, tries=3) => {
+  // Each name has to be back from the backend before the next tap: the close
+  // reads the tally off this device's own state, and a close that overtakes the
+  // ejection it is closing on is refused — correctly, and confusingly.
+  const tally = async () => {const m=(await st(desk)).meet||{}; return (m.ejCrew|0)+(m.ejImp|0)};
+  let n = await tally();
+  for(const [k,times] of [["ejectCrew",crew],["ejectImp",imp]])
+    for(let i=0;i<times;i++){
+      await act(desk,k); n++;
+      for(let w=0; w<30 && await tally()<n; w++) await settle(150);
+    }
+  for(let i=0;i<tries;i++){
+    await act(desk,"closeMeeting");
+    for(let w=0; w<30; w++){
+      if((await st(desk)).meet.mode==="idle") return true;
+      await settle(150);
+    }
+  }
+  return (await st(desk)).meet.mode==="idle";
 };
 // New round, verified. Snapshots re-render the view constantly, so a call can
 // land mid-repaint and be dropped — check the round actually moved and retry.

@@ -15,6 +15,9 @@ section("1 · every single action can be taken back");
   const A = await mk("/c/cc","x-undo"), W = await mk("/monitor","x-undo");
   // setup → the action → what it must have changed
   const set = async (...steps) => {for(const s of steps){await act(A,...s); await settle(220)}};
+  // Whatever meeting is open, from wherever: a gather is called off, and one
+  // that started is ejected-from and closed, because nothing else closes it.
+  const CLEAR = [["cancelMeeting"],["ejectCrew"],["closeMeeting"]];
   const cases = [
     ["Start clock",        ()=>set(["resetT"]),                     ["start"],            s=>s.timer.mode==="run"],
     ["Pause clock",        ()=>set(["resetT"],["start"]),           ["pause"],            s=>s.timer.mode==="pause"],
@@ -29,13 +32,17 @@ section("1 · every single action can be taken back");
     // phaseStop left to take back. What replaces them is the road into a
     // meeting — call it, start the 3:00, run the clock out — and each of those
     // three writes has to be undoable on its own.
-    ["Call emergency meeting", ()=>set(["endMeeting"],["resetT"],["start"]), ["doCallMeeting"], s=>s.meet.mode==="gather"],
-    ["Start the 3:00",     ()=>set(["endMeeting"],["doCallMeeting"]),  ["meeting"],       s=>s.meet.mode==="run"],
-    ["Skip to the vote",   ()=>set(["endMeeting"],["doCallMeeting"],["meeting"]), ["callVote"], s=>s.meet.remain===0],
-    ["End meeting",        ()=>set(["endMeeting"],["doCallMeeting"],["meeting"]), ["endMeeting"], s=>s.banner==="none"],
-    ["Crewmate ejected",   ()=>set(["endMeeting"],["doCallMeeting"],["meeting"]), ["ejectCrew"],  s=>s.banner==="none"],
-    ["Imposter caught",    ()=>set(["endMeeting"],["doCallMeeting"],["meeting"]), ["ejectImp"],   s=>s.banner==="none"],
-    ["Sabotage",           ()=>set(["endMeeting"]),                 ["sab"],              s=>s.sabItems.length===5],
+    ["Call emergency meeting", ()=>set(...CLEAR,["resetT"],["start"]), ["doCallMeeting"], s=>s.meet.mode==="gather"],
+    ["Start the 3:00",     ()=>set(...CLEAR,["doCallMeeting"]),  ["meeting"],       s=>s.meet.mode==="run"],
+    ["Skip to the vote",   ()=>set(...CLEAR,["doCallMeeting"],["meeting"]), ["callVote"], s=>s.meet.remain===0],
+    ["Meeting called off", ()=>set(...CLEAR,["doCallMeeting"]), ["cancelMeeting"], s=>s.banner==="none"],
+    // An ejection no longer ends anything — it is recorded on the meeting, one
+    // tap per name, because a tie sends more than one person out. Closing is
+    // its own write, and it is the one that hands the round back.
+    ["Crewmate ejected",   ()=>set(...CLEAR,["doCallMeeting"],["meeting"],["callVote"]), ["ejectCrew"], s=>s.meet.ejCrew===1&&s.banner==="meeting"],
+    ["Imposter caught",    ()=>set(...CLEAR,["doCallMeeting"],["meeting"],["callVote"]), ["ejectImp"],  s=>s.meet.ejImp===1&&s.banner==="meeting"],
+    ["Close the meeting",  ()=>set(...CLEAR,["doCallMeeting"],["meeting"],["callVote"],["ejectCrew"]), ["closeMeeting"], s=>s.banner==="none"],
+    ["Sabotage",           ()=>set(...CLEAR),                    ["sab"],              s=>s.sabItems.length===5],
     ["Sabotage success",   ()=>set(["sab"]),                        ["sabOk"],            s=>s.sabItems.length===0],
     ["Sabotage again",     ()=>set(["sabOk"]),                      ["sab"],              s=>s.sabItems.length===5],
     ["Sabotage failed",    ()=>set(["sabOk"],["sab"]),              ["sabFail"],          s=>s.sabItems.length===0],
@@ -70,14 +77,16 @@ section("1 · every single action can be taken back");
 
   // Buttons with no guard write an undo entry even when nothing changes, which
   // silently costs a slot in the 10-deep window.
-  await act(A,"endMeeting"); await settle(400);        // no meeting is open
+  await act(A,"cancelMeeting"); await settle(400);     // no meeting is open
   const h0 = (await st(A)).hist.length;
   const s0 = await st(A);
-  await act(A,"endMeeting"); await settle(500);
+  await act(A,"cancelMeeting"); await settle(500);
   await act(A,"callVote"); await settle(500);          // nor is there a vote to call
+  await act(A,"closeMeeting"); await settle(500);      // nor a meeting to close
+  await act(A,"ejectCrew"); await settle(500);         // nor anyone to eject from it
   const s1 = await st(A), h1 = s1.hist.length;
   check("harmless taps change nothing", eq(pick(s0), pick(s1)), diff(s0,s1));
-  if(h1 > h0) note(`taps that do nothing (End meeting with none running) still use up ${h1-h0} undo slots — the window is only 10 deep, so undo the real mistake first`);
+  if(h1 > h0) note(`taps that do nothing (closing a meeting that is not open) still use up ${h1-h0} undo slots — the window is only 10 deep, so undo the real mistake first`);
 }
 
 /* ================================================================= */
@@ -120,10 +129,19 @@ section("2b · undo puts the meeting clock back too");
     mid.meet.mode==="run" && mid.meet.clock===true && stageFor(meetLeft(mid))?.label==="REPORT",
     JSON.stringify(mid.meet));
 
+  // Two writes now, not one: the vote names somebody, and the desk closes.
   await act(A,"ejectCrew"); await settle(700);
-  check("the ejection cleared the meeting clock", (await st(A)).meet.mode==="idle",
+  check("the ejection is recorded on the meeting, which stays up until it is closed",
+    (await st(A)).meet.ejCrew===1 && (await st(A)).meet.mode==="run",
+    JSON.stringify((await st(A)).meet));
+  await act(A,"closeMeeting"); await settle(700);
+  check("closing it clears the meeting clock", (await st(A)).meet.mode==="idle",
     JSON.stringify((await st(A)).meet));
 
+  await act(A,"undo"); await settle(800);
+  check("undo of the close puts the recorded ejection back",
+    (await st(A)).meet.mode==="run" && (await st(A)).meet.ejCrew===1,
+    JSON.stringify((await st(A)).meet));
   await act(A,"undo"); await settle(800);
   const back = await st(A);
   check("undo brings the meeting back, clock and all", eq(pick(mid), pick(back)), diff(mid,back));
@@ -264,15 +282,16 @@ section("5 · sequences nobody planned");
     `items=${JSON.stringify(s.sabItems)} phase=${s.phase.mode} sab=${s.meet.sab}`);
   check("…and that sabotage still counts once against the two per round",
     s.sabotagesUsed===1, "used="+s.sabotagesUsed);
+  await act(A,"ejectCrew"); await settle(400);     // the vote sent somebody out
   const inMeeting = await st(A);
-  await act(A,"endMeeting"); await settle(600);
-  check("ending it starts the scramble again with the time it had left",
+  await act(A,"closeMeeting"); await settle(600);
+  check("closing it starts the scramble again with the time it had left",
     (await st(A)).banner==="sabotage" && (await st(A)).phase.mode==="run",
     JSON.stringify((await st(A)).phase));
   await act(A,"undo"); await settle(700);
-  check("undoing End meeting puts the meeting back exactly as it was",
+  check("undoing Close the meeting puts the meeting back exactly as it was",
     eq(pick(inMeeting), pick(await st(A))), diff(inMeeting, await st(A)));
-  await act(A,"endMeeting"); await settle(500);
+  await act(A,"closeMeeting"); await settle(500);
   await act(A,"sabOk"); await settle(500);
 
   // SUCCESS / FAILED with no sabotage running must be complete no-ops
@@ -286,14 +305,17 @@ section("5 · sequences nobody planned");
   check("…and neither one burns an undo slot", s.hist.length===before.hist.length,
     `${before.hist.length} → ${s.hist.length}`);
 
-  // ejection with no meeting open — and the post-playtest board rules: a crew
-  // ejection never ticks the death board any more, meeting or not
+  // A crew ejection is a line in a meeting's tally and nothing else, so with no
+  // meeting open there is nothing for it to be: it must not touch the board, and
+  // it must not spend an undo slot pretending it did something.
   const b2 = await st(A);
   await act(A,"ejectCrew"); await settle(600);
-  check("a crew ejection with no meeting open leaves the death board alone",
-    (await st(A)).deaths===b2.deaths, `deaths ${b2.deaths} → ${(await st(A)).deaths}`);
-  await act(A,"undo"); await settle(600);
-  check("…and undoes cleanly", eq(pick(b2), pick(await st(A))), diff(b2, await st(A)));
+  const s2 = await st(A);
+  check("a crew ejection with no meeting open does nothing at all",
+    eq(pick(b2), pick(s2)), diff(b2, s2));
+  check("…including the death board, and including the undo window",
+    s2.deaths===b2.deaths && s2.hist.length===b2.hist.length,
+    `deaths ${b2.deaths} → ${s2.deaths}, hist ${b2.hist.length} → ${s2.hist.length}`);
   // …while a stray imposter-caught tap still counts the catch and buys the minute
   const b3 = await st(A);
   await act(A,"ejectImp"); await settle(600);
@@ -416,7 +438,7 @@ section("7 · soak — four phones, one minute, random taps");
     ["start"],["pause"],["adj",30000],["adj",-30000],["resetT"],
     // doCallMeeting rather than callMeeting: the soak must not leave a
     // confirmation dialog standing in front of the next 400 taps.
-    ["doCallMeeting"],["meeting"],["callVote"],["endMeeting"],
+    ["doCallMeeting"],["meeting"],["callVote"],["cancelMeeting"],["closeMeeting"],
     ["ejectCrew"],["ejectImp"],["sab"],["sab"],["sab"],["sabOk"],["sabFail"],["undo"],
   ];
   let fired = 0;

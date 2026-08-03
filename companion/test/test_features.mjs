@@ -5,7 +5,7 @@
 import {EMU, DEF, FIELDS, APP, section, check, note, eq, pick, diff, gid, settle,
         boot, mk, live, st, snd, sndReset, clearSounds, conn, act, until,
         softUntil, html, btnText, tap, confirmNewRound, confirmPause, modal,
-        callMeeting,
+        callMeeting, finishMeeting,
         CONFIRM_YES, allAgree, raw, pageErrs, finish} from "./harness.mjs";
 
 await boot();
@@ -96,7 +96,7 @@ section("3 · sabotage, meeting and pause cues");
   await settle(700);
   check("starting the 3:00 does not chime the room a second time",
     !(await snd(TV)).log.includes("meeting"), (await snd(TV)).log.join(",")||"(silent)");
-  await act(CC,"endMeeting"); await allAgree(all);
+  await finishMeeting(CC); await allAgree(all);
 
   await clearSounds(all);
   await pauseNow(FM);
@@ -134,8 +134,8 @@ section("4 · sound restraint");
   await act(CC,"mute");
   check("mute reports itself muted", (await snd(CC)).muted===true);
   await sndReset(CC);
-  await act(CC,"doCallMeeting"); await settle(700);
-  await act(CC,"endMeeting");    await settle(700);
+  await act(CC,"doCallMeeting");  await settle(700);
+  await act(CC,"cancelMeeting"); await settle(700);
   // sabotage is refused during a meeting, so the meeting has to be out of the
   // way for this to be a real cue that a muted phone is declining to play
   await act(CC,"sab");           await settle(700);
@@ -702,7 +702,7 @@ section("9c · the sabotage kiosk");
   s = await st(TV);
   check("a hold during a meeting is inert",
     s.banner==="meeting" && s.sabotagesUsed===1, `banner=${s.banner} used=${s.sabotagesUsed}`);
-  await act(CC,"endMeeting"); await until(TV,"window.__state().banner==='none'");
+  await act(CC,"cancelMeeting"); await until(TV,"window.__state().banner==='none'");
 
   /* --- and once the allowance is spent, the kiosk is spent with it --- */
   await act(CC,"sab"); await until(TV,"window.__state().sabotagesUsed===2");

@@ -6,7 +6,7 @@
 import {EMU, DEF, FIELDS, BASE, CFG, APP, EMU_HOST, EMU_PORT, section, check, note,
         eq, pick, diff, gid, settle, boot, newCtx, mk, live, st, conn, act,
         until, softUntil, html, btnText, tap, confirmNewRound, allAgree, raw,
-        startMeeting, stageFor, windMeeting,
+        startMeeting, finishMeeting, stageFor, windMeeting,
         modal, CONFIRM_YES, pageErrs, finish} from "./harness.mjs";
 
 await boot();
@@ -41,6 +41,10 @@ section("1 · refresh in every game state");
     ["gathering for a meeting",        async A => {await act(A,"start"); await act(A,"doCallMeeting")}],
     ["meeting running",                async A => {await act(A,"start"); await startMeeting(A)}],
     ["meeting run out, vote not called", async A => {await startMeeting(A); await act(A,"callVote")}],
+    // Half-recorded is a real state now: a tie, one name read out, the desk
+    // reaching for the second when the phone reloads under its thumb.
+    ["a tie, half of it recorded",     async A => {await startMeeting(A); await act(A,"callVote");
+                                                   await act(A,"ejectCrew"); await act(A,"ejectImp")}],
     ["a sabotage held by a meeting",   async A => {await act(A,"start"); await act(A,"sab");
                                                    await settle(1200); await startMeeting(A)}],
     ["sabotage running",               async A => {await act(A,"start"); await act(A,"sab")}],
@@ -129,10 +133,10 @@ section("1b · the meeting, and the stage it is in, survive a refresh");
     await TV.evaluate("document.querySelector('[data-stlabel]')?.textContent||'(none)'"));
 
   // and the thing that actually matters at 8pm: it still ends properly
-  await act(A,"endMeeting");
+  await finishMeeting(A);
   await until(A,"window.__state().meet.mode==='idle'");
   await settle(500);
-  check("ending it after a refresh still hands the round clock back",
+  check("closing it after a refresh still hands the round clock back",
     (await st(A)).timer.mode==="run", (await st(A)).timer.mode);
 }
 
@@ -176,7 +180,7 @@ section("1b2 · a sabotage held by a meeting survives a refresh");
     after.meet.sab===true && after.phase.mode==="pause" && eq(after.sabItems, held.sabItems),
     JSON.stringify(after.meet));
   const stopped = after.phase.remain;
-  await act(A,"ejectImp"); await until(TV,"window.__state().meet.mode==='idle'");
+  await finishMeeting(A,{imp:1}); await until(TV,"window.__state().meet.mode==='idle'");
   await settle(500);
   after = await st(A);
   check("…and the scramble comes back at the time it stopped, after all that",
